@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node scripts/build-prod.mjs",
-    "build:verify": "node scripts/build-prod.mjs && powershell -File scripts/deploy-verify-local.ps1 -BundleMode"
+    "build": "node -e \"console.log('Static deploy — source files served from repo root. Run scripts/build-prod.mjs locally for cPanel bundle.')\"",
+    "build:verify": "npm run build"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"
