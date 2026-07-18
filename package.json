@@ -1,0 +1,12 @@
+{
+  "name": "realestate-erp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-prod.mjs",
+    "build:verify": "node scripts/build-prod.mjs && powershell -File scripts/deploy-verify-local.ps1 -BundleMode"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

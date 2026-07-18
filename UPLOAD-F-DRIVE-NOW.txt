@@ -1,0 +1,58 @@
+Triniti ERP - F: drive unbundled deploy (URGENT fix)
+====================================================
+
+Source folder: F:\realestate-erp\
+Destination:   cPanel File Manager -> public_html/
+
+WHY APP IS BROKEN
+-----------------
+svc_payroll.js exists on F: but was NOT uploaded to the server.
+page_workers.js and page_site_incharge.js import it -> 404 -> app never starts.
+
+EASIEST - ONE FOLDER UPLOAD
+---------------------------
+1. Run: powershell -File scripts/stage-cpanel-upload.ps1
+2. cPanel -> public_html -> Upload ALL files from:
+   F:\realestate-erp\cpanel-upload-ready\
+3. Overwrite when asked
+
+STEP 1 - CRITICAL ONLY (if uploading one file first)
+----------------------------------------------------
+  F:\realestate-erp\svc_payroll.js  ->  public_html/svc_payroll.js
+  AND upload app.js (lazy load fix so dashboard loads even before payroll file)
+
+STEP 2 - RECOMMENDED (same session)
+-----------------------------------
+  page_workers.js
+  page_site_incharge.js
+  svc_siteIncharge.js
+  util_siteIncharge.js
+  cmp_siteInchargeHub.js
+  .htaccess          (enable Show Hidden Files in cPanel)
+  index.html
+  app.js
+  styles.css
+  firebase.js
+  version.js
+
+STEP 3 - AFTER UPLOAD
+---------------------
+1. LiteSpeed Cache -> Purge All
+2. Browser Ctrl+Shift+R
+3. F12 Network: svc_payroll.js must be 200 (not 404)
+4. Console: [ERP] build 20260526.3 - Firebase RTDB (erptriniti)
+
+OPTIONAL FTP (set credentials first)
+------------------------------------
+  $env:FTP_HOST = "sellxify.com"
+  $env:FTP_USER = "your-cpanel-user"
+  $env:FTP_PASS = "your-password"
+  powershell -File scripts/upload-unbundled-f.ps1
+
+Critical only:
+  powershell -File scripts/upload-unbundled-f.ps1 -CriticalOnly
+
+IGNORE (not ERP)
+----------------
+  share-modal.js  - hosting injected script, disable in cPanel addons
+  favicon.ico 404 - harmless

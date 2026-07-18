@@ -1,0 +1,71 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "companyProfile": {
+      ".read": "auth != null",
+      "main": {
+        ".write": "auth != null && root.child('roles').child(auth.uid).child('role').val() == 'owner'"
+      }
+    },
+    "accounts": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && root.child('roles').child(auth.uid).child('role').val() == 'owner'"
+      }
+    },
+    "vouchers": {
+      ".read": "auth != null",
+      "$id": { ".write": false }
+    },
+    "counters": {
+      ".read": "auth != null",
+      ".write": false
+    },
+    "tenants": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && root.child('roles').child(auth.uid).child('role').val() == 'owner'"
+      }
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('roles').child(auth.uid).child('role').val() == 'owner')",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "roles": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('roles').child(auth.uid).child('role').val() == 'owner'"
+      }
+    },
+    "reportsCache": {
+      ".read": "auth != null",
+      "$tenantId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    },
+    "tenantData": {
+      "$tenantId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "customers": {
+          ".indexOn": ["phone", "status", "projectId"]
+        },
+        "emiCollections": {
+          "$id": { ".write": false }
+        }
+      }
+    },
+    "syncConflicts": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "offlineQueue": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}

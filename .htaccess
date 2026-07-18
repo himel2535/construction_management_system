@@ -1,0 +1,43 @@
+# Real Estate ERP — cPanel / LiteSpeed / Apache
+# Upload these files to public_html ROOT (not inside a subfolder)
+
+DirectoryIndex index.html index.htm
+Options -Indexes +FollowSymLinks
+
+AddType application/javascript .js
+AddType application/javascript .mjs
+AddDefaultCharset UTF-8
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Block legacy assets/ tree so old cached JS cannot be served
+  RewriteRule ^assets/ - [F,L]
+
+  # Serve existing files (app.bundle.js, styles.css, etc.)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Missing static assets: real 404 (not index.html — avoids MIME type errors on .js)
+  RewriteCond %{REQUEST_URI} \.(js|mjs|css|map|json|woff2?|png|jpe?g|gif|webp|svg|ico)$ [NC]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^ - [R=404,L]
+
+  # Everything else -> SPA shell (hash routes handled in browser)
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  # Shell: always re-fetch so new ?v= build IDs apply
+  <FilesMatch "index\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+  </FilesMatch>
+
+  # App assets: revalidate every visit (safe after cPanel upload)
+  <FilesMatch "\.(js|css|mjs)$">
+    Header set Cache-Control "public, max-age=0, must-revalidate"
+  </FilesMatch>
+</IfModule>

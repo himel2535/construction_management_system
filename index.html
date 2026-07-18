@@ -1,0 +1,77 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Construction ERP — Triniti" />
+    <meta name="erp-build" content="20260526.3" />
+    <title>Construction ERP — Triniti</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260526.3" />
+    <script>
+      if (!location.hash || location.hash === "#") {
+        location.replace(location.pathname + location.search + "#/dashboard");
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <p class="loading-msg">Connecting to Firebase...</p>
+    </div>
+    <noscript>
+      <p style="padding:2rem;text-align:center">Please enable JavaScript.</p>
+    </noscript>
+    <script type="module" src="app.js?v=20260526.3"></script>
+    <script>
+      (function () {
+        var bootFailed = false;
+        function showBootFailure(message) {
+          if (bootFailed) return;
+          bootFailed = true;
+          var app = document.getElementById("app");
+          if (!app) return;
+          app.innerHTML =
+            '<div style="max-width:32rem;margin:3rem auto;padding:1.5rem;border:1px solid #fecaca;background:#fef2f2;border-radius:8px;font-family:system-ui,sans-serif">' +
+            '<h2 style="margin:0 0 0.5rem;color:#991b1b">App failed to load</h2>' +
+            '<p style="margin:0 0 0.75rem">' +
+            (message || "JavaScript module failed to load.") +
+            "</p>" +
+            '<p style="margin:0;font-size:0.875rem;color:#64748b">Open DevTools → Network: confirm <strong>app.bundle.js</strong> and <strong>firebase.js</strong> return 200. Then hard-refresh (Ctrl+Shift+R).</p>' +
+            "</div>";
+        }
+        window.addEventListener("error", function (e) {
+          if (e.filename && /\.js(\?|$)/.test(e.filename)) {
+            var msg = e.message || "JavaScript error during startup.";
+            if (e.filename) msg += " — " + e.filename;
+            showBootFailure(msg);
+          }
+        });
+        window.addEventListener("unhandledrejection", function (e) {
+          var msg = e.reason && (e.reason.message || String(e.reason));
+          if (!msg) return;
+          if (/MIME type|module script/i.test(msg)) {
+            showBootFailure(
+              "A JavaScript file is missing on the server (server returned HTML instead of JS). " +
+                "Use bundle deploy only: upload app.bundle.js and firebase.js from dist/deploy/, and delete app.js and page_*.js from public_html."
+            );
+            return;
+          }
+          if (/module|import|fetch/i.test(msg)) {
+            showBootFailure(msg);
+          }
+        });
+        setTimeout(function () {
+          if (window.__ERP_BOOT_COMPLETE__) return;
+          var app = document.getElementById("app");
+          if (app && app.querySelector(".loading-msg")) {
+            showBootFailure(
+              "Startup timed out. Check network and uploaded JS files (app.bundle.js and firebase.js on production)."
+            );
+          }
+        }, 30000);
+      })();
+    </script>
+  </body>
+</html>
