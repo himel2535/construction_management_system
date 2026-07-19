@@ -24,6 +24,10 @@ export function formatCompactBDT(amount) {
   return formatBDT(v);
 }
 
+export function formatCompactBDTSign(amount) {
+  return formatCompactBDT(amount).replace(/^BDT\s?/, "৳ ");
+}
+
 export function resolveProjectCategory(project) {
   const name = String(project?.name || "").toLowerCase();
   if (/residential|villa|court|block|apartment|flat|home/.test(name)) return "Residential";
@@ -175,7 +179,7 @@ export function buildProjectPerformanceRows(projects = [], milestonesByProject =
       };
     })
     .sort((a, b) => b.budget - a.budget)
-    .slice(0, 8);
+    .slice(0, 3);
 }
 
 export function buildAttentionItems(state, projects = []) {
@@ -260,7 +264,7 @@ export function buildAttentionItems(state, projects = []) {
     });
   }
 
-  return items.slice(0, 6);
+  return items.slice(0, 4);
 }
 
 const APPROVAL_LABELS = {
@@ -293,7 +297,7 @@ export function buildApprovalGroups(approvalQueue = []) {
     return { label: cat.label, count, icon: cat.icon };
   })
     .filter((g) => g.count > 0)
-    .slice(0, 5);
+    .slice(0, 3);
 }
 
 export function buildSiteActivity(state, projects = [], today = todayISO()) {
@@ -354,7 +358,7 @@ export function buildSiteActivity(state, projects = [], today = todayISO()) {
       safetyIssues,
       workDelays,
     },
-    rows: rows.slice(0, 8),
+    rows: rows.slice(0, 2),
   };
 }
 
@@ -468,7 +472,7 @@ export function buildProcurementAlerts(state = {}) {
     });
   }
 
-  return alerts.slice(0, 6);
+  return alerts.slice(0, 3);
 }
 
 export function buildBillingSnapshot(clientInvoices = [], today = todayISO()) {
@@ -505,7 +509,7 @@ export function buildBillingSnapshot(clientInvoices = [], today = todayISO()) {
       dueDateLabel: formatDashboardDeadline(b.dueDate),
     }))
     .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)))
-    .slice(0, 5);
+    .slice(0, 2);
 
   return { receivable, current, due, overdue, upcoming };
 }
@@ -555,7 +559,7 @@ export function buildUpcomingMilestones(milestonesByProject = {}, projects = [],
     }
   }
 
-  return items.sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, 5);
+  return items.sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, 3);
 }
 
 export function formatChartDayLabel(isoDate) {

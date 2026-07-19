@@ -1,5 +1,6 @@
 import { progressBar } from "./cmp_ui.js";
-import { formatCompactBDT, formatDashboardDeadline } from "./util_dashboard.js";
+import { formatCompactBDT, formatCompactBDTSign, formatDashboardDeadline } from "./util_dashboard.js";
+import { kpiIcon, attentionIcon, approvalIcon, procIcon, milestoneIcon } from "./cmp_dashboardIcons.js";
 
 function escapeHtml(s) {
   return String(s)
@@ -21,19 +22,16 @@ function sparklineSvg(values = [], tone = "green") {
       return `${x},${y}`;
     })
     .join(" ");
-  const stroke = tone === "red" ? "#ef4444" : tone === "blue" ? "#3b82f6" : "#10b981";
-  return `<svg class="dash-sparkline dash-sparkline--${tone}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${coords}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round"/></svg>`;
-}
-
-function kpiIconSvg(type) {
-  const icons = {
-    projects: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-3"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/></svg>`,
-    contract: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9.5 9.5c0-1.1 1.12-2 2.5-2s2.5.9 2.5 2-1.12 2-2.5 2-1.38 0-2.5.9-2.5 2s1.12 2 2.5 2 2.5-.9 2.5-2"/></svg>`,
-    receivable: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v1"/><path d="M3 7h18v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/><path d="M16 11a4 4 0 0 1-8 0"/></svg>`,
-    collection: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 2 5-6"/></svg>`,
-    expense: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
+  const strokes = {
+    yellow: "#CA8A04",
+    green: "#047857",
+    red: "#B91C1C",
+    blue: "#2563eb",
+    purple: "#7c3aed",
+    orange: "#d97706",
   };
-  return icons[type] || icons.projects;
+  const stroke = strokes[tone] || strokes.green;
+  return `<svg class="dash-sparkline dash-sparkline--${tone}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${coords}" fill="none" stroke="${stroke}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 function kpiProgressInline(pct) {
@@ -60,7 +58,7 @@ export function renderKpiRow(host, kpis) {
       icon: "projects",
       iconTone: "blue",
       footLeft: `On Track: ${kpis.onTrack} · Delayed: ${kpis.delayed}`,
-      footRight: sparklineSvg([3, 5, 4, 6, 7, kpis.onTrack, kpis.activeCount], "green"),
+      footRight: sparklineSvg([3, 5, 4, 6, 7, kpis.onTrack, kpis.activeCount], "yellow"),
     },
     {
       label: "Total Contract Value",
@@ -68,7 +66,7 @@ export function renderKpiRow(host, kpis) {
       icon: "contract",
       iconTone: "green",
       footLeft: "All Active Projects",
-      footRight: sparklineSvg([5, 6, 7, 7, 8, 8, 9], "green"),
+      footRight: sparklineSvg([5, 6, 7, 7, 8, 8, 9], "red"),
     },
     {
       label: "Total Receivable",
@@ -79,7 +77,7 @@ export function renderKpiRow(host, kpis) {
         kpis.overdue > 0
           ? `Overdue: <span class="is-danger">${escapeHtml(formatCompactBDT(kpis.overdue))}</span>`
           : "No overdue bills",
-      footRight: sparklineSvg([8, 7, 6, 7, 6, 5, 4], kpis.overdue > 0 ? "red" : "green"),
+      footRight: sparklineSvg([8, 7, 6, 7, 6, 5, 4], "green"),
     },
     {
       label: "This Month Collection",
@@ -104,7 +102,7 @@ export function renderKpiRow(host, kpis) {
       (c) => `
     <div class="dash-kpi-card card">
       <div class="dash-kpi-head">
-        <div class="dash-kpi-icon dash-kpi-icon--${c.iconTone}">${kpiIconSvg(c.icon)}</div>
+        <div class="dash-kpi-icon dash-kpi-icon--${c.iconTone}">${kpiIcon(c.icon)}</div>
         <div class="dash-kpi-main">
           <span class="dash-kpi-label">${escapeHtml(c.label)}</span>
           <div class="dash-kpi-value">${escapeHtml(c.value)}</div>
@@ -141,8 +139,8 @@ export function renderProjectPerformanceTable(host, rows = []) {
   const body = rows.length
     ? `<div class="table-wrap"><table class="dash-table dash-perf-table">
       <thead><tr>
-        <th>Project</th><th>Progress</th><th class="text-right">Budget</th><th class="text-right">Spent</th>
-        <th class="text-right">Remaining</th><th>Deadline</th><th>Health</th>
+        <th>Project</th><th>Progress</th><th>Budget</th><th>Spent</th>
+        <th>Remaining</th><th>Deadline</th><th>Health</th>
       </tr></thead>
       <tbody>${rows
         .map(
@@ -155,9 +153,9 @@ export function renderProjectPerformanceTable(host, rows = []) {
             </div>
           </td>
           <td class="dash-perf-progress"><strong class="dash-perf-pct">${r.progress}%</strong>${progressBar(r.progress, perfProgressClass(r.health))}</td>
-          <td class="text-right">${escapeHtml(formatCompactBDT(r.budget))}</td>
-          <td class="text-right">${escapeHtml(formatCompactBDT(r.spent))}</td>
-          <td class="text-right">${escapeHtml(formatCompactBDT(r.remaining))}</td>
+          <td>${escapeHtml(formatCompactBDT(r.budget))}</td>
+          <td>${escapeHtml(formatCompactBDT(r.spent))}</td>
+          <td>${escapeHtml(formatCompactBDT(r.remaining))}</td>
           <td>${escapeHtml(r.deadlineLabel || r.deadline)}</td>
           <td>${dashHealthPill(r.health)}</td>
         </tr>`
@@ -173,25 +171,13 @@ export function renderProjectPerformanceTable(host, rows = []) {
   </section>`;
 }
 
-function attentionIconSvg(type) {
-  const icons = {
-    warning: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>`,
-    payment: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9.5 9.5c0-1.1 1.12-2 2.5-2s2.5.9 2.5 2-1.12 2-2.5 2-1.38 0-2.5.9-2.5 2s1.12 2 2.5 2 2.5-.9 2.5-2"/></svg>`,
-    approval: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7v6c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V7l-8-4z"/><path d="m9 12 2 2 4-4"/></svg>`,
-    materials: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>`,
-    maintenance: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
-    delivery: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>`,
-  };
-  return icons[type] || icons.warning;
-}
-
 export function renderAttentionPanel(host, items = []) {
   if (!host) return;
   const body = items.length
     ? `<ul class="dash-attention-list">${items
         .map(
           (it) => `<li class="dash-attention-item">
-          <div class="dash-attention-icon dash-attention-icon--${escapeHtml(it.icon || "warning")}">${attentionIconSvg(it.icon)}</div>
+          <div class="dash-attention-icon dash-attention-icon--${escapeHtml(it.icon || "warning")}">${attentionIcon(it.icon)}</div>
           <span class="dash-attention-title">${escapeHtml(it.title)}</span>
           <a href="${escapeHtml(it.link || "/dashboard")}" class="dash-link dash-attention-action">${escapeHtml(it.action || "View")}</a>
         </li>`
@@ -369,9 +355,9 @@ export function renderBudgetDonut(host, summary) {
       <div class="dash-budget-layout">
         <div class="dash-donut-wrap dash-donut-wrap--budget">
           <svg viewBox="0 0 40 40" class="dash-donut dash-donut--budget">
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="6"/>
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#10b981" stroke-width="6" stroke-dasharray="${s1} ${c}" stroke-dashoffset="0" transform="rotate(-90 20 20)"/>
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#f59e0b" stroke-width="6" stroke-dasharray="${s2} ${c}" stroke-dashoffset="${-s1}" transform="rotate(-90 20 20)"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#d1d5db" stroke-width="6"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#059669" stroke-width="6" stroke-dasharray="${s1} ${c}" stroke-dashoffset="0" transform="rotate(-90 20 20)"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#d97706" stroke-width="6" stroke-dasharray="${s2} ${c}" stroke-dashoffset="${-s1}" transform="rotate(-90 20 20)"/>
             <circle cx="20" cy="20" r="${r}" fill="none" stroke="#d1d5db" stroke-width="6" stroke-dasharray="${s3} ${c}" stroke-dashoffset="${-(s1 + s2)}" transform="rotate(-90 20 20)"/>
           </svg>
           <div class="dash-donut-center dash-donut-center--budget">
@@ -392,17 +378,6 @@ export function renderBudgetDonut(host, summary) {
   </section>`;
 }
 
-function approvalIconSvg(type) {
-  const icons = {
-    requisition: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7v6c0 5 3.5 8.5 8 9 4.5-.5 8-4 8-9V7l-8-4z"/></svg>`,
-    order: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>`,
-    material: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
-    expense: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 14h6"/><path d="M9 18h4"/></svg>`,
-    billing: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,
-  };
-  return icons[type] || icons.requisition;
-}
-
 const APPROVAL_ICON_TONES = {
   requisition: "green",
   order: "blue",
@@ -418,7 +393,7 @@ export function renderPendingApprovals(host, groups = []) {
         .map((g) => {
           const tone = APPROVAL_ICON_TONES[g.icon] || "blue";
           return `<li class="dash-approval-item">
-          <div class="dash-approval-icon dash-approval-icon--${tone}">${approvalIconSvg(g.icon)}</div>
+          <div class="dash-approval-icon dash-approval-icon--${tone}">${approvalIcon(g.icon)}</div>
           <span class="dash-approval-label">${escapeHtml(g.label)}</span>
           <span class="dash-approval-count">${g.count}</span>
           <a href="/approvals" class="dash-approval-btn">Review</a>
@@ -447,10 +422,10 @@ export function renderSiteActivity(host, data) {
         .map(
           (r) => `<tr>
         <td class="dash-site-name">${escapeHtml(r.site)}</td>
-        <td class="text-center">${r.totalWorkers}</td>
-        <td class="text-center">${r.present}</td>
-        <td class="text-center">${r.absent}</td>
-        <td class="text-center">${dashHealthPill(r.health)}</td>
+        <td>${r.totalWorkers}</td>
+        <td>${r.present}</td>
+        <td>${r.absent}</td>
+        <td>${dashHealthPill(r.health)}</td>
       </tr>`
         )
         .join("")
@@ -469,32 +444,22 @@ export function renderSiteActivity(host, data) {
         ${siteKpiItem("Safety Issues", stats.safetyIssues)}
         ${siteKpiItem("Work Delays", stats.workDelays)}
       </div>
-      <h4 class="dash-site-subtitle">Site-wise Attendance</h4>
+      <div class="dash-site-att-head">
+        <h4 class="dash-site-subtitle">Site-wise Attendance</h4>
+        <a href="/site-incharge" class="dash-link dash-site-view-all">View All →</a>
+      </div>
       <div class="table-wrap"><table class="dash-table dash-site-att-table">
         <thead><tr>
           <th>Site</th>
-          <th class="text-center">Total Workers</th>
-          <th class="text-center">Present</th>
-          <th class="text-center">Absent</th>
-          <th class="text-center">Status</th>
+          <th>Total Workers</th>
+          <th>Present</th>
+          <th>Absent</th>
+          <th>Status</th>
         </tr></thead>
         <tbody>${tableBody}</tbody>
       </table></div>
     </div>
   </section>`;
-}
-
-function procIconSvg(type) {
-  const icons = {
-    cement: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v4H6z"/><path d="M6 6v16l6-3 6 3V6"/></svg>`,
-    rod: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18h16"/><path d="M6 14h12"/><path d="M8 10h8"/><path d="M10 6h4"/></svg>`,
-    sand: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c2-4 4-6 8-6s6 2 8 6"/><path d="M8 14c1-2 2.5-3 4-3s3 1 4 3"/></svg>`,
-    material: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
-    po: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><circle cx="12" cy="14" r="3"/><path d="M12 12v1"/></svg>`,
-    delivery: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>`,
-    request: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>`,
-  };
-  return icons[type] || icons.material;
 }
 
 export function renderProcurementAlerts(host, alerts = []) {
@@ -503,7 +468,7 @@ export function renderProcurementAlerts(host, alerts = []) {
     ? `<ul class="dash-proc-list">${alerts
         .map(
           (a) => `<li class="dash-proc-item">
-          <div class="dash-proc-icon dash-proc-icon--${escapeHtml(a.iconTone || "green")}">${procIconSvg(a.icon)}</div>
+          <div class="dash-proc-icon dash-proc-icon--${escapeHtml(a.iconTone || "green")}">${procIcon(a.icon)}</div>
           <span class="dash-proc-title">${escapeHtml(a.title)}</span>
           <span class="dash-proc-pill dash-proc-pill--${escapeHtml(a.tagTone || "low-stock")}">${escapeHtml(a.tag)}</span>
         </li>`
@@ -541,8 +506,8 @@ export function renderBillingPanel(host, data) {
           (u) => `<tr>
         <td>${escapeHtml(u.client)}</td>
         <td>${escapeHtml(u.project)}</td>
-        <td class="text-right">${escapeHtml(formatCompactBDT(u.amount))}</td>
-        <td class="text-right">${escapeHtml(u.dueDateLabel || formatDashboardDeadline(u.dueDate))}</td>
+        <td>${escapeHtml(formatCompactBDT(u.amount))}</td>
+        <td>${escapeHtml(u.dueDateLabel || formatDashboardDeadline(u.dueDate))}</td>
       </tr>`
         )
         .join("")
@@ -557,14 +522,13 @@ export function renderBillingPanel(host, data) {
       <div class="dash-billing-layout">
         <div class="dash-donut-wrap dash-donut-wrap--billing">
           <svg viewBox="0 0 40 40" class="dash-donut dash-donut--billing">
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="6"/>
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#10b981" stroke-width="6" stroke-dasharray="${s1} ${c}" stroke-dashoffset="0" transform="rotate(-90 20 20)"/>
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#f59e0b" stroke-width="6" stroke-dasharray="${s2} ${c}" stroke-dashoffset="${-s1}" transform="rotate(-90 20 20)"/>
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#ef4444" stroke-width="6" stroke-dasharray="${s3} ${c}" stroke-dashoffset="${-(s1 + s2)}" transform="rotate(-90 20 20)"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#d1d5db" stroke-width="6"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#059669" stroke-width="6" stroke-dasharray="${s1} ${c}" stroke-dashoffset="0" transform="rotate(-90 20 20)"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#d97706" stroke-width="6" stroke-dasharray="${s2} ${c}" stroke-dashoffset="${-s1}" transform="rotate(-90 20 20)"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#dc2626" stroke-width="6" stroke-dasharray="${s3} ${c}" stroke-dashoffset="${-(s1 + s2)}" transform="rotate(-90 20 20)"/>
           </svg>
           <div class="dash-donut-center dash-donut-center--billing">
-            <small>Total Receivable</small>
-            <strong>${escapeHtml(formatCompactBDT(data.receivable))}</strong>
+            <strong>${escapeHtml(formatCompactBDTSign(data.receivable))}</strong>
           </div>
         </div>
         <ul class="dash-billing-legend">${legendRows
@@ -581,24 +545,13 @@ export function renderBillingPanel(host, data) {
         <thead><tr>
           <th>Client</th>
           <th>Project</th>
-          <th class="text-right">Amount</th>
-          <th class="text-right">Due Date</th>
+          <th>Amount</th>
+          <th>Due Date</th>
         </tr></thead>
         <tbody>${tableBody}</tbody>
       </table></div>
     </div>
   </section>`;
-}
-
-function milestoneIconSvg(type) {
-  const icons = {
-    home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V9.5z"/></svg>`,
-    building: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h.01"/><path d="M10 10h.01"/><path d="M10 14h.01"/><path d="M10 18h.01"/></svg>`,
-    tower: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 8 7v14h8V7l-4-4z"/><path d="M8 11h8"/><path d="M8 15h8"/><path d="M8 19h8"/></svg>`,
-    gear: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`,
-    bag: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
-  };
-  return icons[type] || icons.building;
 }
 
 const MILESTONE_STATUS_LABELS = { on_track: "On Track", at_risk: "At Risk" };
@@ -609,7 +562,7 @@ export function renderMilestonesStrip(host, items = []) {
     ? items
         .map(
           (m) => `<article class="dash-milestone-card">
-        <div class="dash-milestone-icon dash-milestone-icon--${escapeHtml(m.iconTone || "green")}">${milestoneIconSvg(m.icon)}</div>
+        <div class="dash-milestone-icon dash-milestone-icon--${escapeHtml(m.iconTone || "green")}">${milestoneIcon(m.icon)}</div>
         <div class="dash-milestone-body">
           <div class="dash-milestone-top">
             <strong class="dash-milestone-project">${escapeHtml(m.projectName)}</strong>

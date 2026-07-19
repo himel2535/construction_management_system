@@ -1,7 +1,9 @@
 import { getCurrentRole } from "./svc_governance.js";
-import { defaultRouteForRole, roleLabel } from "./util_roles.js";
+import { defaultRouteForRole, roleLabel, filterNavItems } from "./util_roles.js";
 import { getCurrentUserName, getCurrentUserId } from "./svc_auth.js";
 import { getRoutePath, navigateTo } from "./util_route.js";
+import { listenList } from "./svc_data.js";
+import { buildGlobalSearchIndex, searchGlobalIndex } from "./util_globalSearch.js";
 
 /** @typedef {{ title?: string, subtitle?: string, showDateRange?: boolean, quickActionLabel?: string, onQuickAction?: (() => void) | null }} PageChrome */
 
@@ -52,7 +54,7 @@ function iconSvg(name) {
   const icons = {
     menu: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
     search: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>',
-    bell: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>',
+    bell: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
     message: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>',
     help: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>',
     chevron: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>',
@@ -177,27 +179,16 @@ export function createAppHeader() {
       <div class="header-center">
         <div class="header-search-wrap">
           <span class="search-icon" aria-hidden="true">${iconSvg("search")}</span>
-          <input type="search" class="header-search" id="header-search" placeholder="Search anything..." autocomplete="off" />
-          <kbd class="header-kbd">Ctrl + K</kbd>
+          <input type="search" class="header-search" id="header-search" placeholder="Search anything..." autocomplete="off" aria-controls="header-search-panel" aria-expanded="false" />
+          <div class="header-search-panel" id="header-search-panel" hidden role="listbox" aria-label="Search results"></div>
         </div>
       </div>
       <div class="page-chrome-actions">
-        <label class="tenant-switcher-wrap page-toolbar-tenant" title="Active company tenant">
-          <span class="tenant-switcher-label">Tenant</span>
-          <select id="tenant-switcher" class="tenant-switcher" aria-label="Switch company"></select>
-        </label>
         <button type="button" class="icon-btn header-notify" id="header-notify-btn" aria-label="Notifications" aria-expanded="false">
           ${iconSvg("bell")}
           <span class="notify-badge" id="header-notify-badge" hidden>0</span>
         </button>
         <div class="notify-dropdown" id="header-notify-dropdown" hidden role="menu" aria-label="Notifications"></div>
-        <button type="button" class="header-user" id="header-user-btn" aria-label="User menu">
-          <span class="user-avatar">OD</span>
-          <span class="user-meta">
-            <span class="user-name">Owner (Demo)</span>
-            <span class="user-chevron">${iconSvg("chevron")}</span>
-          </span>
-        </button>
         <button type="button" class="date-range-btn" id="page-chrome-date" style="display:none">
           <span class="date-icon">${iconSvg("calendar")}</span>
           <span class="date-range-text"></span>
@@ -206,39 +197,20 @@ export function createAppHeader() {
         <button type="button" class="btn btn-primary header-quick-action" id="header-quick-action">
           + Quick Action <span class="qa-chevron">${iconSvg("chevron")}</span>
         </button>
+        <button type="button" class="header-user" id="header-user-btn" aria-label="User menu">
+          <span class="user-avatar">OD</span>
+          <span class="user-meta">
+            <span class="user-name">Owner (Demo)</span>
+            <span class="user-chevron">${iconSvg("chevron")}</span>
+          </span>
+        </button>
       </div>
     </div>
   `;
   return header;
 }
 
-export function initHeaderInteractions() {
-  const tenantSel = document.getElementById("tenant-switcher");
-  if (tenantSel) {
-    import("./svc_tenant.js").then(({ listTenants, getActiveTenantId, setActiveTenantId }) => {
-      const fill = () => {
-        const tenants = listTenants();
-        tenantSel.innerHTML = tenants
-          .map((t) => `<option value="${t.id}">${t.name || t.id}</option>`)
-          .join("");
-        tenantSel.value = getActiveTenantId();
-      };
-      fill();
-      tenantSel.onchange = async () => {
-        try {
-          const { guardAction } = await import("./svc_governance.js");
-          guardAction("switch_tenant");
-          setActiveTenantId(tenantSel.value);
-          const { refreshReportsCacheClient } = await import("./svc_operations.js");
-          await refreshReportsCacheClient();
-        } catch (err) {
-          tenantSel.value = getActiveTenantId();
-          import("./cmp_toast.js").then(({ showToast }) => showToast(err.message, "error"));
-        }
-      };
-    });
-  }
-
+export function initHeaderInteractions(options = {}) {
   const toggle = document.getElementById("sidebar-toggle");
   const backdrop = document.getElementById("sidebar-backdrop");
   const search = document.getElementById("header-search");
@@ -277,19 +249,7 @@ export function initHeaderInteractions() {
     if (e.key === "Escape") closeDrawer();
   });
 
-  search?.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter") return;
-    const q = search.value.trim().toLowerCase();
-    if (!q) return;
-    const links = [...document.querySelectorAll(".nav-link")];
-    const found = links.find((l) => l.textContent.toLowerCase().includes(q));
-    if (found) {
-      const href = found.getAttribute("href") || "/dashboard";
-      navigateTo(href.startsWith("/") ? href : `/${href.replace(/^#/, "")}`);
-      search.value = "";
-      search.blur();
-    }
-  });
+  initGlobalSearch(options.nav || []);
 
   document.getElementById("header-user-btn")?.addEventListener("click", () => {
     navigateTo("/settings");
@@ -301,6 +261,152 @@ export function initHeaderInteractions() {
 
   syncHeaderUser();
   applyRouteChrome();
+}
+
+function escapeSearchHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function initGlobalSearch(navItems = []) {
+  const search = document.getElementById("header-search");
+  const panel = document.getElementById("header-search-panel");
+  if (!search || !panel) return;
+
+  const searchData = {
+    projects: [],
+    clients: [],
+    workers: [],
+    suppliers: [],
+  };
+  let activeIndex = -1;
+  let debounceTimer = null;
+
+  const getIndex = () =>
+    buildGlobalSearchIndex({
+      navItems: filterNavItems(navItems, getCurrentRole()),
+      projects: searchData.projects,
+      clients: searchData.clients,
+      workers: searchData.workers,
+      suppliers: searchData.suppliers,
+    });
+
+  const closePanel = () => {
+    panel.hidden = true;
+    search.setAttribute("aria-expanded", "false");
+    activeIndex = -1;
+  };
+
+  const selectResult = (path) => {
+    if (!path) return;
+    navigateTo(path);
+    search.value = "";
+    panel.innerHTML = "";
+    closePanel();
+    search.blur();
+  };
+
+  const renderPanel = (results, query) => {
+    const q = query.trim();
+    if (!q) {
+      panel.innerHTML = "";
+      closePanel();
+      return;
+    }
+    if (!results.length) {
+      panel.hidden = false;
+      search.setAttribute("aria-expanded", "true");
+      panel.innerHTML = `<p class="header-search-empty">No results for "${escapeSearchHtml(q)}"</p>`;
+      activeIndex = -1;
+      return;
+    }
+    if (activeIndex >= results.length) activeIndex = results.length - 1;
+    panel.hidden = false;
+    search.setAttribute("aria-expanded", "true");
+    panel.innerHTML = results
+      .map(
+        (result, index) => `<button type="button" class="header-search-result${index === activeIndex ? " is-active" : ""}" role="option" data-path="${escapeSearchHtml(result.path)}" data-index="${index}">
+        <span class="header-search-result-type">${escapeSearchHtml(result.typeLabel)}</span>
+        <strong>${escapeSearchHtml(result.label)}</strong>
+        ${result.subtitle ? `<small>${escapeSearchHtml(result.subtitle)}</small>` : ""}
+      </button>`
+      )
+      .join("");
+    panel.querySelectorAll(".header-search-result").forEach((btn) => {
+      btn.addEventListener("click", () => selectResult(btn.dataset.path));
+    });
+  };
+
+  const runSearch = () => {
+    const q = search.value.trim();
+    const results = searchGlobalIndex(getIndex(), q);
+    renderPanel(results, q);
+  };
+
+  search.addEventListener("input", () => {
+    clearTimeout(debounceTimer);
+    activeIndex = -1;
+    debounceTimer = setTimeout(runSearch, 150);
+  });
+
+  search.addEventListener("focus", () => {
+    if (search.value.trim()) runSearch();
+  });
+
+  search.addEventListener("keydown", (e) => {
+    const q = search.value.trim();
+    const results = searchGlobalIndex(getIndex(), q);
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closePanel();
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      if (!q) return;
+      e.preventDefault();
+      if (panel.hidden) runSearch();
+      activeIndex = Math.min(activeIndex + 1, Math.max(results.length - 1, 0));
+      renderPanel(results, q);
+      panel.querySelector(".header-search-result.is-active")?.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      if (!q) return;
+      e.preventDefault();
+      activeIndex = Math.max(activeIndex - 1, 0);
+      renderPanel(results, q);
+      panel.querySelector(".header-search-result.is-active")?.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!q) return;
+      if (activeIndex >= 0 && results[activeIndex]) selectResult(results[activeIndex].path);
+      else if (results[0]) selectResult(results[0].path);
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (panel.hidden) return;
+    if (panel.contains(e.target) || e.target === search) return;
+    closePanel();
+  });
+
+  for (const [key, path] of [
+    ["projects", "projects"],
+    ["clients", "clients"],
+    ["workers", "workers"],
+    ["suppliers", "suppliers"],
+  ]) {
+    listenList(path, (list) => {
+      searchData[key] = list;
+      if (search.value.trim() && document.activeElement === search) runSearch();
+    });
+  }
 }
 
 function escapeNotifyHtml(s) {
