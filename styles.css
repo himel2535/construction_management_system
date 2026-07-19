@@ -4741,6 +4741,62 @@ button.proj-header-kpi--link:hover {
 .dash-milestones-view-all { font-size: 0.8125rem; text-decoration: none; }
 .dash-milestones-empty { padding: 0 1.125rem 1.125rem; margin: 0; }
 
+/* Dashboard page — tighter card/table spacing (not clients) */
+.dashboard-page.dashboard-mockup:not(.customers-page) {
+  gap: 0.5rem;
+}
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-kpi-row,
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-row-2,
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-row-3,
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-row-4 {
+  gap: 0.5rem;
+}
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-kpi-card {
+  padding: 0.75rem 0.875rem;
+}
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-kpi-foot {
+  margin-top: 0.35rem;
+}
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-widget-head {
+  padding: 0.625rem 0.875rem 0.25rem;
+}
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-widget-body {
+  padding: 0.625rem 0.875rem 0.75rem;
+}
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-widget--attention .dash-widget-body,
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-widget--approvals .dash-widget-body {
+  padding: 0.2rem 0.875rem 0.75rem;
+}
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-perf-table thead th,
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-site-att-table thead th,
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-billing-table thead th {
+  padding: 0.4rem 0.55rem;
+}
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-perf-table tbody td,
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-site-att-table tbody td,
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-billing-table tbody td {
+  padding: 0.45rem 0.55rem;
+}
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-site-kpi-strip {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-billing-layout {
+  margin-bottom: 0.5rem;
+}
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-attention-item,
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-approval-item,
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-proc-item {
+  padding: 0.4rem 0;
+}
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-milestones-scroll {
+  padding: 0 0.875rem 0.75rem;
+  gap: 0.5rem;
+}
+.dashboard-page.dashboard-mockup:not(.customers-page) .dash-milestones-empty {
+  padding: 0 0.875rem 0.75rem;
+}
+
 @media (max-width: 1200px) {
   .dash-kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .dash-row-2, .dash-row-3, .dash-row-4 { grid-template-columns: 1fr; }
