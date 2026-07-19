@@ -91,10 +91,11 @@ export function updatePageChromeBack() {
   const path = getCurrentRoutePath();
   const show = path !== home;
   backBtn.style.display = show ? "inline-flex" : "none";
-  const label = role === "client" ? "Back to Portal" : "Back to Dashboard";
-  backBtn.innerHTML = `<span class="page-chrome-back-icon" aria-hidden="true">${iconSvg("chevronLeft")}</span><span>${label}</span>`;
+  backBtn.setAttribute("aria-label", "Go back");
+  backBtn.innerHTML = `<span class="page-chrome-back-icon" aria-hidden="true">${iconSvg("chevronLeft")}</span>`;
   backBtn.onclick = () => {
-    navigateTo(home);
+    if (history.length > 1) history.back();
+    else navigateTo(home);
   };
 }
 
@@ -131,7 +132,10 @@ export function renderPageChrome() {
   if (qaBtn) {
     const label = pageChrome.quickActionLabel;
     qaBtn.style.display = label ? "" : "none";
-    qaBtn.innerHTML = `${label} <span class="qa-chevron">${iconSvg("chevron")}</span>`;
+    const chevron = pageChrome.onQuickAction
+      ? ""
+      : ` <span class="qa-chevron">${iconSvg("chevron")}</span>`;
+    qaBtn.innerHTML = `${label}${chevron}`;
     qaBtn.onclick = pageChrome.onQuickAction || null;
   }
   updatePageChromeBack();
@@ -159,9 +163,16 @@ export function createAppHeader() {
   const header = document.createElement("header");
   header.className = "app-header";
   header.innerHTML = `
-    <div class="app-header-top">
-      <div class="header-left">
-        <button type="button" class="icon-btn" id="sidebar-toggle" aria-label="Open menu">${iconSvg("menu")}</button>
+    <div class="header-left">
+      <button type="button" class="icon-btn" id="sidebar-toggle" aria-label="Open menu">${iconSvg("menu")}</button>
+    </div>
+    <div class="page-chrome page-toolbar card" id="page-chrome">
+      <button type="button" class="page-chrome-back icon-btn icon-btn--round" id="page-chrome-back" style="display:none" aria-label="Go back">
+        <span class="page-chrome-back-icon" aria-hidden="true">${iconSvg("chevronLeft")}</span>
+      </button>
+      <div class="page-chrome-titles">
+        <h1 class="page-chrome-title" id="page-chrome-title">Dashboard</h1>
+        <p class="page-chrome-subtitle" id="page-chrome-subtitle"></p>
       </div>
       <div class="header-center">
         <div class="header-search-wrap">
@@ -170,8 +181,8 @@ export function createAppHeader() {
           <kbd class="header-kbd">Ctrl + K</kbd>
         </div>
       </div>
-      <div class="header-right">
-        <label class="tenant-switcher-wrap" title="Active company tenant">
+      <div class="page-chrome-actions">
+        <label class="tenant-switcher-wrap page-toolbar-tenant" title="Active company tenant">
           <span class="tenant-switcher-label">Tenant</span>
           <select id="tenant-switcher" class="tenant-switcher" aria-label="Switch company"></select>
         </label>
@@ -180,8 +191,6 @@ export function createAppHeader() {
           <span class="notify-badge" id="header-notify-badge" hidden>0</span>
         </button>
         <div class="notify-dropdown" id="header-notify-dropdown" hidden role="menu" aria-label="Notifications"></div>
-        <button type="button" class="icon-btn" id="header-messages-btn" aria-label="Messages">${iconSvg("message")}</button>
-        <button type="button" class="icon-btn" aria-label="Help">${iconSvg("help")}</button>
         <button type="button" class="header-user" id="header-user-btn" aria-label="User menu">
           <span class="user-avatar">OD</span>
           <span class="user-meta">
@@ -189,20 +198,6 @@ export function createAppHeader() {
             <span class="user-chevron">${iconSvg("chevron")}</span>
           </span>
         </button>
-      </div>
-    </div>
-    <div class="page-chrome" id="page-chrome">
-      <div class="page-chrome-left">
-        <button type="button" class="btn btn-ghost btn-sm page-chrome-back" id="page-chrome-back" style="display:none" aria-label="Back to home">
-          <span class="page-chrome-back-icon" aria-hidden="true">${iconSvg("chevronLeft")}</span>
-          <span>Back</span>
-        </button>
-        <div class="page-chrome-titles">
-          <h1 class="page-chrome-title" id="page-chrome-title">Dashboard</h1>
-          <p class="page-chrome-subtitle" id="page-chrome-subtitle"></p>
-        </div>
-      </div>
-      <div class="page-chrome-right">
         <button type="button" class="date-range-btn" id="page-chrome-date" style="display:none">
           <span class="date-icon">${iconSvg("calendar")}</span>
           <span class="date-range-text"></span>
@@ -298,10 +293,6 @@ export function initHeaderInteractions() {
 
   document.getElementById("header-user-btn")?.addEventListener("click", () => {
     navigateTo("/settings");
-  });
-
-  document.getElementById("header-messages-btn")?.addEventListener("click", () => {
-    navigateTo("/projects?tab=messages");
   });
 
   initNotificationBell();
