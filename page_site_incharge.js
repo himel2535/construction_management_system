@@ -1595,10 +1595,6 @@ export function mountSiteIncharge(container) {
 
       const entryForm = document.createElement("form");
       entryForm.className = "sic-payroll-form form-grid";
-      const workerOpts = state.workers
-        .filter((w) => w.status !== "inactive")
-        .map((w) => `<option value="${w.id}">${escapeHtml(w.name)}</option>`)
-        .join("");
       entryForm.innerHTML = `
         <label>Worker<select name="workerId" required><option value="">Select</option>${workerOpts}</select></label>
         <label>Type<select name="type">
