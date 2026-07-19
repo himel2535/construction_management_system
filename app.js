@@ -7,6 +7,7 @@ import { registerRoute, startRouter } from "./router.js";
 import { mountDashboard } from "./page_dashboard.js";
 
 import { mountClients } from "./page_customers.js";
+import { mountClientCreate } from "./page_client_create.js";
 
 import { mountProjects } from "./page_projects.js";
 
@@ -201,7 +202,11 @@ function mountAppShell() {
 
   registerRoute("/clients", (c) => Promise.resolve(mountClients(c)));
 
+  registerRoute("/clients/new", (c) => Promise.resolve(mountClientCreate(c)));
+
   registerRoute("/customers", (c) => Promise.resolve(mountClients(c)));
+
+  registerRoute("/customers/new", (c) => Promise.resolve(mountClientCreate(c)));
 
   registerRoute("/projects", (c) => Promise.resolve(mountProjects(c)));
 

@@ -1,22 +1,25 @@
 ﻿import { getCurrentUserName, getCurrentUserEmail } from "./svc_auth.js";
 import { createAppHeader, initHeaderInteractions } from "./cmp_header.js";
 import { getCurrentRole } from "./svc_governance.js";
-import { filterNavItems, defaultRouteForRole } from "./util_roles.js";
+import { filterNavItems, defaultRouteForRole, roleLabel } from "./util_roles.js";
+import { readRef } from "./svc_tenant.js";
+import { valToList } from "./svc_clientCache.js";
+import { countPendingApprovals } from "./util_dashboard.js";
 
 const NAV = [
   { hash: "#/dashboard", label: "Dashboard", icon: "dashboard" },
   { hash: "#/client-portal", label: "Client Portal", icon: "users" },
-  { hash: "#/clients", label: "Clients / Owners", icon: "users" },
+  { hash: "#/clients", label: "Clients / Contacts", icon: "users" },
   { hash: "#/projects", label: "Projects", icon: "folder" },
-  { hash: "#/billing", label: "Billing", icon: "ledger" },
-  { hash: "#/accounting", label: "Accounting", icon: "ledger" },
-  { hash: "#/purchases", label: "Purchase", icon: "bag" },
-  { hash: "#/suppliers", label: "Suppliers", icon: "truck" },
+  { hash: "#/site-incharge", label: "Site Management", icon: "hardhat" },
+  { hash: "#/accounting", label: "Finance", icon: "ledger" },
+  { hash: "#/purchases", label: "Procurement", icon: "bag" },
   { hash: "#/inventory", label: "Inventory", icon: "inventory" },
-  { hash: "#/assets", label: "Assets", icon: "assets" },
-  { hash: "#/workers", label: "Workers", icon: "hardhat" },
-  { hash: "#/site-incharge", label: "Site In-charge", icon: "hardhat" },
-  { hash: "#/approvals", label: "Approvals", icon: "check" },
+  { hash: "#/workers", label: "HR & Payroll", icon: "hardhat" },
+  { hash: "#/assets", label: "Assets & Equipment", icon: "assets" },
+  { hash: "#/billing", label: "Billing", icon: "ledger" },
+  { hash: "#/suppliers", label: "Suppliers", icon: "truck" },
+  { hash: "#/approvals", label: "Approvals", icon: "check", badgeKey: "approvals" },
   { hash: "#/reports", label: "Reports", icon: "chart" },
   { hash: "#/settings", label: "Settings", icon: "gear" },
 ];
@@ -25,13 +28,18 @@ function buildNavLinks(navEl) {
   if (!navEl) return;
   const role = getCurrentRole();
   const items = filterNavItems(NAV, role);
+  const approvalCount = countPendingApprovals(valToList(readRef("approvalQueue") || {}));
   navEl.innerHTML = "";
   for (const item of items) {
     const a = document.createElement("a");
     a.href = item.hash;
     a.className = "nav-link";
     a.dataset.hash = item.hash;
-    a.innerHTML = `<span class="nav-icon">${navIcon(item.icon)}</span><span class="nav-label">${item.label}</span>`;
+    const badge =
+      item.badgeKey === "approvals" && approvalCount > 0
+        ? `<span class="nav-badge">${approvalCount > 99 ? "99+" : approvalCount}</span>`
+        : "";
+    a.innerHTML = `<span class="nav-icon">${navIcon(item.icon)}</span><span class="nav-label">${item.label}</span>${badge}`;
     navEl.appendChild(a);
   }
   navEl.querySelectorAll(".nav-link").forEach((a) => {
@@ -54,7 +62,7 @@ function navIcon(name) {
     dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
     users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>',
     folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>',
-    cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>',
+    bag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/></svg>',
     card: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>',
     ledger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>',
     truck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3h15v13H1zM16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
@@ -75,6 +83,7 @@ export function renderLayout(contentEl) {
 
   const banner = document.createElement("div");
   banner.className = "demo-banner";
+  banner.hidden = true;
   banner.textContent = "Firebase RTDB demo • Construction ERP";
   root.appendChild(banner);
 
@@ -106,7 +115,7 @@ export function renderLayout(contentEl) {
       </span>
       <div>
         <h1>Construction ERP</h1>
-        <p>erptriniti • Vanilla JS</p>
+        <p>Owner / Admin panel</p>
       </div>
     </div>
     <nav id="sidebar-nav"></nav>
@@ -125,7 +134,7 @@ export function renderLayout(contentEl) {
   const nameEl = aside.querySelector(".sidebar-user-text strong");
   const emailEl = aside.querySelector(".sidebar-user-text span");
   if (nameEl) nameEl.textContent = userName;
-  if (emailEl) emailEl.textContent = userEmail;
+  if (emailEl) emailEl.textContent = roleLabel(getCurrentRole());
 
   const sidebarHead = aside.querySelector(".sidebar-head");
   if (sidebarHead) {
@@ -174,7 +183,7 @@ export function setActiveNav() {
     const active =
       navPath === path ||
       (navPath === "/projects" && path.startsWith("/projects")) ||
-      (navPath === "/clients" && (path === "/clients" || path === "/customers")) ||
+      (navPath === "/clients" && (path.startsWith("/clients") || path.startsWith("/customers"))) ||
       (navPath === "/billing" && (path === "/billing" || path === "/sales")) ||
       (navPath === "/client-portal" && path === "/client-portal") ||
       (navPath === "/settings" && path === "/settings");

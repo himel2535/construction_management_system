@@ -52,13 +52,13 @@ export function statusChip(status) {
 export function healthChip(healthKey) {
   const map = {
     on_track: "chip-success",
-    delayed: "chip-warning",
+    delayed: "chip-danger",
     at_risk: "chip-warning",
   };
   const labels = {
-    on_track: "On-track",
+    on_track: "On Track",
     delayed: "Delayed",
-    at_risk: "At-risk",
+    at_risk: "At Risk",
   };
   const key = String(healthKey || "on_track").toLowerCase();
   const cls = `chip health-chip health-chip--${key} ${map[key] || "chip-muted"}`;

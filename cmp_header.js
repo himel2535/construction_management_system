@@ -21,6 +21,8 @@ const ROUTE_CHROME = {
   },
   "/clients": { title: "Clients / Owners", subtitle: "Project owners, employers, and contract contacts." },
   "/customers": { title: "Clients / Owners", subtitle: "Project owners, employers, and contract contacts." },
+  "/clients/new": { title: "Add Client", subtitle: "Create a new client or project owner record." },
+  "/customers/new": { title: "Add Client", subtitle: "Create a new client or project owner record." },
   "/projects": { title: "Projects", subtitle: "Project master, operations, quality/safety, and contracts." },
   "/billing": { title: "Billing & Invoicing", subtitle: "Client bills, progress billing, and payment tracking." },
   "/sales": { title: "Billing & Invoicing", subtitle: "Client bills, progress billing, and payment tracking." },
@@ -46,6 +48,7 @@ function iconSvg(name) {
     menu: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
     search: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>',
     bell: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>',
+    message: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>',
     help: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>',
     chevron: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>',
     chevronLeft: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>',
@@ -174,6 +177,7 @@ export function createAppHeader() {
           <span class="notify-badge" id="header-notify-badge" hidden>0</span>
         </button>
         <div class="notify-dropdown" id="header-notify-dropdown" hidden role="menu" aria-label="Notifications"></div>
+        <button type="button" class="icon-btn" id="header-messages-btn" aria-label="Messages">${iconSvg("message")}</button>
         <button type="button" class="icon-btn" aria-label="Help">${iconSvg("help")}</button>
         <button type="button" class="header-user" id="header-user-btn" aria-label="User menu">
           <span class="user-avatar">OD</span>
@@ -290,6 +294,10 @@ export function initHeaderInteractions() {
 
   document.getElementById("header-user-btn")?.addEventListener("click", () => {
     location.hash = "#/settings";
+  });
+
+  document.getElementById("header-messages-btn")?.addEventListener("click", () => {
+    location.hash = "#/projects?tab=messages";
   });
 
   initNotificationBell();
