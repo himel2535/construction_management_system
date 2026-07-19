@@ -3,6 +3,7 @@ import { getCurrentUserId, getCurrentUserName } from "./svc_auth.js";
 import { writeAuditLog } from "./svc_workflow.js";
 import { showToast } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
+import { setPageChrome } from "./cmp_header.js";
 import { navigateTo } from "./util_route.js";
 import { icon } from "./cmp_icons.js";
 import { setupGovProjectOnCreate } from "./svc_govProject.js";

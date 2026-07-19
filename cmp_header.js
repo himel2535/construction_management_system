@@ -25,6 +25,10 @@ const ROUTE_CHROME = {
   "/clients/new": { title: "Add Client", subtitle: "Create a new client or project owner record." },
   "/customers/new": { title: "Add Client", subtitle: "Create a new client or project owner record." },
   "/projects": { title: "Projects", subtitle: "Project master, operations, quality/safety, and contracts." },
+  "/projects/new": {
+    title: "Create Project",
+    subtitle: "Set up a new private or government construction project.",
+  },
   "/billing": { title: "Billing & Invoicing", subtitle: "Client bills, progress billing, and payment tracking." },
   "/sales": { title: "Billing & Invoicing", subtitle: "Client bills, progress billing, and payment tracking." },
   "/accounting": { title: "Accounting", subtitle: "Receipts, payments, and ledger." },

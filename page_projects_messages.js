@@ -2,7 +2,6 @@ import { formatDate } from "./util_format.js";
 import { showToast } from "./cmp_toast.js";
 import { sectionCard } from "./cmp_ui.js";
 import { sendProjectMessage } from "./svc_projectMessage.js";
-import { MESSAGE_PATHS } from "./util_projectMessage.js";
 
 function escapeHtml(s) {
   return String(s)
@@ -23,7 +22,7 @@ export function bindMessagesSubs(state, listenProjectSub, onUpdate) {
   const refresh = () => {
     if (MESSAGES_TAB_IDS.includes(state.activeTab)) onUpdate();
   };
-  return listenProjectSub(MESSAGE_PATHS.messages(pid), (list) => {
+  return listenProjectSub(pid, "projectMessages", (list) => {
     state.projectMessages = list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     refresh();
   });
