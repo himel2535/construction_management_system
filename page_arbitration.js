@@ -57,7 +57,7 @@ function arbButtons(row, collection) {
 }
 
 export function mountArbitration(container) {
-  setActiveNav("#/arbitration");
+  setActiveNav();
   setPageChrome({
     title: "Arbitration",
     subtitle: "Disputes, hearings, awards, and offline sync (Release 4).",

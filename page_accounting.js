@@ -26,7 +26,7 @@ function escapeHtml(s) {
 }
 
 export function mountAccounting(container) {
-  setActiveNav("#/accounting");
+  setActiveNav();
   setPageChrome({
     title: "Accounting",
     subtitle: "Chart of accounts, vouchers, and project expense approval (§2.7).",

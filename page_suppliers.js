@@ -4,6 +4,7 @@ import { formatBDT } from "./util_format.js";
 import { showToast } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
+import { navigateTo } from "./util_route.js";
 import { statusChip } from "./cmp_ui.js";
 import { renderTabToolbar, openEditDialog, validateUrl } from "./cmp_projectTab.js";
 import { icon } from "./cmp_icons.js";
@@ -1083,7 +1084,7 @@ export function mountSuppliers(container) {
     wrap.appendChild(table);
     wrap.querySelectorAll(".sup-proj-row").forEach((row) => {
       row.querySelector(".btn-link").onclick = () => {
-        window.location.hash = `#/projects`;
+        navigateTo("/projects");
       };
     });
     return wrap;

@@ -48,7 +48,7 @@ export async function scanAndEmitAlerts() {
       type: "task_deadline",
       title: days < 0 ? "Overdue task" : "Task deadline approaching",
       message: `${t.title || "Task"} — due ${t.dueDate}`,
-      link: t.projectId ? `#/projects?id=${encodeURIComponent(t.projectId)}&tab=team` : "#/dashboard",
+      link: t.projectId ? `/projects?id=${encodeURIComponent(t.projectId)}&tab=team` : "/dashboard",
       projectId: t.projectId || "",
     });
   }
@@ -64,7 +64,7 @@ export async function scanAndEmitAlerts() {
       type: "bg_expiry",
       title: days < 0 ? "Bank guarantee expired" : "Bank guarantee expiring",
       message: `${p.name} — BG expires ${p.bgExpiryDate}`,
-      link: `#/projects?id=${encodeURIComponent(p.id)}&tab=compliance`,
+      link: `/projects?id=${encodeURIComponent(p.id)}&tab=compliance`,
       projectId: p.id,
     });
   }
@@ -85,7 +85,7 @@ export async function scanAndEmitAlerts() {
       type: "bill_due",
       title: days < 0 ? "Bill overdue" : "Bill due soon",
       message: `${inv.clientName || "Client"} — ${due} (${dueAmt})`,
-      link: "#/billing",
+      link: "/billing",
       projectId: inv.projectId || "",
     });
   }
@@ -114,7 +114,7 @@ export async function scanAndEmitAlerts() {
       type: "permit_expiry",
       title: a.level === "critical" ? "Permit expired" : "Permit expiring",
       message: `${a.projectName} — ${a.title} expires ${a.expiryDate}`,
-      link: `#/projects?id=${encodeURIComponent(a.projectId)}&tab=documents`,
+      link: `/projects?id=${encodeURIComponent(a.projectId)}&tab=documents`,
       projectId: a.projectId,
     });
   }

@@ -80,6 +80,7 @@ import { auditProject, openEditDialog, validateUrl, validatePositiveNumber, rend
 import { computeProjectSupplierOutstanding, mergeSupplierLists } from "./svc_supplier.js";
 import { mountPortfolio } from "./cmp_projectPortfolio.js";
 import { renderProjectTimeline } from "./cmp_projectTimeline.js";
+import { navigateTo, getRouteQuery } from "./util_route.js";
 
 const DRAFT_CHIP_KEY = "proj-draft-chip-dismissed";
 
@@ -113,7 +114,7 @@ export function mountProjects(container) {
     showDateRange: false,
     quickActionLabel: "+ New Project",
     onQuickAction: () => {
-      location.hash = "#/projects/new";
+      navigateTo("/projects/new");
     },
   });
 
@@ -123,21 +124,12 @@ export function mountProjects(container) {
 
   const pendingSelectId = (() => {
     const fromStore = sessionStorage.getItem(ERP_SELECT_PROJECT_KEY) || "";
-    const hash = location.hash.slice(1) || "";
-    const qIdx = hash.indexOf("?");
-    if (qIdx >= 0) {
-      const params = new URLSearchParams(hash.slice(qIdx + 1));
-      const select = params.get("select") || params.get("id");
-      if (select) return select;
-    }
+    const params = getRouteQuery();
+    const select = params.get("select") || params.get("id");
+    if (select) return select;
     return fromStore;
   })();
-  const pendingTab = (() => {
-    const hash = location.hash.slice(1) || "";
-    const qIdx = hash.indexOf("?");
-    if (qIdx >= 0) return new URLSearchParams(hash.slice(qIdx + 1)).get("tab") || "";
-    return "";
-  })();
+  const pendingTab = (() => getRouteQuery().get("tab") || "")();
   if (sessionStorage.getItem(ERP_SELECT_PROJECT_KEY)) {
     sessionStorage.removeItem(ERP_SELECT_PROJECT_KEY);
   }
@@ -232,7 +224,7 @@ export function mountProjects(container) {
     const list = filteredProjects();
     const showDraftChip = hasStoredProjectDraft() && sessionStorage.getItem(DRAFT_CHIP_KEY) !== "1";
     listHost.innerHTML = `
-      ${showDraftChip ? `<div class="proj-draft-chip"><span>Draft saved</span><a href="#/projects/new" class="proj-draft-chip-link">Resume</a><button type="button" class="proj-draft-chip-dismiss" aria-label="Dismiss">×</button></div>` : ""}
+      ${showDraftChip ? `<div class="proj-draft-chip"><span>Draft saved</span><a href="/projects/new" class="proj-draft-chip-link">Resume</a><button type="button" class="proj-draft-chip-dismiss" aria-label="Dismiss">×</button></div>` : ""}
       <div class="proj-list-head">
         <input type="search" class="toolbar-input proj-search" id="proj-search" placeholder="Search name or code..." value="${escapeHtml(state.filterQuery)}" />
         <select class="toolbar-select" id="proj-status-filter">
@@ -255,7 +247,7 @@ export function mountProjects(container) {
         <div class="proj-empty-state">
           <p class="proj-empty">${roleScopedEmpty ? "No projects assigned to your role" : "No projects yet"}</p>
           <p class="proj-empty-sub">${roleScopedEmpty ? "Ask your project manager or admin to assign you to a project." : "Create a project to manage BOQ, sales, and progress."}</p>
-          ${roleScopedEmpty ? "" : `<a href="#/projects/new" class="btn btn-primary btn-sm proj-create-link">${hasStoredProjectDraft() ? "Resume draft" : "Create your first project"}</a>`}
+          ${roleScopedEmpty ? "" : `<a href="/projects/new" class="btn btn-primary btn-sm proj-create-link">${hasStoredProjectDraft() ? "Resume draft" : "Create your first project"}</a>`}
         </div>
       `;
       return;
@@ -312,7 +304,7 @@ export function mountProjects(container) {
     if (!state.selectedProjectId && !state.editProjectId) {
       body.innerHTML = `
         <p class="proj-empty">Select a project from the sidebar, or create a new project.</p>
-        <a href="#/projects/new" class="btn btn-primary btn-sm">${hasStoredProjectDraft() ? "Resume draft" : "Create project"}</a>
+        <a href="/projects/new" class="btn btn-primary btn-sm">${hasStoredProjectDraft() ? "Resume draft" : "Create project"}</a>
       `;
       return card;
     }
@@ -1322,7 +1314,7 @@ export function mountProjects(container) {
       supBanner.className = "proj-home-supplier-due";
       supBanner.innerHTML = `
         <span>Supplier outstanding: <strong>${formatBDT(supDue)}</strong></span>
-        <a href="#/suppliers" class="btn btn-ghost btn-sm">View suppliers →</a>
+        <a href="/suppliers" class="btn btn-ghost btn-sm">View suppliers →</a>
       `;
       healthCol.appendChild(supBanner);
     }
@@ -1509,7 +1501,7 @@ export function mountProjects(container) {
               <span class="proj-sidebar-title">Projects</span>
               <span class="proj-sidebar-count" id="proj-sidebar-count">0</span>
             </div>
-            <a href="#/projects/new" class="btn btn-sm btn-primary proj-sidebar-new">+ New</a>
+            <a href="/projects/new" class="btn btn-sm btn-primary proj-sidebar-new">+ New</a>
           </div>
           <div id="proj-list-host"></div>
         </aside>

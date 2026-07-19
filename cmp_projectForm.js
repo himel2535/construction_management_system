@@ -23,7 +23,7 @@ export function renderBreadcrumb() {
   el.className = "page-breadcrumb";
   el.setAttribute("aria-label", "Breadcrumb");
   el.innerHTML = `
-    <a href="#/projects">Projects</a>
+    <a href="/projects">Projects</a>
     <span class="page-breadcrumb-sep">›</span>
     <span>Create project</span>
   `;

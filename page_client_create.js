@@ -5,13 +5,10 @@ import { showToast } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
 import { validateClientForm, fillProjectSelect } from "./page_customers.js";
+import { getRouteQuery, navigateTo } from "./util_route.js";
 
-function getEditIdFromHash() {
-  const hash = location.hash.slice(1) || "";
-  const q = hash.indexOf("?");
-  if (q === -1) return "";
-  const params = new URLSearchParams(hash.slice(q + 1));
-  return params.get("edit") || "";
+function getEditIdFromRoute() {
+  return getRouteQuery().get("edit") || "";
 }
 
 function populateForm(form, client, projects) {
@@ -28,7 +25,7 @@ function populateForm(form, client, projects) {
 export function mountClientCreate(container) {
   setActiveNav();
 
-  const editId = getEditIdFromHash();
+  const editId = getEditIdFromRoute();
   const isEdit = !!editId;
   let editCreatedAt = null;
   let editCreatedBy = getCurrentUserId();
@@ -40,7 +37,7 @@ export function mountClientCreate(container) {
     const existing = readRef(`clients/${editId}`);
     if (!existing) {
       showToast("Client not found", "error");
-      location.hash = "#/clients";
+      navigateTo("/clients");
       return { unmount: () => {} };
     }
     editCreatedAt = existing.createdAt ?? Date.now();
@@ -63,7 +60,7 @@ export function mountClientCreate(container) {
 
   const topBar = document.createElement("div");
   topBar.className = "cust-create-top";
-  topBar.innerHTML = `<a href="#/clients" class="btn btn-ghost btn-sm">Cancel</a>`;
+  topBar.innerHTML = `<a href="/clients" class="btn btn-ghost btn-sm">Cancel</a>`;
   root.appendChild(topBar);
 
   const formCard = document.createElement("section");
@@ -95,7 +92,7 @@ export function mountClientCreate(container) {
     </select>
     <div class="form-actions">
       <button type="submit" class="btn btn-primary" id="cust-submit">${isEdit ? "Save changes" : "Add client"}</button>
-      <a href="#/clients" class="btn btn-dark">Cancel</a>
+      <a href="/clients" class="btn btn-dark">Cancel</a>
     </div>
   `;
   formBody.appendChild(form);
@@ -145,7 +142,7 @@ export function mountClientCreate(container) {
         });
         showToast("Client added");
       }
-      location.hash = "#/clients";
+      navigateTo("/clients");
     } catch (err) {
       showToast(err.message, "error");
     }

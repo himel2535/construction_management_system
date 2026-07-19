@@ -167,7 +167,7 @@ export function renderProjectPerformanceTable(host, rows = []) {
   host.innerHTML = `<section class="dash-widget dash-widget--wide dash-widget--perf card">
     <div class="dash-widget-head dash-widget-head--split">
       <h3 class="dash-widget-title">Project Performance Overview</h3>
-      <a href="#/projects" class="dash-link dash-perf-view-all">View All Projects →</a>
+      <a href="/projects" class="dash-link dash-perf-view-all">View All Projects →</a>
     </div>
     <div class="dash-widget-body">${body}</div>
   </section>`;
@@ -193,7 +193,7 @@ export function renderAttentionPanel(host, items = []) {
           (it) => `<li class="dash-attention-item">
           <div class="dash-attention-icon dash-attention-icon--${escapeHtml(it.icon || "warning")}">${attentionIconSvg(it.icon)}</div>
           <span class="dash-attention-title">${escapeHtml(it.title)}</span>
-          <a href="${escapeHtml(it.link || "#/dashboard")}" class="dash-link dash-attention-action">${escapeHtml(it.action || "View")}</a>
+          <a href="${escapeHtml(it.link || "/dashboard")}" class="dash-link dash-attention-action">${escapeHtml(it.action || "View")}</a>
         </li>`
         )
         .join("")}</ul>`
@@ -201,7 +201,7 @@ export function renderAttentionPanel(host, items = []) {
   host.innerHTML = `<section class="dash-widget dash-widget--attention card">
     <div class="dash-widget-head dash-widget-head--split">
       <h3 class="dash-widget-title">Attention Required</h3>
-      <a href="#/approvals" class="dash-link dash-attention-view-all">View All →</a>
+      <a href="/approvals" class="dash-link dash-attention-view-all">View All →</a>
     </div>
     <div class="dash-widget-body">${body}</div>
   </section>`;
@@ -421,7 +421,7 @@ export function renderPendingApprovals(host, groups = []) {
           <div class="dash-approval-icon dash-approval-icon--${tone}">${approvalIconSvg(g.icon)}</div>
           <span class="dash-approval-label">${escapeHtml(g.label)}</span>
           <span class="dash-approval-count">${g.count}</span>
-          <a href="#/approvals" class="dash-approval-btn">Review</a>
+          <a href="/approvals" class="dash-approval-btn">Review</a>
         </li>`;
         })
         .join("")}</ul>`
@@ -429,7 +429,7 @@ export function renderPendingApprovals(host, groups = []) {
   host.innerHTML = `<section class="dash-widget dash-widget--approvals card">
     <div class="dash-widget-head dash-widget-head--split">
       <h3 class="dash-widget-title">Pending Approvals</h3>
-      <a href="#/approvals" class="dash-link dash-approval-view-all">View All →</a>
+      <a href="/approvals" class="dash-link dash-approval-view-all">View All →</a>
     </div>
     <div class="dash-widget-body">${body}</div>
   </section>`;
@@ -513,7 +513,7 @@ export function renderProcurementAlerts(host, alerts = []) {
   host.innerHTML = `<section class="dash-widget dash-widget--procurement card">
     <div class="dash-widget-head dash-widget-head--split">
       <h3 class="dash-widget-title">Procurement &amp; Material Alerts</h3>
-      <a href="#/purchases" class="dash-link dash-proc-view-all">View All →</a>
+      <a href="/purchases" class="dash-link dash-proc-view-all">View All →</a>
     </div>
     <div class="dash-widget-body">${body}</div>
   </section>`;
@@ -551,7 +551,7 @@ export function renderBillingPanel(host, data) {
   host.innerHTML = `<section class="dash-widget dash-widget--billing card">
     <div class="dash-widget-head dash-widget-head--split">
       <h3 class="dash-widget-title">Billing &amp; Receivables</h3>
-      <a href="#/billing" class="dash-link dash-billing-view-all">View All →</a>
+      <a href="/billing" class="dash-link dash-billing-view-all">View All →</a>
     </div>
     <div class="dash-widget-body">
       <div class="dash-billing-layout">
@@ -625,7 +625,7 @@ export function renderMilestonesStrip(host, items = []) {
   host.innerHTML = `<section class="dash-widget dash-widget--milestones card">
     <div class="dash-widget-head dash-widget-head--split">
       <h3 class="dash-widget-title">Upcoming Project Milestones (Next 7 Days)</h3>
-      <a href="#/projects" class="dash-link dash-milestones-view-all">View All →</a>
+      <a href="/projects" class="dash-link dash-milestones-view-all">View All →</a>
     </div>
     <div class="dash-milestones-scroll">${cards}</div>
   </section>`;

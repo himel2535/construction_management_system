@@ -191,7 +191,7 @@ export function buildAttentionItems(state, projects = []) {
       icon: "warning",
       title: `${n} Project${n === 1 ? "" : "s"} Delayed`,
       action: "View",
-      link: "#/projects",
+      link: "/projects",
     });
   }
 
@@ -204,7 +204,7 @@ export function buildAttentionItems(state, projects = []) {
       icon: "payment",
       title: `${formatCompactBDT(overdueAmount)} Payment Overdue`,
       action: "View",
-      link: "#/billing",
+      link: "/billing",
     });
   }
 
@@ -218,7 +218,7 @@ export function buildAttentionItems(state, projects = []) {
       icon: "approval",
       title: `${purchasePending} Purchase Request${purchasePending === 1 ? "" : "s"} Pending Approval`,
       action: "Review",
-      link: "#/approvals",
+      link: "/approvals",
     });
   }
 
@@ -229,7 +229,7 @@ export function buildAttentionItems(state, projects = []) {
       icon: "materials",
       title: `${n} Material${n === 1 ? "" : "s"} Below Minimum Stock`,
       action: "View",
-      link: "#/inventory",
+      link: "/inventory",
     });
   }
 
@@ -243,7 +243,7 @@ export function buildAttentionItems(state, projects = []) {
       icon: "maintenance",
       title: `${maintenanceOverdue} Equipment Maintenance Overdue`,
       action: "View",
-      link: "#/assets",
+      link: "/assets",
     });
   }
 
@@ -256,7 +256,7 @@ export function buildAttentionItems(state, projects = []) {
       icon: "delivery",
       title: `${delayedDeliveries} Supplier Deliver${delayedDeliveries === 1 ? "y" : "ies"} Delayed`,
       action: "View",
-      link: "#/purchases",
+      link: "/purchases",
     });
   }
 
@@ -406,7 +406,7 @@ export function buildProcurementAlerts(state = {}) {
         title: `${name} Low Stock: ${formatMaterialStockQty(m)}`,
         tag: "Low Stock",
         tagTone: "low-stock",
-        link: "#/inventory",
+        link: "/inventory",
       });
     } else {
       alerts.push({
@@ -415,7 +415,7 @@ export function buildProcurementAlerts(state = {}) {
         title: `${name} Reorder Required`,
         tag: "Reorder",
         tagTone: "reorder",
-        link: "#/inventory",
+        link: "/inventory",
       });
     }
   }
@@ -432,7 +432,7 @@ export function buildProcurementAlerts(state = {}) {
       title: `${n} Purchase Order${n === 1 ? "" : "s"} Delayed`,
       tag: "Delayed",
       tagTone: "delayed",
-      link: "#/purchases",
+      link: "/purchases",
     });
   }
 
@@ -447,7 +447,7 @@ export function buildProcurementAlerts(state = {}) {
       title: `${n} Supplier${n === 1 ? "" : "s"} Delivery Overdue`,
       tag: "Overdue",
       tagTone: "overdue",
-      link: "#/purchases",
+      link: "/purchases",
     });
   }
 
@@ -464,7 +464,7 @@ export function buildProcurementAlerts(state = {}) {
       title: `${n} Material Request${n === 1 ? "" : "s"} Pending`,
       tag: "Pending",
       tagTone: "pending",
-      link: "#/purchases",
+      link: "/purchases",
     });
   }
 

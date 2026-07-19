@@ -3,6 +3,7 @@ import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
 import { icon } from "./cmp_icons.js";
 import { formatDate } from "./util_format.js";
+import { navigateTo } from "./util_route.js";
 
 function escapeHtml(s) {
   return String(s)
@@ -398,7 +399,7 @@ export function mountClients(container) {
   const tbody = tableWrap.querySelector("tbody");
 
   function goToClientForm(clientId = "") {
-    location.hash = clientId ? `#/clients/new?edit=${encodeURIComponent(clientId)}` : "#/clients/new";
+    navigateTo(clientId ? `/clients/new?edit=${encodeURIComponent(clientId)}` : "/clients/new");
   }
 
   setPageChrome({
@@ -443,7 +444,7 @@ export function mountClients(container) {
       ${client.address ? `<p class="cust-detail-address"><span class="cust-detail-label">Address</span> ${escapeHtml(client.address)}</p>` : ""}
       <div class="cust-detail-actions">
         <button type="button" class="btn btn-ghost btn-sm" id="cust-detail-edit">${icon("pencil", { size: 16 })} Edit</button>
-        ${linkedBills.length ? `<a href="#/billing" class="btn btn-ghost btn-sm">View billing</a>` : ""}
+        ${linkedBills.length ? `<a href="/billing" class="btn btn-ghost btn-sm">View billing</a>` : ""}
       </div>
     `;
     detailPanel.querySelector("#cust-detail-close").onclick = () => {

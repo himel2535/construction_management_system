@@ -30,7 +30,7 @@ export async function createResponsibilityTask(projectId, data) {
       type: "task",
       title: "New task assigned",
       message: data.title.trim(),
-      link: `#/projects?select=${projectId}`,
+      link: `/projects?select=${projectId}`,
       projectId,
     });
   }
@@ -56,7 +56,7 @@ export async function updateResponsibilityTask(projectId, taskId, patch) {
       type: "task",
       title: "Task assigned to you",
       message: merged.title || "Task",
-      link: `#/projects?select=${projectId}`,
+      link: `/projects?select=${projectId}`,
       projectId,
     });
   }
@@ -81,7 +81,7 @@ export async function delegateTask(projectId, taskId, toUserId) {
     type: "task",
     title: "Task delegated to you",
     message: cur.title || "Task",
-    link: `#/projects?select=${projectId}`,
+    link: `/projects?select=${projectId}`,
     projectId,
   });
 

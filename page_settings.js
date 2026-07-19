@@ -12,6 +12,7 @@ import {
   canPerformAction,
 } from "./svc_governance.js";
 import { ALL_ROLES, roleLabel, roleDescription, defaultRouteForRole } from "./util_roles.js";
+import { navigateTo } from "./util_route.js";
 import { PERMISSION_GROUPS, MATRIX_ROLES, roleHasPermission, matrixRoleLabel } from "./util_permissions.js";
 import { createEmployee, deactivateUser, reactivateUser, removeEmployee } from "./svc_userManagement.js";
 import { formatDate } from "./util_format.js";
@@ -263,7 +264,7 @@ export function mountSettings(container) {
         syncHeaderUser();
         renderRolesList();
             showToast(`Switched to ${user.displayName || user.email}`);
-            location.hash = `#${defaultRouteForRole(user.role)}`;
+            navigateTo(defaultRouteForRole(user.role));
           } catch (err) {
             showToast(err.message, "error");
           }

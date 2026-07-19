@@ -115,7 +115,7 @@ export function buildBoqTab(state) {
     <div class="r2-stat"><span class="cust-detail-label">Approved expenses</span><strong>${formatBDT(summary.approvedExpenseTotal || 0)}</strong></div>
     <div class="r2-stat"><span class="cust-detail-label">Remaining</span><strong class="${summary.overBudget ? "text-danger" : ""}">${formatBDT(summary.remaining)}</strong></div>
     <div class="r2-stat"><span class="cust-detail-label">Utilization</span>${varianceChip(summary.utilization > 90 ? "delayed" : "on_time", `${summary.utilization}%`)}</div>
-    <div class="r2-stat r2-stat--link"><a href="#/accounting" class="text-link">Manage expenses →</a></div>
+    <div class="r2-stat r2-stat--link"><a href="/accounting" class="text-link">Manage expenses →</a></div>
   `;
 
   const phaseRows = computeProjectPhaseBudgetSummary(state.selectedProjectId, state.phases || []);

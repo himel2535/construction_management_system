@@ -34,7 +34,7 @@ export async function sendProjectMessage(projectId, payload) {
       type: "project_message",
       title: `New message on ${project?.name || "project"}`,
       message: body.slice(0, 120),
-      link: `#/projects?id=${encodeURIComponent(projectId)}&tab=messages`,
+      link: `/projects?id=${encodeURIComponent(projectId)}&tab=messages`,
       projectId,
       meta: { messageId: id },
     });

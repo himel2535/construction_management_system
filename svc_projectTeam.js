@@ -24,7 +24,7 @@ async function notifyOverAllocation(userId) {
     type: "over_allocation",
     title: "Over-allocation warning",
     message: `Your active project allocation is ${over.total}% (exceeds 100%)`,
-    link: "#/dashboard",
+    link: "/dashboard",
   });
 }
 
@@ -55,7 +55,7 @@ export async function createTeamAssignment(data) {
     type: "assignment",
     title: "New project assignment",
     message: `You were assigned as ${data.role || "team member"} (${data.raci || "R"})`,
-    link: `#/projects?select=${data.projectId}`,
+    link: `/projects?select=${data.projectId}`,
     projectId: data.projectId,
   });
 
@@ -87,7 +87,7 @@ export async function updateTeamAssignment(id, data) {
       type: "assignment",
       title: "Project assignment updated",
       message: `You were assigned on a project`,
-      link: `#/projects?select=${merged.projectId}`,
+      link: `/projects?select=${merged.projectId}`,
       projectId: merged.projectId,
     });
   }

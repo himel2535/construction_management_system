@@ -61,7 +61,7 @@ export function renderPortfolioHtml(projects, milestonesByProject = {}, opts = {
           const health = computeProjectHealth(p, milestones);
           const budget = resolveBudgetTotal(p);
           return `
-          <a href="#/projects?select=${encodeURIComponent(p.id)}" class="project-card card">
+          <a href="/projects?select=${encodeURIComponent(p.id)}" class="project-card card">
             <div class="project-card-head">
               <strong class="project-card-title">${escapeHtml(p.name)}</strong>
               <span class="project-card-chips">${statusChip(p.status || "ongoing")}${healthChip(health)}</span>
@@ -92,7 +92,7 @@ export function renderPortfolioHtml(projects, milestonesByProject = {}, opts = {
               const health = computeProjectHealth(p, milestones);
               return `
               <tr>
-                <td><a href="#/projects?select=${encodeURIComponent(p.id)}"><strong>${escapeHtml(p.name)}</strong></a></td>
+                <td><a href="/projects?select=${encodeURIComponent(p.id)}"><strong>${escapeHtml(p.name)}</strong></a></td>
                 <td>${escapeHtml(formatProjectTypeShort(p))}</td>
                 <td>${escapeHtml(resolveManagerLabel(p.projectManagerId))}</td>
                 <td class="progress-cell">${progressBar(progress)}<small>${progress}%</small></td>

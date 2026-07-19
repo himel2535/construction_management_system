@@ -3,7 +3,7 @@ import { getCurrentUserId, getCurrentUserName } from "./svc_auth.js";
 import { writeAuditLog } from "./svc_workflow.js";
 import { showToast } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
-import { setPageChrome } from "./cmp_header.js";
+import { navigateTo } from "./util_route.js";
 import { icon } from "./cmp_icons.js";
 import { setupGovProjectOnCreate } from "./svc_govProject.js";
 import { setupPrivateProjectOnCreate } from "./svc_projectSetup.js";
@@ -78,7 +78,7 @@ export function mountProjectCreate(container) {
   topBar.className = "project-create-top";
   topBar.appendChild(renderBreadcrumb());
   const cancelTop = document.createElement("a");
-  cancelTop.href = "#/projects";
+  cancelTop.href = "/projects";
   cancelTop.className = "btn btn-ghost btn-sm project-create-cancel-top";
   cancelTop.textContent = "Cancel";
   topBar.appendChild(cancelTop);
@@ -416,7 +416,7 @@ export function mountProjectCreate(container) {
   cancelTop.addEventListener("click", (e) => {
     e.preventDefault();
     flushDraft();
-    location.hash = "#/projects";
+    navigateTo("/projects");
   });
 
   backBtn.onclick = () => {
@@ -486,7 +486,7 @@ export function mountProjectCreate(container) {
       resetCreateWizard();
       sessionStorage.setItem(ERP_SELECT_PROJECT_KEY, id);
       showToast("Project created");
-      location.hash = "#/projects";
+      navigateTo("/projects");
     } catch (err) {
       showToast(err.message || "Failed to create project", "error");
       nextBtn.disabled = false;

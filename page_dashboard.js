@@ -28,6 +28,7 @@ import {
   renderBillingPanel,
   renderMilestonesStrip,
 } from "./cmp_dashboardWidgets.js";
+import { navigateTo } from "./util_route.js";
 
 function parseNestedByProject(root) {
   const out = {};
@@ -41,7 +42,7 @@ function parseNestedByProject(root) {
 
 export function mountDashboard(container) {
   if (getCurrentRole() === "client") {
-    location.hash = "#/client-portal";
+    navigateTo("/client-portal");
     container.innerHTML = "";
     return { unmount: () => {} };
   }
@@ -53,7 +54,7 @@ export function mountDashboard(container) {
     showDateRange: true,
     quickActionLabel: "+ Quick Action",
     onQuickAction: () => {
-      location.hash = "#/projects/new";
+      navigateTo("/projects/new");
     },
   });
 

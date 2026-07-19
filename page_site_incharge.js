@@ -2,6 +2,7 @@ import { listenList, listenProjectSub, create } from "./svc_data.js";
 import { showToast } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
+import { getRoutePath, getRouteQuery } from "./util_route.js";
 import { statusChip } from "./cmp_ui.js";
 import { icon } from "./cmp_icons.js";
 import { formatBDT, todayISO } from "./util_format.js";
@@ -74,20 +75,20 @@ function escapeHtml(s) {
 }
 
 function parseHashParams() {
-  const q = location.hash.split("?")[1] || "";
-  return new URLSearchParams(q);
+  return getRouteQuery();
 }
 
 function updateHashParams(patch) {
-  const base = location.hash.split("?")[0];
-  const params = parseHashParams();
+  const params = getRouteQuery();
   for (const [k, v] of Object.entries(patch)) {
     if (v == null || v === "") params.delete(k);
     else params.set(k, v);
   }
   const qs = params.toString();
-  const next = qs ? `${base}?${qs}` : base;
-  if (location.hash !== next) history.replaceState(null, "", location.pathname + location.search + next);
+  const path = getRoutePath();
+  const next = qs ? `${path}?${qs}` : path;
+  const current = location.pathname + (location.search || "");
+  if (current !== next) history.replaceState(null, "", next);
 }
 
 export function mountSiteIncharge(container) {
@@ -740,7 +741,7 @@ export function mountSiteIncharge(container) {
           <strong>${escapeHtml(a.projectName || a.projectId)}</strong>
           <span>Since ${escapeHtml(a.startDate || "—")}</span>
           <button type="button" class="btn btn-ghost btn-sm" data-switch-project="${escapeHtml(a.projectId)}">Use as context</button>
-          <a href="#/projects?id=${encodeURIComponent(a.projectId)}" class="btn btn-ghost btn-sm">Open project</a>
+          <a href="/projects?id=${encodeURIComponent(a.projectId)}" class="btn btn-ghost btn-sm">Open project</a>
         </div>`
             )
             .join("");
@@ -1209,7 +1210,7 @@ export function mountSiteIncharge(container) {
           <input name="purpose" placeholder="Purpose / task" />
           <button type="submit" class="btn btn-primary btn-sm">Submit to central store</button>
         </form>
-        <p class="text-muted sic-mr-hint">After approval, store manager issues voucher from <a href="#/inventory">Inventory → Issue Vouchers</a>.</p>`
+        <p class="text-muted sic-mr-hint">After approval, store manager issues voucher from <a href="/inventory">Inventory → Issue Vouchers</a>.</p>`
           : `<p class="proj-empty">You do not have permission to submit material requests.</p>`
       )
     );
@@ -1253,7 +1254,7 @@ export function mountSiteIncharge(container) {
               <td>${isCentral ? "Central" : "Supplier"}</td>
               <td>${m.qty || "—"}</td>
               <td>${statusChip(m.status)}</td>
-              <td>${voucher ? escapeHtml(voucher.voucherNo) : isCentral ? "Pending issue" : `<a href="#/purchases">Purchases</a>`}</td>
+              <td>${voucher ? escapeHtml(voucher.voucherNo) : isCentral ? "Pending issue" : `<a href="/purchases">Purchases</a>`}</td>
             </tr>`;
             })
             .join("")}</tbody></table>`;
@@ -1456,7 +1457,7 @@ export function mountSiteIncharge(container) {
         <label>Month <input type="month" id="sic-payroll-month" value="${month}" /></label>
         <label>Pay cycle <select id="sic-pay-cycle">${cycleOpts}</select></label>
         <span class="text-muted">Period: ${bounds.periodStart} → ${bounds.periodEnd}</span>
-        <a href="#/workers" class="btn btn-ghost btn-sm">Open Workers page</a>
+        <a href="/workers" class="btn btn-ghost btn-sm">Open Workers page</a>
       </div>
     `;
     host.querySelector("#sic-payroll-month")?.addEventListener("change", (e) => {
@@ -1827,7 +1828,7 @@ export function mountSiteIncharge(container) {
                   ? `<button type="button" class="btn btn-ghost btn-sm" data-end-asn="${a.id}">End</button>`
                   : "";
               return `<tr>
-                <td><a href="#/projects?id=${encodeURIComponent(a.projectId)}">${escapeHtml(a.projectName || a.projectId)}</a></td>
+                <td><a href="/projects?id=${encodeURIComponent(a.projectId)}">${escapeHtml(a.projectName || a.projectId)}</a></td>
                 <td>${escapeHtml(a.startDate || "—")}</td>
                 <td>${escapeHtml(a.endDate || "—")}</td>
                 <td>${escapeHtml(a.status)}</td>

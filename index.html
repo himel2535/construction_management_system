@@ -11,8 +11,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css?v=20260526.3" />
     <script>
-      if (!location.hash || location.hash === "#") {
-        location.replace(location.pathname + location.search + "#/dashboard");
+      if (location.hash.startsWith("#/")) {
+        location.replace(location.pathname + location.search + location.hash.slice(1));
+      } else if (location.pathname === "/" || location.pathname === "") {
+        location.replace("/dashboard");
       }
     </script>
   </head>

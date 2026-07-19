@@ -5,23 +5,24 @@ import { filterNavItems, defaultRouteForRole, roleLabel } from "./util_roles.js"
 import { readRef } from "./svc_tenant.js";
 import { valToList } from "./svc_clientCache.js";
 import { countPendingApprovals } from "./util_dashboard.js";
+import { getRoutePath, navigateTo } from "./util_route.js";
 
 const NAV = [
-  { hash: "#/dashboard", label: "Dashboard", icon: "dashboard" },
-  { hash: "#/client-portal", label: "Client Portal", icon: "users" },
-  { hash: "#/clients", label: "Clients / Contacts", icon: "users" },
-  { hash: "#/projects", label: "Projects", icon: "folder" },
-  { hash: "#/site-incharge", label: "Site Management", icon: "hardhat" },
-  { hash: "#/accounting", label: "Finance", icon: "ledger" },
-  { hash: "#/purchases", label: "Procurement", icon: "bag" },
-  { hash: "#/inventory", label: "Inventory", icon: "inventory" },
-  { hash: "#/workers", label: "HR & Payroll", icon: "hardhat" },
-  { hash: "#/assets", label: "Assets & Equipment", icon: "assets" },
-  { hash: "#/billing", label: "Billing", icon: "ledger" },
-  { hash: "#/suppliers", label: "Suppliers", icon: "truck" },
-  { hash: "#/approvals", label: "Approvals", icon: "check", badgeKey: "approvals" },
-  { hash: "#/reports", label: "Reports", icon: "chart" },
-  { hash: "#/settings", label: "Settings", icon: "gear" },
+  { path: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { path: "/client-portal", label: "Client Portal", icon: "users" },
+  { path: "/clients", label: "Clients / Contacts", icon: "users" },
+  { path: "/projects", label: "Projects", icon: "folder" },
+  { path: "/site-incharge", label: "Site Management", icon: "hardhat" },
+  { path: "/accounting", label: "Finance", icon: "ledger" },
+  { path: "/purchases", label: "Procurement", icon: "bag" },
+  { path: "/inventory", label: "Inventory", icon: "inventory" },
+  { path: "/workers", label: "HR & Payroll", icon: "hardhat" },
+  { path: "/assets", label: "Assets & Equipment", icon: "assets" },
+  { path: "/billing", label: "Billing", icon: "ledger" },
+  { path: "/suppliers", label: "Suppliers", icon: "truck" },
+  { path: "/approvals", label: "Approvals", icon: "check", badgeKey: "approvals" },
+  { path: "/reports", label: "Reports", icon: "chart" },
+  { path: "/settings", label: "Settings", icon: "gear" },
 ];
 
 function buildNavLinks(navEl) {
@@ -32,9 +33,9 @@ function buildNavLinks(navEl) {
   navEl.innerHTML = "";
   for (const item of items) {
     const a = document.createElement("a");
-    a.href = item.hash;
+    a.href = item.path;
     a.className = "nav-link";
-    a.dataset.hash = item.hash;
+    a.dataset.path = item.path;
     const badge =
       item.badgeKey === "approvals" && approvalCount > 0
         ? `<span class="nav-badge">${approvalCount > 99 ? "99+" : approvalCount}</span>`
@@ -140,7 +141,7 @@ export function renderLayout(contentEl) {
   if (sidebarHead) {
     sidebarHead.title = "Go to home";
     sidebarHead.addEventListener("click", () => {
-      location.hash = `#${defaultRouteForRole(getCurrentRole())}`;
+      navigateTo(defaultRouteForRole(getCurrentRole()));
     });
   }
 
@@ -148,7 +149,7 @@ export function renderLayout(contentEl) {
   if (userCard) {
     userCard.title = "Settings";
     userCard.addEventListener("click", () => {
-      location.hash = "#/settings";
+      navigateTo("/settings");
     });
   }
 
@@ -176,10 +177,9 @@ export function renderLayout(contentEl) {
 }
 
 export function setActiveNav() {
-  const path =
-    (location.hash || "#/dashboard").split("?")[0].replace(/^#/, "") || "/dashboard";
+  const path = getRoutePath();
   document.querySelectorAll(".nav-link").forEach((a) => {
-    const navPath = (a.dataset.hash || "").replace(/^#/, "");
+    const navPath = a.dataset.path || "";
     const active =
       navPath === path ||
       (navPath === "/projects" && path.startsWith("/projects")) ||

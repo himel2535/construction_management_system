@@ -15,7 +15,7 @@ function escapeHtml(s) {
 }
 
 export function mountApprovals(container) {
-  setActiveNav("#/approvals");
+  setActiveNav();
   setPageChrome({
     title: "Approvals",
     subtitle: "Enterprise approval inbox — R3 workflow and R4 arbitration.",

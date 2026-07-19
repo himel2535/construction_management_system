@@ -148,7 +148,7 @@ export function filterNavItems(navItems, role) {
   const allowed = getNavForRole(role);
   if (allowed.includes("*")) return navItems;
   return navItems.filter((item) => {
-    const key = navKeyFromPath(item.hash.replace("#", ""));
+    const key = navKeyFromPath(item.path || item.hash?.replace("#", "") || "");
     return key && allowed.includes(key);
   });
 }

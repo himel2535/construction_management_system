@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "build": "node -e \"console.log('Static deploy — source files served from repo root. Run scripts/build-prod.mjs locally for cPanel bundle.')\"",
-    "build:verify": "npm run build"
+    "build:verify": "npm run build",
+    "dev": "npx --yes serve -s . -l 3000",
+    "start": "npm run dev"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"

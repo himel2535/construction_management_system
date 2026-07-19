@@ -25,7 +25,7 @@ AddDefaultCharset UTF-8
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteRule ^ - [R=404,L]
 
-  # Everything else -> SPA shell (hash routes handled in browser)
+  # Everything else -> SPA shell (path routes handled in browser)
   RewriteRule ^ index.html [L]
 </IfModule>
 

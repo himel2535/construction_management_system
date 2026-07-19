@@ -48,7 +48,7 @@ export function collectMyTasks({
         type: "Milestone",
         status: m.status || "pending",
         severity: v.key === "delayed" ? "high" : "normal",
-        link: `#/projects?select=${p.id}`,
+        link: `/projects?select=${p.id}`,
       });
     }
   }
@@ -65,7 +65,7 @@ export function collectMyTasks({
       type: "Approval",
       status: "pending",
       severity: (q.ageDays || 0) > 7 ? "high" : "normal",
-      link: "#/approvals",
+      link: "/approvals",
     });
   }
 
@@ -83,7 +83,7 @@ export function collectMyTasks({
           type: "Quality",
           status: q.status || "open",
           severity: "normal",
-          link: `#/projects?select=${p.id}`,
+          link: `/projects?select=${p.id}`,
         });
       }
     }
@@ -102,7 +102,7 @@ export function collectMyTasks({
         type: "Task",
         status: t.status || "open",
         severity: prioritySeverity(t.priority),
-        link: `#/projects?select=${p.id}`,
+        link: `/projects?select=${p.id}`,
       });
     }
   }

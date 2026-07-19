@@ -1,6 +1,7 @@
 import { getCurrentRole } from "./svc_governance.js";
 import { defaultRouteForRole, roleLabel } from "./util_roles.js";
 import { getCurrentUserName, getCurrentUserId } from "./svc_auth.js";
+import { getRoutePath, navigateTo } from "./util_route.js";
 
 /** @typedef {{ title?: string, subtitle?: string, showDateRange?: boolean, quickActionLabel?: string, onQuickAction?: (() => void) | null }} PageChrome */
 
@@ -75,9 +76,7 @@ export function setPageChrome(patch) {
 }
 
 function getCurrentRoutePath() {
-  const hash = location.hash.slice(1) || "/dashboard";
-  const raw = hash.startsWith("/") ? hash : `/${hash}`;
-  return raw.split("?")[0];
+  return getRoutePath();
 }
 
 export function updatePageChromeBack() {
@@ -91,7 +90,7 @@ export function updatePageChromeBack() {
   const label = role === "client" ? "Back to Portal" : "Back to Dashboard";
   backBtn.innerHTML = `<span class="page-chrome-back-icon" aria-hidden="true">${iconSvg("chevronLeft")}</span><span>${label}</span>`;
   backBtn.onclick = () => {
-    location.hash = `#${home}`;
+    navigateTo(home);
   };
 }
 
@@ -286,23 +285,24 @@ export function initHeaderInteractions() {
     const links = [...document.querySelectorAll(".nav-link")];
     const found = links.find((l) => l.textContent.toLowerCase().includes(q));
     if (found) {
-      location.hash = found.getAttribute("href") || "#/dashboard";
+      const href = found.getAttribute("href") || "/dashboard";
+      navigateTo(href.startsWith("/") ? href : `/${href.replace(/^#/, "")}`);
       search.value = "";
       search.blur();
     }
   });
 
   document.getElementById("header-user-btn")?.addEventListener("click", () => {
-    location.hash = "#/settings";
+    navigateTo("/settings");
   });
 
   document.getElementById("header-messages-btn")?.addEventListener("click", () => {
-    location.hash = "#/projects?tab=messages";
+    navigateTo("/projects?tab=messages");
   });
 
   initNotificationBell();
 
-  window.addEventListener("hashchange", () => updatePageChromeBack());
+  window.addEventListener("popstate", () => updatePageChromeBack());
 
   syncHeaderUser();
   applyRouteChrome();
@@ -363,7 +363,10 @@ function initNotificationBell() {
           const { markNotificationRead } = await import("./svc_notifications.js");
           await markNotificationRead(getCurrentUserId(), id);
         } catch (_) { /* ignore */ }
-        if (link) location.hash = link.startsWith("#") ? link : `#${link}`;
+        if (link) {
+          const path = link.startsWith("#/") ? link.slice(1) : link.startsWith("#") ? link.slice(1) : link;
+          navigateTo(path.startsWith("/") ? path : `/${path}`);
+        }
       };
     });
   };

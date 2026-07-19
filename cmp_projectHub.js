@@ -182,7 +182,7 @@ export function renderProjectHeader(p, hubState, opts = {}) {
   const sicRow = p.siteInChargeId ? readRef(`siteInCharges/${p.siteInChargeId}`) : null;
   const siteInChargeLabel = p.siteInChargeId ? sicRow?.name || "—" : "Unassigned";
   const siteInChargeHtml = p.siteInChargeId
-    ? `<a href="#/site-incharge?id=${encodeURIComponent(p.siteInChargeId)}&projectId=${encodeURIComponent(p.id)}" class="proj-header-link">${escapeHtml(siteInChargeLabel)}</a>`
+    ? `<a href="/site-incharge?id=${encodeURIComponent(p.siteInChargeId)}&projectId=${encodeURIComponent(p.id)}" class="proj-header-link">${escapeHtml(siteInChargeLabel)}</a>`
     : escapeHtml(siteInChargeLabel);
 
   const kpiHtml = kpis
