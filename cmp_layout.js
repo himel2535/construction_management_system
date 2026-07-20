@@ -1,6 +1,6 @@
 ﻿import { getCurrentUserName, getCurrentUserEmail } from "./svc_auth.js";
 import { createAppHeader, initHeaderInteractions } from "./cmp_header.js";
-import { navIcon, sidebarLogo } from "./cmp_navIcons.js";
+import { navIcon, sidebarLogo, sidebarMinimizeIcon, sidebarExpandIcon } from "./cmp_navIcons.js";
 import { getCurrentRole } from "./svc_governance.js";
 import { filterNavItems, defaultRouteForRole, roleLabel } from "./util_roles.js";
 import { readRef } from "./svc_tenant.js";
@@ -26,6 +26,8 @@ export const APP_NAV = [
   { path: "/settings", label: "Settings", icon: "settings" },
 ];
 
+const SIDEBAR_COLLAPSED_KEY = "erp-sidebar-collapsed";
+
 function buildNavLinks(navEl) {
   if (!navEl) return;
   const role = getCurrentRole();
@@ -37,6 +39,7 @@ function buildNavLinks(navEl) {
     a.href = item.path;
     a.className = "nav-link";
     a.dataset.path = item.path;
+    a.title = item.label;
     const badge =
       item.badgeKey === "approvals" && approvalCount > 0
         ? `<span class="nav-badge">${approvalCount > 99 ? "99+" : approvalCount}</span>`
@@ -51,6 +54,58 @@ function buildNavLinks(navEl) {
         document.body.classList.remove("sidebar-drawer-open");
       }
     });
+  });
+}
+
+function isDesktopSidebar() {
+  return window.matchMedia("(min-width: 769px)").matches;
+}
+
+function readSidebarCollapsedPref() {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeSidebarCollapsedPref(collapsed) {
+  try {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
+
+function initSidebarCollapse(shell) {
+  const btn = shell.querySelector(".sidebar-collapse-btn");
+  if (!btn) return;
+
+  function applyCollapsed(collapsed) {
+    if (!isDesktopSidebar()) {
+      shell.classList.remove("sidebar-collapsed");
+      btn.innerHTML = sidebarMinimizeIcon();
+      btn.setAttribute("aria-label", "Collapse sidebar");
+      btn.setAttribute("aria-expanded", "true");
+      return;
+    }
+    shell.classList.toggle("sidebar-collapsed", collapsed);
+    btn.innerHTML = collapsed ? sidebarExpandIcon() : sidebarMinimizeIcon();
+    btn.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+    btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    writeSidebarCollapsedPref(collapsed);
+  }
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!isDesktopSidebar()) return;
+    applyCollapsed(!shell.classList.contains("sidebar-collapsed"));
+  });
+
+  applyCollapsed(readSidebarCollapsedPref());
+
+  window.matchMedia("(min-width: 769px)").addEventListener("change", (e) => {
+    applyCollapsed(e.matches ? readSidebarCollapsedPref() : false);
   });
 }
 
@@ -92,11 +147,16 @@ export function renderLayout(contentEl) {
 
   aside.innerHTML = `
     <div class="sidebar-head">
-      <span class="sidebar-logo" aria-hidden="true">${sidebarLogo()}</span>
-      <div>
-        <h1>Construction ERP</h1>
-        <p>Owner / Admin panel</p>
-      </div>
+      <button type="button" class="sidebar-head-brand" title="Go to home">
+        <span class="sidebar-logo" aria-hidden="true">${sidebarLogo()}</span>
+        <div class="sidebar-head-text">
+          <h1>Construction ERP</h1>
+          <p>Owner / Admin panel</p>
+        </div>
+      </button>
+      <button type="button" class="sidebar-collapse-btn" aria-label="Collapse sidebar" aria-expanded="true">
+        ${sidebarMinimizeIcon()}
+      </button>
     </div>
     <nav id="sidebar-nav"></nav>
     <div class="sidebar-foot">
@@ -116,10 +176,9 @@ export function renderLayout(contentEl) {
   if (nameEl) nameEl.textContent = userName;
   if (emailEl) emailEl.textContent = roleLabel(getCurrentRole());
 
-  const sidebarHead = aside.querySelector(".sidebar-head");
-  if (sidebarHead) {
-    sidebarHead.title = "Go to home";
-    sidebarHead.addEventListener("click", () => {
+  const sidebarBrand = aside.querySelector(".sidebar-head-brand");
+  if (sidebarBrand) {
+    sidebarBrand.addEventListener("click", () => {
       navigateTo(defaultRouteForRole(getCurrentRole()));
     });
   }
@@ -149,6 +208,8 @@ export function renderLayout(contentEl) {
   shell.appendChild(aside);
   shell.appendChild(main);
   root.appendChild(shell);
+
+  initSidebarCollapse(shell);
 
   requestAnimationFrame(() => initHeaderInteractions({ nav: APP_NAV }));
 

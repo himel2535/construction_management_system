@@ -1,5 +1,6 @@
 ﻿import { setActiveNav, refreshSidebarNav } from "./cmp_layout.js";
 import { applyRouteChrome, updatePageChromeBack, syncHeaderUser } from "./cmp_header.js";
+import { pageSkeletonHtml, resolvePageSkeletonVariant } from "./cmp_skeleton.js";
 import { getCurrentRole } from "./svc_governance.js";
 import { canAccessRoute, defaultRouteForRole } from "./util_roles.js";
 import { getRoutePath, getRouteQuery, bindNavigate } from "./util_route.js";
@@ -8,6 +9,7 @@ export { getRoutePath, getRouteQuery, navigateTo } from "./util_route.js";
 
 const routes = new Map();
 let currentUnmount = null;
+const SKELETON_DELAY_MS = 150;
 
 export function registerRoute(path, handler) {
   routes.set(path, handler);
@@ -62,8 +64,25 @@ export async function navigate() {
   const container = document.getElementById("page-content");
   if (!container || !handler) return;
 
-  container.innerHTML = "";
-  const result = await handler(container);
+  const variant = resolvePageSkeletonVariant(path);
+  const isEmpty = !container.firstElementChild;
+  let skelTimer;
+
+  if (isEmpty) {
+    container.innerHTML = pageSkeletonHtml(variant);
+  } else {
+    skelTimer = setTimeout(() => {
+      container.innerHTML = pageSkeletonHtml(variant);
+    }, SKELETON_DELAY_MS);
+  }
+
+  let result;
+  try {
+    result = await handler(container);
+  } finally {
+    clearTimeout(skelTimer);
+  }
+
   if (result?.unmount) currentUnmount = result.unmount;
 
   refreshSidebarNav();

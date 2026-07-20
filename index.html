@@ -19,9 +19,7 @@
     </script>
   </head>
   <body>
-    <div id="app">
-      <p class="loading-msg">Connecting to Firebase...</p>
-    </div>
+    <div id="app"></div>
     <noscript>
       <p style="padding:2rem;text-align:center">Please enable JavaScript.</p>
     </noscript>
@@ -67,7 +65,7 @@
         setTimeout(function () {
           if (window.__ERP_BOOT_COMPLETE__) return;
           var app = document.getElementById("app");
-          if (app && app.querySelector(".loading-msg")) {
+          if (app && app.querySelector(".erp-boot-skeleton")) {
             showBootFailure(
               "Startup timed out. Check network and uploaded JS files (app.bundle.js and firebase.js on production)."
             );

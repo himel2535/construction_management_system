@@ -4,32 +4,6 @@ import { renderLayout, setActiveNav } from "./cmp_layout.js";
 
 import { registerRoute, startRouter } from "./router.js";
 
-import { mountDashboard } from "./page_dashboard.js";
-
-import { mountClients } from "./page_customers.js";
-import { mountClientCreate } from "./page_client_create.js";
-
-import { mountProjects } from "./page_projects.js";
-
-import { mountProjectCreate } from "./page_project_create.js";
-
-import { mountBilling } from "./page_sales.js";
-
-import { mountAccounting } from "./page_accounting.js";
-
-import { mountPurchases } from "./page_purchases.js";
-import { mountSuppliers } from "./page_suppliers.js";
-
-import { mountReports } from "./page_reports.js";
-
-import { mountApprovals } from "./page_approvals.js";
-
-import { mountArbitration } from "./page_arbitration.js";
-
-import { mountSettings } from "./page_settings.js";
-
-import { mountClientPortal } from "./page_client_portal.js";
-
 import { initTenantContext, getActiveTenantId } from "./svc_tenant.js";
 
 import { setCurrentUser } from "./svc_auth.js";
@@ -39,6 +13,45 @@ import { refreshProjectCostCache } from "./svc_operations.js";
 import { ensureFirebaseSeed } from "./svc_firebaseOps.js";
 
 import { DEMO_ACTOR_UID } from "./firebase.js";
+
+import { bootSkeletonHtml } from "./cmp_skeleton.js";
+
+const PAGE_ROUTES = [
+  ["/dashboard", "./page_dashboard.js", "mountDashboard"],
+  ["/clients", "./page_customers.js", "mountClients"],
+  ["/clients/new", "./page_client_create.js", "mountClientCreate"],
+  ["/customers", "./page_customers.js", "mountClients"],
+  ["/customers/new", "./page_client_create.js", "mountClientCreate"],
+  ["/projects", "./page_projects.js", "mountProjects"],
+  ["/projects/new", "./page_project_create.js", "mountProjectCreate"],
+  ["/billing", "./page_sales.js", "mountBilling"],
+  ["/sales", "./page_sales.js", "mountBilling"],
+  ["/accounting", "./page_accounting.js", "mountAccounting"],
+  ["/purchases", "./page_purchases.js", "mountPurchases"],
+  ["/suppliers", "./page_suppliers.js", "mountSuppliers"],
+  ["/inventory", "./page_inventory.js", "mountInventory"],
+  ["/assets", "./page_assets.js", "mountAssets"],
+  ["/workers", "./page_workers.js", "mountWorkers"],
+  ["/site-incharge", "./page_site_incharge.js", "mountSiteIncharge"],
+  ["/reports", "./page_reports.js", "mountReports"],
+  ["/approvals", "./page_approvals.js", "mountApprovals"],
+  ["/arbitration", "./page_arbitration.js", "mountArbitration"],
+  ["/settings", "./page_settings.js", "mountSettings"],
+  ["/client-portal", "./page_client_portal.js", "mountClientPortal"],
+];
+
+const pageModuleCache = new Map();
+
+function getBootPath() {
+  const p = location.pathname;
+  if (!p || p === "/") return "/dashboard";
+  return p;
+}
+
+const appBootEl = document.getElementById("app");
+if (appBootEl && !appBootEl.querySelector(".erp-boot-skeleton")) {
+  appBootEl.innerHTML = bootSkeletonHtml("Connecting to Firebase...", getBootPath());
+}
 
 function showBootError(message, detail = "") {
   const appEl = document.getElementById("app");
@@ -73,7 +86,7 @@ async function withTimeout(promise, ms, label) {
 function setBootStatus(text) {
   const appEl = document.getElementById("app");
   if (appEl) {
-    appEl.innerHTML = `<p class="loading-msg">${text}</p>`;
+    appEl.innerHTML = bootSkeletonHtml(text, getBootPath());
   }
 }
 
@@ -140,10 +153,14 @@ async function verifyDeployPaths() {
   }
 }
 
-/** Lazy route load — missing page/svc_*.js does not block full app boot */
 async function mountLazyPage(modulePath, exportName, container) {
   try {
-    const mod = await import(modulePath);
+    let mod = pageModuleCache.get(modulePath);
+    if (!mod) {
+      mod = await import(modulePath);
+      pageModuleCache.set(modulePath, mod);
+    }
+    container.innerHTML = "";
     const mount = mod[exportName];
     if (typeof mount !== "function") {
       throw new Error(`Missing export ${exportName}`);
@@ -198,48 +215,9 @@ function mountAppShell() {
 
   setActiveNav();
 
-  registerRoute("/dashboard", (c) => Promise.resolve(mountDashboard(c)));
-
-  registerRoute("/clients", (c) => Promise.resolve(mountClients(c)));
-
-  registerRoute("/clients/new", (c) => Promise.resolve(mountClientCreate(c)));
-
-  registerRoute("/customers", (c) => Promise.resolve(mountClients(c)));
-
-  registerRoute("/customers/new", (c) => Promise.resolve(mountClientCreate(c)));
-
-  registerRoute("/projects", (c) => Promise.resolve(mountProjects(c)));
-
-  registerRoute("/projects/new", (c) => Promise.resolve(mountProjectCreate(c)));
-
-  registerRoute("/billing", (c) => Promise.resolve(mountBilling(c)));
-
-  registerRoute("/sales", (c) => Promise.resolve(mountBilling(c)));
-
-  registerRoute("/accounting", (c) => Promise.resolve(mountAccounting(c)));
-
-  registerRoute("/purchases", (c) => Promise.resolve(mountPurchases(c)));
-  registerRoute("/suppliers", (c) => Promise.resolve(mountSuppliers(c)));
-
-  registerRoute("/inventory", (c) => mountLazyPage("./page_inventory.js", "mountInventory", c));
-
-  registerRoute("/assets", (c) => mountLazyPage("./page_assets.js", "mountAssets", c));
-
-  registerRoute("/workers", (c) => mountLazyPage("./page_workers.js", "mountWorkers", c));
-
-  registerRoute("/site-incharge", (c) =>
-    mountLazyPage("./page_site_incharge.js", "mountSiteIncharge", c)
-  );
-
-  registerRoute("/reports", (c) => Promise.resolve(mountReports(c)));
-
-  registerRoute("/approvals", (c) => Promise.resolve(mountApprovals(c)));
-
-  registerRoute("/arbitration", (c) => Promise.resolve(mountArbitration(c)));
-
-  registerRoute("/settings", (c) => Promise.resolve(mountSettings(c)));
-
-  registerRoute("/client-portal", (c) => Promise.resolve(mountClientPortal(c)));
+  for (const [path, modulePath, exportName] of PAGE_ROUTES) {
+    registerRoute(path, (c) => mountLazyPage(modulePath, exportName, c));
+  }
 
   window.addEventListener("online", () => {
     import("./svc_sync.js").then(({ processOfflineQueue }) => processOfflineQueue());
