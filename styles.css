@@ -1636,7 +1636,7 @@ thead th { background: var(--slate-50); font-weight: 600; font-size: 0.8125rem; 
 .dash-widget--clients .dash-widget-body {
   padding: 0.625rem 0.875rem 0.75rem;
 }
-.dash-widget--clients .customers-toolbar { margin-bottom: 0.4rem; }
+.dash-widget--clients .customers-toolbar { margin-bottom: calc(0.4rem + 3px); }
 .dash-widget--clients .dash-widget-head--split {
   align-items: flex-end;
 }
@@ -1655,11 +1655,11 @@ thead th { background: var(--slate-50); font-weight: 600; font-size: 0.8125rem; 
 }
 .dash-widget--clients .dash-table { border: none; border-radius: 0; box-shadow: none; }
 .dash-widget--clients .dash-table thead th {
-  background: #f8fafc;
-  border-bottom: 1px solid #e5e7eb;
-  color: #6b7280;
+  background: #f3f0ff;
+  border-bottom: 1px solid #e9d5ff;
+  color: #000000;
   font-size: 0.6875rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.65rem 0.75rem;
