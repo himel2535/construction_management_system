@@ -533,9 +533,9 @@ export function mountClients(container) {
         <input type="search" class="cust-toolbar-search-input" id="cust-search" placeholder="Search clients..." autocomplete="off" />
       </div>
       <div class="cust-toolbar-btn-group">
-        <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn" id="cust-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
-        <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn" id="cust-export">${icon("download", { size: 16 })} Export</button>
-        <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn" id="cust-import">${icon("upload", { size: 16 })} Import</button>
+        <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="cust-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
+        <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="cust-export">${icon("download", { size: 16 })} Export</button>
+        <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--import" id="cust-import">${icon("upload", { size: 16 })} Import</button>
       </div>
     </div>
   `;

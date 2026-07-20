@@ -2282,8 +2282,41 @@ thead th { background: var(--slate-50); font-weight: 600; font-size: 0.8125rem; 
   background: #f9fafb;
   border-color: #d1d5db;
 }
-.customers-toolbar .cust-toolbar-btn svg {
+.customers-toolbar .cust-toolbar-btn--clear {
+  background: #fff1f0;
+  color: #000;
+  border-color: #ffccc7;
+}
+.customers-toolbar .cust-toolbar-btn--export {
+  background: #e6fffb;
+  color: #000;
+  border-color: #b5f5ec;
+}
+.customers-toolbar .cust-toolbar-btn--import {
+  background: #f9f0ff;
+  color: #000;
+  border-color: #efdbff;
+}
+.customers-toolbar .cust-toolbar-btn--clear:hover {
+  background: #ffe7e6;
+  color: #000;
+  border-color: #ffa39e;
+}
+.customers-toolbar .cust-toolbar-btn--export:hover {
+  background: #b5f5ec;
+  color: #000;
+  border-color: #87e8de;
+}
+.customers-toolbar .cust-toolbar-btn--import:hover {
+  background: #efdbff;
+  color: #000;
+  border-color: #d3adf7;
+}
+.customers-toolbar .cust-toolbar-btn--clear svg,
+.customers-toolbar .cust-toolbar-btn--export svg,
+.customers-toolbar .cust-toolbar-btn--import svg {
   flex-shrink: 0;
+  color: #000;
 }
 .customers-toolbar .toolbar-meta { width: 100%; }
 .toolbar-input,
