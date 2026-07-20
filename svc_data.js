@@ -175,6 +175,42 @@ export async function propagateClientDenorm(clientId, clientName) {
   }
 }
 
+/**
+ * Keep project.clientId in sync with a client's primary project selection.
+ * Clears the previous project's link only if it still pointed at this client.
+ * @param {{ clientId: string, clientName: string, projectId?: string, previousProjectId?: string }} opts
+ */
+export async function syncClientPrimaryProject({
+  clientId,
+  clientName,
+  projectId = "",
+  previousProjectId = "",
+}) {
+  if (!clientId) return;
+  const now = Date.now();
+  const nextId = projectId || "";
+  const prevId = previousProjectId || "";
+
+  if (prevId && prevId !== nextId) {
+    const prev = readRef(`projects/${prevId}`);
+    if (prev && prev.clientId === clientId) {
+      await updatePath(`projects/${prevId}`, {
+        clientId: "",
+        clientName: "",
+        updatedAt: now,
+      });
+    }
+  }
+
+  if (nextId) {
+    await updatePath(`projects/${nextId}`, {
+      clientId,
+      clientName: clientName || "",
+      updatedAt: now,
+    });
+  }
+}
+
 /** @deprecated use propagateClientDenorm */
 export async function propagateCustomerDenorm(customerId, customerName) {
   return propagateClientDenorm(customerId, customerName);

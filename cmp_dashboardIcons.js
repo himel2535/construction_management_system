@@ -1,4 +1,4 @@
-const ICON_PATH = "assets/icons/dashboard";
+const ICON_PATH = "/assets/icons/dashboard";
 
 export const DASH_ICONS = {
   kpi: {
@@ -7,6 +7,13 @@ export const DASH_ICONS = {
     receivable: "kpi-receivable",
     collection: "kpi-collection",
     expense: "kpi-expense",
+  },
+  clientKpi: {
+    total: "cust-kpi-total-clients",
+    active: "cust-kpi-active-clients",
+    added: "cust-kpi-added-month",
+    email: "cust-kpi-email",
+    outstanding: "cust-kpi-outstanding",
   },
   attention: {
     warning: "attention-warning",
@@ -47,6 +54,12 @@ export function dashboardIcon(name, className = "dash-color-icon") {
 
 export function kpiIcon(type) {
   return dashboardIcon(DASH_ICONS.kpi[type] || DASH_ICONS.kpi.projects);
+}
+
+/** Flat colorful icons for Clients directory KPI cards (no pastel box). */
+export function clientKpiIcon(type) {
+  const file = DASH_ICONS.clientKpi[type] || DASH_ICONS.clientKpi.total;
+  return `<img class="dash-color-icon cust-kpi-flat-icon" src="${ICON_PATH}/${file}.svg" width="38" height="38" alt="" decoding="async" />`;
 }
 
 export function attentionIcon(type) {

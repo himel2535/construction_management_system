@@ -65,6 +65,11 @@ export function mountClientPortal(container) {
       return;
     }
 
+    if (state.client && state.client.portalAccessEnabled === false) {
+      host.innerHTML = `<div class="card card-pad"><p class="proj-empty">Portal access has been disabled for your account. Contact your administrator.</p></div>`;
+      return;
+    }
+
     loadMilestones();
     const linkedProjects = state.projects.filter(
       (p) => p.clientId === clientId || p.clientName === state.client?.name

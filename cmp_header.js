@@ -22,8 +22,18 @@ const ROUTE_CHROME = {
     showDateRange: true,
     quickActionLabel: "+ Quick Action",
   },
-  "/clients": { title: "Clients / Owners", subtitle: "Project owners, employers, and contract contacts." },
-  "/customers": { title: "Clients / Owners", subtitle: "Project owners, employers, and contract contacts." },
+  "/clients": {
+    title: "Clients / Owners",
+    subtitle: "Manage project owners, employers, and contract contacts.",
+    quickActionLabel: "+ Add New Client",
+    quickActionPath: "/clients/new",
+  },
+  "/customers": {
+    title: "Clients / Owners",
+    subtitle: "Manage project owners, employers, and contract contacts.",
+    quickActionLabel: "+ Add New Client",
+    quickActionPath: "/clients/new",
+  },
   "/clients/new": { title: "Add Client", subtitle: "Create a new client or project owner record." },
   "/customers/new": { title: "Add Client", subtitle: "Create a new client or project owner record." },
   "/projects": { title: "Projects", subtitle: "Project master, operations, quality/safety, and contracts." },
@@ -104,12 +114,13 @@ export function updatePageChromeBack() {
 export function applyRouteChrome() {
   const path = getCurrentRoutePath();
   const defaults = ROUTE_CHROME[path] || ROUTE_CHROME["/dashboard"];
+  const quickPath = defaults.quickActionPath || "";
   pageChrome = {
     title: defaults.title,
     subtitle: defaults.subtitle || "",
     showDateRange: !!defaults.showDateRange,
     quickActionLabel: defaults.quickActionLabel || "",
-    onQuickAction: null,
+    onQuickAction: quickPath ? () => navigateTo(quickPath) : null,
   };
   renderPageChrome();
 }
@@ -194,15 +205,15 @@ export function createAppHeader() {
           <span class="date-range-text"></span>
           <span class="date-chevron">${iconSvg("chevron")}</span>
         </button>
-        <button type="button" class="btn btn-primary header-quick-action" id="header-quick-action">
-          + Quick Action <span class="qa-chevron">${iconSvg("chevron")}</span>
-        </button>
         <button type="button" class="header-user" id="header-user-btn" aria-label="User menu">
           <span class="user-avatar">OD</span>
           <span class="user-meta">
             <span class="user-name">Owner (Demo)</span>
             <span class="user-chevron">${iconSvg("chevron")}</span>
           </span>
+        </button>
+        <button type="button" class="btn btn-primary header-quick-action" id="header-quick-action">
+          + Quick Action <span class="qa-chevron">${iconSvg("chevron")}</span>
         </button>
       </div>
     </div>

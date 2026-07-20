@@ -130,6 +130,7 @@ export function mountProjects(container) {
     return fromStore;
   })();
   const pendingTab = (() => getRouteQuery().get("tab") || "")();
+  const pendingClientFilter = (() => getRouteQuery().get("clientId") || "")();
   if (sessionStorage.getItem(ERP_SELECT_PROJECT_KEY)) {
     sessionStorage.removeItem(ERP_SELECT_PROJECT_KEY);
   }
@@ -142,6 +143,7 @@ export function mountProjects(container) {
     filterQuery: "",
     filterStatus: "all",
     filterType: "all",
+    filterClientId: pendingClientFilter,
     projects: [],
     projectsRaw: [],
     phases: [],
@@ -184,8 +186,20 @@ export function mountProjects(container) {
 
   const getSelected = () => state.projects.find((p) => p.id === state.selectedProjectId);
 
+  function projectSearchPlaceholder() {
+    if (!state.filterClientId) return "Search name or code...";
+    const fromProject = state.projects.find((p) => p.clientId === state.filterClientId);
+    if (fromProject?.clientName) return `Projects for ${fromProject.clientName}…`;
+    const client = readRef(`clients/${state.filterClientId}`);
+    if (client?.name) return `Projects for ${client.name}…`;
+    return "Search name or code...";
+  }
+
   const filteredProjects = () => {
     let list = dedupeProjects(state.projects);
+    if (state.filterClientId) {
+      list = list.filter((p) => p.clientId === state.filterClientId);
+    }
     if (state.filterType !== "all") {
       list = list.filter((p) => (p.projectType || defaultProjectType()) === state.filterType);
     }
@@ -226,7 +240,7 @@ export function mountProjects(container) {
     listHost.innerHTML = `
       ${showDraftChip ? `<div class="proj-draft-chip"><span>Draft saved</span><a href="/projects/new" class="proj-draft-chip-link">Resume</a><button type="button" class="proj-draft-chip-dismiss" aria-label="Dismiss">×</button></div>` : ""}
       <div class="proj-list-head">
-        <input type="search" class="toolbar-input proj-search" id="proj-search" placeholder="Search name or code..." value="${escapeHtml(state.filterQuery)}" />
+        <input type="search" class="toolbar-input proj-search" id="proj-search" placeholder="${escapeHtml(projectSearchPlaceholder())}" value="${escapeHtml(state.filterQuery)}" />
         <select class="toolbar-select" id="proj-status-filter">
           <option value="all">All statuses</option>
           ${PROJECT_STATUSES.map((s) => `<option value="${s}" ${state.filterStatus === s ? "selected" : ""}>${s}</option>`).join("")}

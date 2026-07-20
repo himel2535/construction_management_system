@@ -278,12 +278,15 @@ function skelClientsToolbar() {
         ${skelBlock("skel-clients-filter")}
         ${skelBlock("skel-clients-filter")}
         ${skelBlock("skel-clients-select")}
+        ${skelBlock("skel-clients-select")}
       </div>
       <div class="toolbar-actions">
         ${skelBlock("skel-clients-search")}
-        ${skelBlock("skel-clients-btn")}
-        ${skelBlock("skel-clients-btn")}
-        ${skelBlock("skel-clients-btn")}
+        <div class="cust-toolbar-btn-group">
+          ${skelBlock("skel-clients-btn")}
+          ${skelBlock("skel-clients-btn")}
+          ${skelBlock("skel-clients-btn")}
+        </div>
       </div>
     </div>
   `;
@@ -291,12 +294,15 @@ function skelClientsToolbar() {
 
 function skelClientsTableHead() {
   return `
-    <div class="skel-clients-table-head">
+    <div class="skel-clients-table-head skel-clients-table-head--wide">
       ${skelLine("sm", "40")}
       ${skelLine("sm", "45")}
+      ${skelLine("sm", "35")}
       ${skelLine("sm", "40")}
       ${skelLine("sm", "35")}
       ${skelLine("sm", "45")}
+      ${skelLine("sm", "40")}
+      ${skelLine("sm", "35")}
       ${skelLine("sm", "40")}
       ${skelLine("sm", "50")}
     </div>
@@ -305,14 +311,17 @@ function skelClientsTableHead() {
 
 function skelClientsTableRow() {
   return `
-    <div class="skel-clients-table-row">
+    <div class="skel-clients-table-row skel-clients-table-row--wide">
       ${skelBlock("skel-clients-num")}
       <div class="skel-clients-user cell-user">
         ${skelBlock("skel-user-avatar")}
         ${skelLine("md", "70")}
       </div>
+      ${skelBlock("skel-pill")}
       ${skelLine("sm", "75")}
       ${skelLine("sm", "85")}
+      ${skelBlock("skel-pill")}
+      ${skelLine("sm", "55")}
       ${skelBlock("skel-pill")}
       ${skelLine("sm", "55")}
       <div class="skel-clients-actions">
@@ -349,7 +358,7 @@ export function clientsSkeletonHtml() {
   return `
     <div class="customers-page dashboard-page dashboard-mockup page-skeleton-clients">
       <div class="dash-kpi-row">
-        ${skelClientKpiCard()}${skelClientKpiCard()}${skelClientKpiCard()}${skelClientKpiCard()}
+        ${skelClientKpiCard()}${skelClientKpiCard()}${skelClientKpiCard()}${skelClientKpiCard()}${skelClientKpiCard()}
       </div>
       <section class="dash-widget dash-widget--clients card dash-host-skeleton">
         <div class="dash-widget-head dash-widget-head--split">
@@ -376,12 +385,9 @@ export function formSkeletonHtml() {
     <div class="page-skeleton-form">
       <section class="card dash-host-skeleton skel-form-card">
         <div class="card-pad">
-          ${skelLine("lg", "35")}
-          ${skelLine("sm", "55")}
           <div class="skel-form-grid">
-            ${skelFormField()}${skelFormField()}
-            ${skelFormField()}${skelFormField()}
-            ${skelFormField()}${skelFormField()}
+            ${skelFormField()}${skelFormField()}${skelFormField()}
+            ${skelFormField()}${skelFormField()}${skelFormField()}
             ${skelFormField(true)}
           </div>
           <div class="skel-form-actions">

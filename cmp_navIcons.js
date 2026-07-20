@@ -1,4 +1,4 @@
-const ICON_PATH = "assets/icons/nav";
+const ICON_PATH = "/assets/icons/nav";
 
 export const NAV_ICON_KEYS = {
   logo: "nav-logo",
