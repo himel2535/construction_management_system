@@ -98,7 +98,20 @@ export function renderWorkerEmptyState({ title = "No workers added yet", onAdd }
   return el;
 }
 
-export function renderWorkerTabBar(tabs, activeId, onSelect) {
+export function renderWorkerTabBar(tabs, activeId, onSelect, options = {}) {
+  if (options.variant === "hr-main") {
+    const wrap = document.createElement("div");
+    wrap.className = "proj-tab-subnav wrk-pill-tabs wrk-pill-tabs--hr-main";
+    for (const t of tabs) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `proj-tab wrk-tab-pill wrk-tab-pill--${t.id}${activeId === t.id ? " is-active" : ""}`;
+      btn.textContent = t.label;
+      btn.onclick = () => onSelect(t.id);
+      wrap.appendChild(btn);
+    }
+    return wrap;
+  }
   return renderModulePillTabBar(tabs, activeId, onSelect);
 }
 

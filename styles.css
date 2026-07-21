@@ -1672,6 +1672,317 @@ thead th { background: var(--slate-50); font-weight: 600; font-size: 0.8125rem; 
   font-size: 0.8125rem;
 }
 .dash-widget--clients .dash-table tbody tr:last-child td { border-bottom: none; }
+
+/* Projects page (mirrors Clients directory layout) */
+.projects-page:not(.projects-page--create) {
+  padding-top: 2px;
+}
+.projects-page.dashboard-mockup { gap: 0.375rem; }
+.projects-page { display: flex; flex-direction: column; gap: 0.375rem; }
+.projects-page--hub #proj-metrics,
+.projects-page--hub .dash-widget--projects {
+  display: none;
+}
+.projects-page--hub .proj-tab-host {
+  width: 100%;
+  flex: 1;
+  min-width: 0;
+}
+.projects-page--project-form .proj-type-host,
+.projects-page--project-form #proj-type-host {
+  width: 100%;
+  display: block;
+  min-width: 0;
+}
+.projects-page--project-form .type-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  margin-bottom: 0;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+.projects-page--project-form .type-card {
+  width: 100%;
+  min-height: 5.5rem;
+}
+@media (max-width: 959px) {
+  .projects-page--project-form .type-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.projects-page--project-form .cust-form-row--bottom {
+  align-items: start;
+}
+.projects-page--project-form .cust-form-row--project-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  width: 100%;
+  padding-top: 0.125rem;
+  border-top: 1px solid #e8eef7;
+  margin-top: 0.125rem;
+}
+.projects-page--project-form .cust-form-row--project-gov {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e8eef7;
+}
+.projects-page--project-form #proj-gov-section[hidden] {
+  display: none !important;
+}
+.projects-page--project-form .proj-schedule-field--muted {
+  visibility: hidden;
+  pointer-events: none;
+}
+.projects-page--project-form .cust-form-grid--project-identity {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.625rem 0.75rem;
+}
+.projects-page--project-form .cust-form-grid--schedule {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.625rem 0.75rem;
+}
+@media (min-width: 960px) {
+  .projects-page--project-form .cust-form-grid--project-identity {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .projects-page--project-form .proj-form-status,
+  .projects-page--project-form .cust-form-grid--project-identity .cust-field--full {
+    grid-column: 1 / -1;
+  }
+  .projects-page--project-form .cust-form-grid--schedule {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.gov-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.projects-page--project-form #proj-gov-fields,
+.projects-page--project-form .proj-gov-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+.projects-page--project-form #proj-gov-fields .gov-form-section {
+  padding: 0.75rem 0.875rem;
+  border: 1px solid #e8eef7;
+  border-radius: 0.875rem;
+  background: #fafbff;
+}
+.projects-page--project-form #proj-gov-fields .r3-subhead {
+  margin: 0 0 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #1e40af;
+}
+.projects-page--project-form #proj-gov-fields .form-grid {
+  width: 100%;
+  margin-bottom: 0;
+}
+@media (min-width: 960px) {
+  .projects-page--project-form #proj-gov-fields .form-grid--gov {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .projects-page--project-form #proj-gov-fields .form-field--full {
+    grid-column: 1 / -1;
+  }
+}
+.projects-page .dash-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.projects-page .dash-kpi-card {
+  padding: 0.75rem 0.875rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+.projects-page .dash-kpi-foot { margin-top: 0.35rem; }
+.projects-page .cust-kpi-card { position: relative; overflow: hidden; }
+.projects-page .cust-kpi-card.dash-kpi-card--attention::before,
+.projects-page .cust-kpi-card.cust-kpi-card--yellow::before {
+  display: none;
+}
+.projects-page .cust-kpi-card--yellow { border-top: 3px solid #EAB308; }
+.projects-page .cust-kpi-spark {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  pointer-events: none;
+}
+.projects-page .dash-kpi-icon {
+  width: 2.375rem;
+  height: 2.375rem;
+  border-radius: 0;
+  background: none;
+  padding: 0;
+}
+.projects-page .dash-kpi-icon .cust-kpi-flat-icon {
+  width: 2.375rem;
+  height: 2.375rem;
+  object-fit: contain;
+}
+.dash-widget--projects {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+.dash-widget--projects .dash-widget-head {
+  padding: 0.625rem 0.875rem 0.25rem;
+}
+.dash-widget--projects .dash-widget-body {
+  padding: 0.625rem 0.875rem 0.75rem;
+}
+.dash-widget--projects .projects-toolbar { margin-bottom: calc(0.4rem + 3px); }
+.dash-widget--projects .dash-widget-head--split { align-items: flex-end; }
+.dash-widget--projects .dash-widget-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+}
+.dash-widget--projects .dash-widget-sub { color: #6b7280; }
+.dash-widget--projects .dash-table { border: none; border-radius: 0; box-shadow: none; }
+.dash-widget--projects .dash-table thead th {
+  background: #f3f0ff;
+  border-bottom: 1px solid #e9d5ff;
+  color: #000000;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.65rem 0.75rem;
+}
+.dash-widget--projects .dash-table tbody td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+  color: #374151;
+  font-size: 0.8125rem;
+}
+.dash-widget--projects .dash-table tbody tr:last-child td { border-bottom: none; }
+.dash-widget--projects .projects-table thead th {
+  background: #f3f0ff;
+  border-bottom: 1px solid #e9d5ff;
+  color: #000000;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.65rem 0.75rem;
+}
+.projects-toolbar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.projects-toolbar .toolbar-filters,
+.projects-toolbar .toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.projects-toolbar .toolbar-filters {
+  flex: 0 0 auto;
+}
+.projects-toolbar .toolbar-actions {
+  flex: 1 1 12rem;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+.projects-toolbar .cust-toolbar-search {
+  flex: 1 1 10rem;
+  min-width: 8rem;
+  max-width: 22rem;
+}
+.projects-toolbar .cust-toolbar-btn-group {
+  flex-shrink: 0;
+}
+.projects-toolbar .toolbar-select {
+  height: 2.25rem;
+  padding: 0 0.75rem;
+  padding-right: 1.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  color: #111827;
+  background-color: #fff;
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 7rem;
+  max-width: 9.5rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  text-overflow: ellipsis;
+}
+.projects-toolbar #proj-filter-status {
+  max-width: 8.5rem;
+}
+.projects-toolbar #proj-filter-type {
+  max-width: 9rem;
+}
+.projects-toolbar .toolbar-select:hover { border-color: #d1d5db; }
+.projects-toolbar .toolbar-select:focus {
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+@media (max-width: 767px) {
+  .projects-toolbar {
+    flex-wrap: wrap;
+  }
+  .projects-toolbar .toolbar-actions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+  .projects-toolbar .cust-toolbar-search {
+    flex: 1 1 auto;
+    max-width: none;
+  }
+}
+.projects-table .col-num {
+  width: 2.5rem;
+  color: var(--slate-500);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+.proj-dir-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 5.5rem;
+  margin: 0 auto;
+}
+.proj-dir-progress small { font-size: 0.6875rem; color: var(--slate-500); }
+.proj-dir-progress .progress-track { width: 100%; height: 0.35rem; }
+.proj-tab-host { margin-top: 0.375rem; }
+.proj-tab-host .proj-main-empty {
+  padding: 1.25rem 1.5rem;
+  text-align: center;
+  color: var(--slate-600);
+  font-size: 0.875rem;
+}
+.dash-widget--projects .proj-draft-chip { margin-bottom: 0.5rem; }
+
 .cust-toolbar-count {
   font-size: 0.8125rem;
   color: #6b7280;
@@ -1831,25 +2142,37 @@ thead th { background: var(--slate-50); font-weight: 600; font-size: 0.8125rem; 
 }
 
 /* Compact Add/Edit Client form — scoped so directory page stays unchanged */
-#page-content:has(.customers-page--client-form) {
+#page-content:has(.customers-page--client-form),
+#page-content:has(.projects-page--project-form) {
   display: flex;
   flex-direction: column;
   min-height: calc(100dvh - 5.25rem);
 }
-.customers-page--client-form {
+.customers-page--client-form,
+.projects-page--project-form {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: 0.875rem;
   margin: 0;
-  padding: 0.75rem 0.5rem;
   border-radius: 1rem;
   background:
     radial-gradient(ellipse 80% 50% at 10% 0%, rgba(59, 130, 246, 0.08), transparent 55%),
     linear-gradient(180deg, #f0f5ff 0%, #f8fafc 42%, #f1f5f9 100%);
 }
-.customers-page--client-form .dash-widget--client-form {
+.customers-page--client-form {
+  justify-content: center;
+  padding: 0.75rem 0.5rem;
+}
+.projects-page--project-form {
+  justify-content: flex-start;
+  padding: 0 0.5rem 2rem;
+}
+.projects-page--project-form > .dash-widget--client-form {
+  margin-top: clamp(3.25rem, 6vh, 4.5rem);
+}
+.customers-page--client-form .dash-widget--client-form,
+.projects-page--project-form .dash-widget--client-form {
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
@@ -1863,7 +2186,8 @@ thead th { background: var(--slate-50); font-weight: 600; font-size: 0.8125rem; 
     0 1px 2px rgba(15, 23, 42, 0.04),
     0 10px 28px rgba(37, 99, 235, 0.07);
 }
-.customers-page--client-form .dash-widget--client-form::before {
+.customers-page--client-form .dash-widget--client-form::before,
+.projects-page--project-form .dash-widget--client-form::before {
   content: "";
   position: absolute;
   top: 0;
@@ -1872,13 +2196,15 @@ thead th { background: var(--slate-50); font-weight: 600; font-size: 0.8125rem; 
   height: 3px;
   background: linear-gradient(90deg, var(--brand-600, #3b82f6), #60a5fa 55%, #93c5fd);
 }
-.customers-page--client-form .dash-widget--client-form.is-focused {
+.customers-page--client-form .dash-widget--client-form.is-focused,
+.projects-page--project-form .dash-widget--client-form.is-focused {
   border-color: #93c5fd;
   box-shadow:
     0 0 0 3px rgba(59, 130, 246, 0.12),
     0 12px 30px rgba(37, 99, 235, 0.1);
 }
-.customers-page--client-form .dash-widget--client-form .dash-widget-body {
+.customers-page--client-form .dash-widget--client-form .dash-widget-body,
+.projects-page--project-form .dash-widget--client-form .dash-widget-body {
   padding: 1.125rem 1.25rem 1rem;
   gap: 0;
 }
@@ -2133,16 +2459,20 @@ thead th { background: var(--slate-50); font-weight: 600; font-size: 0.8125rem; 
   margin-bottom: 0.25rem;
 }
 @media (max-width: 1400px) {
-  .customers-page .dash-kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .customers-page .dash-kpi-row,
+  .projects-page .dash-kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 1200px) {
-  .customers-page .dash-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .customers-page .dash-kpi-row,
+  .projects-page .dash-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 768px) {
-  .customers-page .dash-kpi-row { grid-template-columns: 1fr 1fr; }
+  .customers-page .dash-kpi-row,
+  .projects-page .dash-kpi-row { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 480px) {
-  .customers-page .dash-kpi-row { grid-template-columns: 1fr; }
+  .customers-page .dash-kpi-row,
+  .projects-page .dash-kpi-row { grid-template-columns: 1fr; }
 }
 .customers-toolbar {
   display: flex;
@@ -2264,7 +2594,8 @@ thead th { background: var(--slate-50); font-weight: 600; font-size: 0.8125rem; 
   gap: 0.5rem;
   flex-shrink: 0;
 }
-.customers-toolbar .cust-toolbar-btn {
+.customers-toolbar .cust-toolbar-btn,
+.projects-toolbar .cust-toolbar-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -2278,43 +2609,53 @@ thead th { background: var(--slate-50); font-weight: 600; font-size: 0.8125rem; 
   background: #fff;
   color: #374151;
 }
-.customers-toolbar .cust-toolbar-btn:hover {
+.customers-toolbar .cust-toolbar-btn:hover,
+.projects-toolbar .cust-toolbar-btn:hover {
   background: #f9fafb;
   border-color: #d1d5db;
 }
-.customers-toolbar .cust-toolbar-btn--clear {
+.customers-toolbar .cust-toolbar-btn--clear,
+.projects-toolbar .cust-toolbar-btn--clear {
   background: #fff1f0;
   color: #000;
   border-color: #ffccc7;
 }
-.customers-toolbar .cust-toolbar-btn--export {
+.customers-toolbar .cust-toolbar-btn--export,
+.projects-toolbar .cust-toolbar-btn--export {
   background: #e6fffb;
   color: #000;
   border-color: #b5f5ec;
 }
-.customers-toolbar .cust-toolbar-btn--import {
+.customers-toolbar .cust-toolbar-btn--import,
+.projects-toolbar .cust-toolbar-btn--import {
   background: #f9f0ff;
   color: #000;
   border-color: #efdbff;
 }
-.customers-toolbar .cust-toolbar-btn--clear:hover {
+.customers-toolbar .cust-toolbar-btn--clear:hover,
+.projects-toolbar .cust-toolbar-btn--clear:hover {
   background: #ffe7e6;
   color: #000;
   border-color: #ffa39e;
 }
-.customers-toolbar .cust-toolbar-btn--export:hover {
+.customers-toolbar .cust-toolbar-btn--export:hover,
+.projects-toolbar .cust-toolbar-btn--export:hover {
   background: #b5f5ec;
   color: #000;
   border-color: #87e8de;
 }
-.customers-toolbar .cust-toolbar-btn--import:hover {
+.customers-toolbar .cust-toolbar-btn--import:hover,
+.projects-toolbar .cust-toolbar-btn--import:hover {
   background: #efdbff;
   color: #000;
   border-color: #d3adf7;
 }
 .customers-toolbar .cust-toolbar-btn--clear svg,
 .customers-toolbar .cust-toolbar-btn--export svg,
-.customers-toolbar .cust-toolbar-btn--import svg {
+.customers-toolbar .cust-toolbar-btn--import svg,
+.projects-toolbar .cust-toolbar-btn--clear svg,
+.projects-toolbar .cust-toolbar-btn--export svg,
+.projects-toolbar .cust-toolbar-btn--import svg {
   flex-shrink: 0;
   color: #000;
 }
@@ -2486,11 +2827,14 @@ thead th { background: var(--slate-50); font-weight: 600; font-size: 0.8125rem; 
 .cust-link-chip:hover { background: var(--slate-200); }
 .customers-table .col-money { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .customers-table th.cust-col-center,
-.customers-table td.cust-col-center {
+.customers-table td.cust-col-center,
+.projects-table th.cust-col-center,
+.projects-table td.cust-col-center {
   text-align: center;
   vertical-align: middle;
 }
-.customers-table td.cust-col-center .table-actions--cust {
+.customers-table td.cust-col-center .table-actions--cust,
+.projects-table td.cust-col-center .table-actions--cust {
   justify-content: center;
   width: 100%;
 }
@@ -2837,7 +3181,7 @@ body.cust-detail-open {
 }
 
 /* Projects hub */
-.projects-page { --proj-gap: 1rem; display: flex; flex-direction: column; gap: var(--proj-gap); }
+.projects-page { --proj-gap: 0.375rem; display: flex; flex-direction: column; gap: var(--proj-gap); }
 .projects-layout {
   display: grid;
   grid-template-columns: minmax(16rem, 20rem) 1fr;
@@ -3287,6 +3631,11 @@ body.cust-detail-open {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+}
+.proj-header-back {
+  flex: 0 0 100%;
+  margin: 0 0 0.15rem;
+  justify-content: flex-start;
 }
 .proj-header-main {
   display: flex;
@@ -4131,26 +4480,238 @@ button.proj-header-kpi--link:hover {
 .text-link { color: var(--accent); font-size: 0.875rem; text-decoration: none; }
 .text-link:hover { text-decoration: underline; }
 .phase-budget-table { margin-bottom: 1rem; }
-.accounting-page .expense-section { margin-bottom: 0; }
-.expense-section-desc { margin: 0 0 0.75rem; font-size: 0.875rem; }
-.expense-kpi {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+/* Finance / accounting (Projects directory layout) */
+.accounting-page.dashboard-mockup {
+  gap: 0.375rem;
+  padding-top: 2px;
 }
-.expense-kpi-card {
-  min-width: 9rem;
-  padding: 0.65rem 0.85rem;
-  background: var(--brand-100);
-  border: 1px solid var(--slate-200);
-  border-radius: var(--radius);
+.accounting-page {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.375rem;
 }
-.expense-form { margin-bottom: 1rem; }
-.expense-table-wrap { margin-top: 0.5rem; }
+.accounting-page .dash-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.accounting-page .dash-kpi-card {
+  padding: 0.75rem 0.875rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+.accounting-page .dash-kpi-foot { margin-top: 0.35rem; }
+.accounting-page .cust-kpi-card { position: relative; overflow: hidden; }
+.accounting-page .cust-kpi-card[class*="cust-kpi-card--"]::before,
+.accounting-page .cust-kpi-card.dash-kpi-card--attention::before { display: none; }
+.accounting-page .cust-kpi-spark {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  pointer-events: none;
+}
+.accounting-page .dash-kpi-icon {
+  width: 2.375rem;
+  height: 2.375rem;
+  flex-shrink: 0;
+}
+.accounting-page .dash-kpi-icon .cust-kpi-flat-icon {
+  width: 2.125rem;
+  height: 2.125rem;
+}
+.finance-mid-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.375rem;
+}
+@media (min-width: 960px) {
+  .finance-mid-row { grid-template-columns: 1.2fr 0.8fr; }
+}
+.finance-toolbar.projects-toolbar { margin-bottom: calc(0.4rem + 3px); }
+.finance-voucher-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.finance-voucher-form input,
+.finance-voucher-form select {
+  width: 100%;
+}
+.finance-voucher-form button { align-self: flex-start; margin-top: 0.25rem; }
+.finance-expense-table-wrap { margin-top: 0.25rem; }
+.finance-expense-modal.cust-detail-modal { width: min(42rem, calc(100vw - 2rem)); }
+@media (max-width: 1200px) {
+  .accounting-page .dash-kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 768px) {
+  .accounting-page .dash-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .accounting-page .dash-kpi-row { grid-template-columns: 1fr; }
+}
+
+/* HR & Payroll — dashboard mockup (align with Finance / Projects) */
+.workers-page.dashboard-mockup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding-top: 2px;
+  --mod-gap: 0.375rem;
+  --wrk-gap: 0.375rem;
+}
+.workers-page.dashboard-mockup .dash-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.workers-page.dashboard-mockup .dash-kpi-card {
+  padding: 0.75rem 0.875rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+.workers-page.dashboard-mockup .dash-kpi-foot { margin-top: 0.35rem; }
+.workers-page.dashboard-mockup .cust-kpi-card { position: relative; overflow: hidden; }
+.workers-page.dashboard-mockup .cust-kpi-card[class*="cust-kpi-card--"]::before,
+.workers-page.dashboard-mockup .cust-kpi-card.dash-kpi-card--attention::before { display: none; }
+.workers-page.dashboard-mockup .cust-kpi-spark {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  pointer-events: none;
+}
+.workers-page.dashboard-mockup .dash-kpi-icon {
+  width: 2.375rem;
+  height: 2.375rem;
+  flex-shrink: 0;
+}
+.workers-page.dashboard-mockup .dash-kpi-icon .cust-kpi-flat-icon {
+  width: 2.125rem;
+  height: 2.125rem;
+}
+.workers-page.dashboard-mockup .workers-toolbar.projects-toolbar { margin-bottom: calc(0.4rem + 3px); }
+.workers-page.dashboard-mockup .wrk-month-picker {
+  height: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  color: #111827;
+  background: #fff;
+}
+.workers-page.dashboard-mockup .wrk-month-picker input[type="month"] {
+  font-size: 0.8125rem;
+  max-width: 9rem;
+}
+.workers-page.dashboard-mockup .wrk-reports-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.workers-page.dashboard-mockup .wrk-reports-toolbar {
+  margin-bottom: 0.125rem;
+}
+.workers-page.dashboard-mockup .wrk-report-block {
+  margin-top: 0;
+}
+.workers-page.dashboard-mockup .wrk-reports-worker-select {
+  min-width: 12rem;
+  max-width: 18rem;
+}
+@media (max-width: 1200px) {
+  .workers-page.dashboard-mockup .dash-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 768px) {
+  .workers-page.dashboard-mockup .dash-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .workers-page.dashboard-mockup .dash-kpi-row { grid-template-columns: 1fr; }
+}
+
+/* HR main section tabs — pastel pills (no solid brand blue) */
+.workers-page .wrk-pill-tabs--hr-main {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  padding-bottom: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.workers-page .wrk-pill-tabs--hr-main::-webkit-scrollbar { display: none; }
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill {
+  flex-shrink: 0;
+  padding: 0.45rem 1rem;
+  min-height: 2.75rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+}
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill:hover { filter: brightness(0.98); }
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill.is-active {
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill--list {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill--list.is-active {
+  background: #e0e7ff;
+  border-color: #818cf8;
+  color: #3730a3;
+}
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill--list:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 2px;
+}
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill--attendance {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill--attendance.is-active {
+  background: #d1fae5;
+  border-color: #34d399;
+  color: #065f46;
+}
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill--attendance:focus-visible {
+  outline: 2px solid #34d399;
+  outline-offset: 2px;
+}
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill--salary {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
+}
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill--salary.is-active {
+  background: #fef3c7;
+  border-color: #fbbf24;
+  color: #92400e;
+}
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill--salary:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill--reports {
+  background: #f9f0ff;
+  border-color: #efdbff;
+  color: #7c3aed;
+}
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill--reports.is-active {
+  background: #f3e8ff;
+  border-color: #c084fc;
+  color: #6d28d9;
+}
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill--reports:focus-visible {
+  outline: 2px solid #c084fc;
+  outline-offset: 2px;
+}
+
 .financial-mgmt-section .r3-stat-row { margin-bottom: 0.75rem; }
 .gov-billing-summary { margin-bottom: 0.75rem; }
 .doc-expiry-banner { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
@@ -6117,7 +6678,7 @@ button.proj-header-kpi--link:hover {
 .sic-att-card select, .sic-att-card input { width: 100%; }
 .sic-payroll-calc-card { margin-top: 0.75rem; }
 .wrk-report-block { margin-top: 0.75rem; }
-.wrk-reports-panel .wrk-sal-head { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
+.wrk-reports-panel .wrk-reports-toolbar { margin-bottom: 0.25rem; }
 .worker-payroll-section .r3-report-block { margin-top: 0.75rem; }
 
 /* ——— Dashboard mockup layout ——— */

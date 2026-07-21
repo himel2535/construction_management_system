@@ -171,7 +171,7 @@ export function renderSidebarProjectItem(p, selected, opts = {}) {
  * @param {{ onEdit?: () => void, onKpiNavigate?: (tabId: string) => void }} [opts]
  */
 export function renderProjectHeader(p, hubState, opts = {}) {
-  const { onEdit, onKpiNavigate } = opts;
+  const { onEdit, onKpiNavigate, onBack } = opts;
   const header = document.createElement("div");
   const pt = p.projectType || defaultProjectType();
   header.className = `proj-header card proj-header--${pt}`;
@@ -198,6 +198,11 @@ export function renderProjectHeader(p, hubState, opts = {}) {
 
   header.innerHTML = `
     <div class="proj-header-top">
+      ${
+        onBack
+          ? `<button type="button" class="btn btn-ghost btn-sm proj-header-back" id="proj-header-back">${icon("chevronLeft", { size: 16, className: "icon" })} Back to projects</button>`
+          : ""
+      }
       <div class="proj-header-main">
         <span class="proj-header-icon proj-header-icon--${pt}">${icon(ic, { size: 24, className: "icon" })}</span>
         <div class="proj-header-title-block">
@@ -228,6 +233,7 @@ export function renderProjectHeader(p, hubState, opts = {}) {
   `;
 
   header.querySelector("#proj-header-edit")?.addEventListener("click", () => onEdit?.());
+  header.querySelector("#proj-header-back")?.addEventListener("click", () => onBack?.());
   header.querySelectorAll("[data-kpi-tab]").forEach((el) => {
     el.addEventListener("click", () => onKpiNavigate?.(el.dataset.kpiTab));
   });

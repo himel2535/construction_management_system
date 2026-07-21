@@ -12,7 +12,16 @@ import { formatBDT, formatDate, formatDateRange } from "./util_format.js";
 import { showToast } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
-import { sectionCard, statusChip, varianceChip } from "./cmp_ui.js";
+import { sectionCard, statusChip, varianceChip, progressBar } from "./cmp_ui.js";
+import { icon } from "./cmp_icons.js";
+import { kpiIcon } from "./cmp_dashboardIcons.js";
+import { formatCompactBDT } from "./util_dashboard.js";
+import {
+  computeProjectHealth,
+  resolveProjectProgress,
+  resolveBudgetTotal,
+  healthLabel,
+} from "./util_projectCore.js";
 import { bindR2Subs, buildBoqTab, buildProgressTab, buildResourcesTab } from "./page_projects_r2.js";
 import {
   bindR3Subs,
@@ -70,7 +79,6 @@ import { ERP_SELECT_PROJECT_KEY, hasStoredProjectDraft, readGovFieldsFromForm } 
 import {
   tabsWithGroups,
   groupForTabId,
-  renderSidebarProjectItem,
   renderProjectHeader,
   renderGroupedTabNav,
   renderProfileDefinitionList,
@@ -78,7 +86,6 @@ import {
 } from "./cmp_projectHub.js";
 import { auditProject, openEditDialog, validateUrl, validatePositiveNumber, renderTabToolbar, resolveManagerLabel } from "./cmp_projectTab.js";
 import { computeProjectSupplierOutstanding, mergeSupplierLists } from "./svc_supplier.js";
-import { mountPortfolio } from "./cmp_projectPortfolio.js";
 import { renderProjectTimeline } from "./cmp_projectTimeline.js";
 import { navigateTo, getRouteQuery } from "./util_route.js";
 
@@ -105,6 +112,88 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+function projectSparklineSvg(values = [], tone = "green") {
+  const pts = values.length ? values : [3, 4, 4, 5, 5, 6, 6];
+  const max = Math.max(...pts, 1);
+  const w = 56;
+  const h = 22;
+  const coords = pts
+    .map((v, i) => {
+      const x = (i / (pts.length - 1 || 1)) * w;
+      const y = h - (v / max) * (h - 4) - 2;
+      return `${x},${y}`;
+    })
+    .join(" ");
+  const strokes = {
+    blue: "#2563eb",
+    green: "#047857",
+    orange: "#d97706",
+    teal: "#0d9488",
+    red: "#B91C1C",
+    yellow: "#CA8A04",
+  };
+  const stroke = strokes[tone] || strokes.green;
+  return `<svg class="dash-sparkline dash-sparkline--${tone}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${coords}" fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function projectInitials(name) {
+  const parts = String(name || "?").trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (parts[0][0] || "?").toUpperCase();
+}
+
+function projectAvatarColorClass(name) {
+  const hues = ["a", "b", "c", "d", "e"];
+  let h = 0;
+  const s = String(name || "");
+  for (let i = 0; i < s.length; i++) h = (h + s.charCodeAt(i) * (i + 1)) % hues.length;
+  return `user-avatar--${hues[h]}`;
+}
+
+function projectTypePill(projectType) {
+  const t = String(projectType || defaultProjectType()).toLowerCase();
+  if (t === "government_civil") {
+    return `<span class="cust-type-pill cust-type-pill--government">Government</span>`;
+  }
+  return `<span class="cust-type-pill cust-type-pill--private">Private</span>`;
+}
+
+function projectHealthPill(healthKey) {
+  const key = String(healthKey || "on_track").toLowerCase();
+  const pillKey = key === "on_track" ? "on_track" : key === "at_risk" ? "at_risk" : "delayed";
+  return `<span class="dash-health-pill dash-health-pill--${pillKey}"><i class="dash-health-dot" aria-hidden="true"></i>${escapeHtml(healthLabel(key))}</span>`;
+}
+
+function exportProjectsCsv(items, milestonesByProject) {
+  const headers = ["#", "Name", "Code", "Type", "Client", "PM", "Progress %", "Status", "Health", "Location"];
+  const rows = items.map((p, i) => {
+    const milestones = milestonesByProject[p.id] || [];
+    const progress = resolveProjectProgress(p, milestones);
+    const health = computeProjectHealth(p, milestones);
+    return [
+      i + 1,
+      p.name || "",
+      p.code || "",
+      p.projectType || "",
+      p.clientName || "",
+      resolveManagerLabel(p.projectManagerId),
+      progress,
+      p.status || "ongoing",
+      healthLabel(health),
+      p.location || "",
+    ];
+  });
+  const escape = (v) => `"${String(v).replace(/"/g, '""')}"`;
+  const csv = [headers, ...rows].map((r) => r.map(escape).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `projects-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function mountProjects(container) {
   setActiveNav();
 
@@ -119,24 +208,26 @@ export function mountProjects(container) {
   });
 
   const root = document.createElement("div");
-  root.className = "projects-page dashboard-page";
+  root.className = "projects-page dashboard-page dashboard-mockup";
   container.appendChild(root);
 
+  const routeQuery = getRouteQuery();
   const pendingSelectId = (() => {
     const fromStore = sessionStorage.getItem(ERP_SELECT_PROJECT_KEY) || "";
-    const params = getRouteQuery();
-    const select = params.get("select") || params.get("id");
+    const select = routeQuery.get("select") || routeQuery.get("id");
     if (select) return select;
     return fromStore;
   })();
-  const pendingTab = (() => getRouteQuery().get("tab") || "")();
-  const pendingClientFilter = (() => getRouteQuery().get("clientId") || "")();
+  const pendingHub = routeQuery.get("hub") === "1";
+  const pendingTab = (() => routeQuery.get("tab") || "")();
+  const pendingClientFilter = (() => routeQuery.get("clientId") || "")();
   if (sessionStorage.getItem(ERP_SELECT_PROJECT_KEY)) {
     sessionStorage.removeItem(ERP_SELECT_PROJECT_KEY);
   }
 
   const state = {
-    selectedProjectId: pendingSelectId,
+    hubMode: !!(pendingSelectId && pendingHub),
+    selectedProjectId: pendingSelectId && pendingHub ? pendingSelectId : null,
     editProjectId: null,
     activeTab: pendingTab || "home",
     activeTabGroup: "overview",
@@ -172,12 +263,386 @@ export function mountProjects(container) {
 
   let projectForm = null;
   let tabHost = null;
-  let listHost = null;
+  let metricsRow = null;
+  let directoryTbody = null;
+  let directoryToolbarWired = false;
+  let detailOverlay = null;
+  let openProjectId = null;
 
-  function parseNestedByProject(root) {
+  function projectsForMetrics() {
+    let list = dedupeProjects(state.projects);
+    if (state.filterClientId) {
+      list = list.filter((p) => p.clientId === state.filterClientId);
+    }
+    const assigned = getAssignedProjectIds(getCurrentUserId(), getCurrentRole());
+    if (assigned !== null) {
+      list = list.filter((p) => assigned.includes(p.id));
+    }
+    return list;
+  }
+
+  function renderProjectMetrics() {
+    if (!metricsRow) return;
+    const items = projectsForMetrics();
+    const total = items.length;
+    const ongoing = items.filter((p) => (p.status || "ongoing") === "ongoing").length;
+    const gov = items.filter((p) => (p.projectType || defaultProjectType()) === "government_civil").length;
+    const priv = items.filter((p) => (p.projectType || defaultProjectType()) === "private_civil").length;
+    const totalBudget = items.reduce((sum, p) => sum + (resolveBudgetTotal(p) || 0), 0);
+    const govPct = total ? Math.round((gov / total) * 100) : 0;
+
+    const cards = [
+      {
+        label: "Total Projects",
+        value: String(total),
+        iconKey: "projects",
+        tone: "yellow",
+        extraClass: "cust-kpi-card--yellow",
+        footLeft: total ? `${ongoing} ongoing` : "No projects yet",
+        spark: projectSparklineSvg([2, 3, 4, total || 1, total || 2, total || 3, total || 4], "yellow"),
+      },
+      {
+        label: "Ongoing",
+        value: String(ongoing),
+        iconKey: "collection",
+        tone: "green",
+        footLeft: total ? `${Math.round((ongoing / total) * 100)}% of portfolio` : "No ongoing projects",
+        spark: projectSparklineSvg([1, 2, ongoing || 1, ongoing || 2, ongoing, ongoing, ongoing], "green"),
+      },
+      {
+        label: "Government",
+        value: String(gov),
+        iconKey: "contract",
+        tone: "orange",
+        footLeft: total ? `${govPct}% government` : "No gov projects",
+        spark: projectSparklineSvg([0, 1, gov || 1, gov || 2, gov, gov, gov], "orange"),
+      },
+      {
+        label: "Private / Local",
+        value: String(priv),
+        iconKey: "expense",
+        tone: "teal",
+        footLeft: total ? `${priv} private` : "No private projects",
+        spark: projectSparklineSvg([priv || 1, priv || 2, priv, priv, priv, priv, priv], "teal"),
+      },
+      {
+        label: "Total Budget",
+        value: formatCompactBDT(totalBudget),
+        iconKey: "receivable",
+        tone: "blue",
+        footLeft: total ? `Across ${total} project${total === 1 ? "" : "s"}` : "No budget recorded",
+        spark: projectSparklineSvg([totalBudget ? 4 : 2, 3, totalBudget ? 5 : 2, 4, 3, 2, 2], "blue"),
+      },
+    ];
+
+    metricsRow.className = "dash-kpi-row";
+    metricsRow.innerHTML = cards
+      .map(
+        (c) => `<div class="dash-kpi-card card cust-kpi-card ${c.extraClass || ""}">
+      <div class="cust-kpi-spark">${c.spark}</div>
+      <div class="dash-kpi-head">
+        <div class="dash-kpi-icon dash-kpi-icon--flat">${kpiIcon(c.iconKey).replace('class="dash-color-icon"', 'class="dash-color-icon cust-kpi-flat-icon"')}</div>
+        <div class="dash-kpi-main">
+          <span class="dash-kpi-label">${escapeHtml(c.label)}</span>
+          <div class="dash-kpi-value">${escapeHtml(c.value)}</div>
+        </div>
+      </div>
+      <div class="dash-kpi-foot">
+        <div class="dash-kpi-foot-left">${escapeHtml(c.footLeft)}</div>
+      </div>
+    </div>`
+      )
+      .join("");
+  }
+
+  function findProject(id) {
+    return state.projects.find((p) => p.id === id) || state.projectsRaw.find((p) => p.id === id);
+  }
+
+  function onDetailEscape(e) {
+    if (e.key === "Escape") closeProjectDetail();
+  }
+
+  function closeProjectDetail() {
+    openProjectId = null;
+    document.removeEventListener("keydown", onDetailEscape);
+    document.body.classList.remove("cust-detail-open");
+    detailOverlay?.remove();
+    detailOverlay = null;
+    directoryTbody?.querySelectorAll(".proj-dir-row").forEach((tr) => tr.classList.remove("row-selected"));
+  }
+
+  function buildProjectDetailHtml(p) {
+    const milestones = state.milestonesByProject[p.id] || [];
+    const health = computeProjectHealth(p, milestones);
+    const progress = resolveProjectProgress(p, milestones);
+    const budget = resolveBudgetTotal(p);
+    const pm = resolveManagerLabel(p.projectManagerId);
+    const sicRow = p.siteInChargeId ? readRef(`siteInCharges/${p.siteInChargeId}`) : null;
+    const siteInCharge = p.siteInChargeId ? sicRow?.name || "—" : "Unassigned";
+    const phaseCount =
+      state.selectedProjectId === p.id && state.phases?.length
+        ? String(state.phases.length)
+        : null;
+
+    const detailField = (label, valueHtml, extraClass = "") =>
+      `<div class="cust-detail-field${extraClass ? ` ${extraClass}` : ""}"><span class="cust-detail-label">${escapeHtml(label)}</span><div class="cust-detail-value">${valueHtml}</div></div>`;
+
+    const subParts = [p.code, p.clientName, p.location].filter(Boolean);
+    const subline = subParts.map((s) => escapeHtml(s)).join(" · ") || "—";
+    const descSnippet = p.description
+      ? escapeHtml(p.description.length > 220 ? `${p.description.slice(0, 217)}…` : p.description)
+      : "—";
+
+    const duoPhase = phaseCount
+      ? detailField("Phases", phaseCount)
+      : detailField("Timeline", formatDateRange(p.startDate, p.endDate) || "—");
+
+    return `
+      <div class="cust-detail-head">
+        <div class="cust-detail-title">
+          <span class="user-avatar ${projectAvatarColorClass(p.name)}">${projectInitials(p.name)}</span>
+          <div>
+            <strong id="proj-detail-modal-title">${escapeHtml(p.name)}</strong>
+            <span class="cust-detail-sub">${subline}</span>
+          </div>
+        </div>
+        <button type="button" class="icon-btn icon-btn--sm cust-detail-close" id="proj-detail-close" aria-label="Close details">${icon("x", { size: 16 })}</button>
+      </div>
+      <div class="cust-detail-grid">
+        ${detailField("Type", projectTypePill(p.projectType))}
+        ${detailField("Status", statusChip(p.status || "ongoing"))}
+        ${detailField("Health", projectHealthPill(health))}
+        ${detailField("Progress", `${progress}%`)}
+        ${detailField("Client", p.clientName ? escapeHtml(p.clientName) : "—")}
+        ${detailField("Project manager", escapeHtml(pm))}
+        ${detailField("Site in-charge", escapeHtml(siteInCharge))}
+        ${detailField("Timeline", formatDateRange(p.startDate, p.endDate) || "—")}
+        ${detailField("Budget / contract", budget ? formatBDT(budget) : "—")}
+      </div>
+      <div class="cust-detail-duo-row">
+        ${detailField("Description", descSnippet)}
+        ${duoPhase}
+      </div>
+      <div class="cust-detail-actions">
+        <button type="button" class="btn btn-primary btn-sm" id="proj-detail-edit">${icon("pencil", { size: 16 })} Edit</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="proj-detail-manage">Manage project</button>
+      </div>
+    `;
+  }
+
+  function wireProjectDetailModal(modal, p) {
+    modal.querySelector("#proj-detail-close").onclick = () => closeProjectDetail();
+    modal.querySelector("#proj-detail-edit").onclick = () => {
+      closeProjectDetail();
+      navigateTo(`/projects/new?edit=${encodeURIComponent(p.id)}`);
+    };
+    modal.querySelector("#proj-detail-manage").onclick = () => enterProjectHub(p.id);
+    if (!modal.hasAttribute("tabindex")) modal.setAttribute("tabindex", "-1");
+    modal.focus({ preventScroll: true });
+  }
+
+  function openProjectDetailModal(p) {
+    if (!p) return;
+    closeProjectDetail();
+    openProjectId = p.id;
+
+    const overlay = document.createElement("div");
+    overlay.className = "cust-detail-overlay";
+    overlay.setAttribute("role", "presentation");
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeProjectDetail();
+    });
+
+    const modal = document.createElement("div");
+    modal.className = "cust-detail-modal card";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "proj-detail-modal-title");
+    modal.innerHTML = buildProjectDetailHtml(p);
+    modal.addEventListener("click", (e) => e.stopPropagation());
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    detailOverlay = overlay;
+
+    document.body.classList.add("cust-detail-open");
+    document.addEventListener("keydown", onDetailEscape);
+    wireProjectDetailModal(modal, p);
+
+    directoryTbody?.querySelectorAll(".proj-dir-row").forEach((tr) => {
+      tr.classList.toggle("row-selected", tr.dataset.id === p.id);
+    });
+  }
+
+  function syncOpenProjectDetailModal() {
+    if (!openProjectId) return;
+    const p = findProject(openProjectId);
+    if (!p) {
+      closeProjectDetail();
+      return;
+    }
+    const modal = detailOverlay?.querySelector(".cust-detail-modal");
+    if (modal) {
+      modal.innerHTML = buildProjectDetailHtml(p);
+      wireProjectDetailModal(modal, p);
+    }
+  }
+
+  function syncHubUrl() {
+    const params = new URLSearchParams();
+    if (state.selectedProjectId) params.set("select", state.selectedProjectId);
+    params.set("hub", "1");
+    if (state.activeTab && state.activeTab !== "home") params.set("tab", state.activeTab);
+    if (state.filterClientId) params.set("clientId", state.filterClientId);
+    history.replaceState(null, "", `/projects?${params.toString()}`);
+  }
+
+  function applyHubLayout() {
+    root.classList.toggle("projects-page--hub", state.hubMode);
+  }
+
+  function enterProjectHub(id) {
+    closeProjectDetail();
+    state.hubMode = true;
+    state.selectedProjectId = id;
+    state.editProjectId = null;
+    syncHubUrl();
+    applyHubLayout();
+    bindProjectSubs();
+    renderProjectDirectory();
+    renderTabContent();
+  }
+
+  function exitProjectHub() {
+    state.hubMode = false;
+    state.selectedProjectId = null;
+    state.editProjectId = null;
+    const q = state.filterClientId ? `?clientId=${encodeURIComponent(state.filterClientId)}` : "";
+    history.replaceState(null, "", `/projects${q}`);
+    applyHubLayout();
+    bindProjectSubs();
+    if (tabHost) tabHost.innerHTML = "";
+    renderProjectDirectory();
+  }
+
+  function renderProjectDirectory() {
+    if (!directoryTbody) return;
+    const list = filteredProjects();
+    const countEl = root.querySelector("#proj-directory-count");
+    if (countEl) {
+      countEl.textContent = `Showing ${list.length} project${list.length === 1 ? "" : "s"}`;
+    }
+
+    const searchInput = root.querySelector("#proj-search");
+    const statusFilter = root.querySelector("#proj-filter-status");
+    const typeFilter = root.querySelector("#proj-filter-type");
+    if (searchInput && searchInput !== document.activeElement) {
+      searchInput.value = state.filterQuery;
+      searchInput.placeholder = projectSearchPlaceholder();
+    }
+    if (statusFilter) statusFilter.value = state.filterStatus;
+    if (typeFilter) typeFilter.value = state.filterType;
+
+    if (!list.length) {
+      const assigned = getAssignedProjectIds(getCurrentUserId(), getCurrentRole());
+      const hasGlobal = dedupeProjects(state.projects).length > 0;
+      const roleScopedEmpty = assigned !== null && hasGlobal;
+      directoryTbody.innerHTML = `<tr class="empty-row"><td colspan="10">${
+        roleScopedEmpty
+          ? "No projects assigned to your role match these filters"
+          : "No projects match your filters"
+      }</td></tr>`;
+      return;
+    }
+
+    directoryTbody.innerHTML = list
+      .map((p, idx) => {
+        const milestones = state.milestonesByProject[p.id] || [];
+        const progress = resolveProjectProgress(p, milestones);
+        const health = computeProjectHealth(p, milestones);
+        const selected = openProjectId === p.id;
+        const codeMeta = p.code ? `<span class="text-muted cust-contact-sub">${escapeHtml(p.code)}</span>` : "";
+        return `
+    <tr data-id="${escapeHtml(p.id)}" class="cust-row proj-dir-row${selected ? " row-selected" : ""}">
+      <td class="col-num">${idx + 1}</td>
+      <td>
+        <div class="cell-user cust-client-cell">
+          <span class="user-avatar sm ${projectAvatarColorClass(p.name)}">${projectInitials(p.name)}</span>
+          <div class="cell-user-text">
+            <strong>${escapeHtml(p.name)}</strong>
+            ${codeMeta}
+          </div>
+        </div>
+      </td>
+      <td class="cust-col-center">${projectTypePill(p.projectType)}</td>
+      <td>${p.clientName ? escapeHtml(p.clientName) : '<span class="text-muted">—</span>'}</td>
+      <td class="cust-col-center">${escapeHtml(resolveManagerLabel(p.projectManagerId))}</td>
+      <td class="cust-col-center">
+        <div class="proj-dir-progress">${progressBar(progress)}<small>${progress}%</small></div>
+      </td>
+      <td class="cust-col-center">${statusChip(p.status || "ongoing")}</td>
+      <td class="cust-col-center">${projectHealthPill(health)}</td>
+      <td class="cust-col-center">
+        <div class="table-actions table-actions--cust">
+          <button type="button" class="icon-btn icon-btn--sm proj-view" data-id="${escapeHtml(p.id)}" title="Open project" aria-label="Open project">${icon("eye", { size: 16 })}</button>
+        </div>
+      </td>
+    </tr>`;
+      })
+      .join("");
+
+    directoryTbody.querySelectorAll(".proj-dir-row").forEach((tr) => {
+      tr.onclick = (e) => {
+        if (e.target.closest("button")) return;
+        openProjectDetailModal(findProject(tr.dataset.id));
+      };
+    });
+    directoryTbody.querySelectorAll(".proj-view").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        openProjectDetailModal(findProject(btn.dataset.id));
+      };
+    });
+  }
+
+  function wireDirectoryToolbar() {
+    if (directoryToolbarWired) return;
+    const toolbar = root.querySelector("#proj-toolbar");
+    if (!toolbar) return;
+    directoryToolbarWired = true;
+
+    toolbar.querySelector("#proj-search")?.addEventListener("input", (e) => {
+      state.filterQuery = e.target.value;
+      renderProjectDirectory();
+    });
+    toolbar.querySelector("#proj-filter-status")?.addEventListener("change", (e) => {
+      state.filterStatus = e.target.value;
+      renderProjectDirectory();
+    });
+    toolbar.querySelector("#proj-filter-type")?.addEventListener("change", (e) => {
+      state.filterType = e.target.value;
+      renderProjectDirectory();
+    });
+    toolbar.querySelector("#proj-clear-filters")?.addEventListener("click", () => {
+      state.filterQuery = "";
+      state.filterStatus = "all";
+      state.filterType = "all";
+      renderProjectDirectory();
+    });
+    toolbar.querySelector("#proj-export")?.addEventListener("click", () => {
+      exportProjectsCsv(filteredProjects(), state.milestonesByProject);
+    });
+    toolbar.querySelector(".proj-draft-chip-dismiss")?.addEventListener("click", () => {
+      sessionStorage.setItem(DRAFT_CHIP_KEY, "1");
+      toolbar.querySelector(".proj-draft-chip")?.remove();
+    });
+  }
+
+  function parseNestedByProject(nestedRoot) {
     const out = {};
-    if (!root || typeof root !== "object") return out;
-    for (const [pid, bucket] of Object.entries(root)) {
+    if (!nestedRoot || typeof nestedRoot !== "object") return out;
+    for (const [pid, bucket] of Object.entries(nestedRoot)) {
       if (!bucket || typeof bucket !== "object") continue;
       out[pid] = Object.entries(bucket).map(([id, row]) => ({ id, ...row }));
     }
@@ -222,86 +687,6 @@ export function mountProjects(container) {
     return list.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   };
 
-  function renderPortfolioMain() {
-    const wrap = document.createElement("div");
-    wrap.className = "proj-portfolio-main card section-card";
-    wrap.innerHTML = `<div class="section-card-head"><div><h3 class="section-title">Projects portfolio</h3><p class="section-sub">All projects matching sidebar filters</p></div></div><div class="section-card-body" id="proj-portfolio-host"></div>`;
-    const host = wrap.querySelector("#proj-portfolio-host");
-    mountPortfolio(host, filteredProjects(), state.milestonesByProject, {
-      emptyMessage: "No projects match your filters",
-    });
-    return wrap;
-  };
-
-  function renderProjectList() {
-    if (!listHost) return;
-    const list = filteredProjects();
-    const showDraftChip = hasStoredProjectDraft() && sessionStorage.getItem(DRAFT_CHIP_KEY) !== "1";
-    listHost.innerHTML = `
-      ${showDraftChip ? `<div class="proj-draft-chip"><span>Draft saved</span><a href="/projects/new" class="proj-draft-chip-link">Resume</a><button type="button" class="proj-draft-chip-dismiss" aria-label="Dismiss">×</button></div>` : ""}
-      <div class="proj-list-head">
-        <input type="search" class="toolbar-input proj-search" id="proj-search" placeholder="${escapeHtml(projectSearchPlaceholder())}" value="${escapeHtml(state.filterQuery)}" />
-        <select class="toolbar-select" id="proj-status-filter">
-          <option value="all">All statuses</option>
-          ${PROJECT_STATUSES.map((s) => `<option value="${s}" ${state.filterStatus === s ? "selected" : ""}>${s}</option>`).join("")}
-        </select>
-      </div>
-      <div class="proj-type-chips" role="group" aria-label="Project type">
-        <button type="button" class="proj-type-chip${state.filterType === "all" ? " is-active" : ""}" data-type="all">All</button>
-        ${PROJECT_TYPES.map((t) => `<button type="button" class="proj-type-chip${state.filterType === t.id ? " is-active" : ""}" data-type="${t.id}">${escapeHtml(t.label)}</button>`).join("")}
-      </div>
-      <div class="proj-list-items"></div>
-    `;
-    const itemsEl = listHost.querySelector(".proj-list-items");
-    if (!list.length) {
-      const assigned = getAssignedProjectIds(getCurrentUserId(), getCurrentRole());
-      const hasGlobal = dedupeProjects(state.projects).length > 0;
-      const roleScopedEmpty = assigned !== null && hasGlobal;
-      itemsEl.innerHTML = `
-        <div class="proj-empty-state">
-          <p class="proj-empty">${roleScopedEmpty ? "No projects assigned to your role" : "No projects yet"}</p>
-          <p class="proj-empty-sub">${roleScopedEmpty ? "Ask your project manager or admin to assign you to a project." : "Create a project to manage BOQ, sales, and progress."}</p>
-          ${roleScopedEmpty ? "" : `<a href="/projects/new" class="btn btn-primary btn-sm proj-create-link">${hasStoredProjectDraft() ? "Resume draft" : "Create your first project"}</a>`}
-        </div>
-      `;
-      return;
-    }
-    const countEl = root.querySelector("#proj-sidebar-count");
-    if (countEl) countEl.textContent = String(list.length);
-
-    for (const p of list) {
-      const div = renderSidebarProjectItem(p, state.selectedProjectId === p.id, {
-        milestones: state.milestonesByProject[p.id] || [],
-      });
-      div.onclick = () => {
-        state.selectedProjectId = p.id;
-        state.editProjectId = null;
-        bindProjectSubs();
-        renderProjectList();
-        renderTabContent();
-      };
-      itemsEl.appendChild(div);
-    }
-    listHost.querySelector("#proj-search").oninput = (e) => {
-      state.filterQuery = e.target.value;
-      renderProjectList();
-    };
-    listHost.querySelector("#proj-status-filter").onchange = (e) => {
-      state.filterStatus = e.target.value;
-      renderProjectList();
-    };
-    listHost.querySelector(".proj-draft-chip-dismiss")?.addEventListener("click", () => {
-      sessionStorage.setItem(DRAFT_CHIP_KEY, "1");
-      renderProjectList();
-    });
-    listHost.querySelectorAll(".proj-type-chip").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        state.filterType = btn.dataset.type || "all";
-        renderProjectList();
-      });
-    });
-  }
-
   function buildMasterTab() {
     const p = getSelected();
     const isEdit = state.editProjectId === state.selectedProjectId && p;
@@ -311,13 +696,13 @@ export function mountProjects(container) {
         ? "Update project information"
         : state.selectedProjectId
           ? ""
-          : "Select a project from the list or create a new one"
+          : "Select a project from the directory or create a new one"
     );
     const body = card.querySelector(".section-card-body");
 
     if (!state.selectedProjectId && !state.editProjectId) {
       body.innerHTML = `
-        <p class="proj-empty">Select a project from the sidebar, or create a new project.</p>
+        <p class="proj-empty">Select a project from the directory above, or create a new project.</p>
         <a href="/projects/new" class="btn btn-primary btn-sm">${hasStoredProjectDraft() ? "Resume draft" : "Create project"}</a>
       `;
       return card;
@@ -1351,7 +1736,20 @@ export function mountProjects(container) {
 
   function renderTabContent() {
     if (!tabHost) return;
+    tabHost.innerHTML = "";
+    if (!state.hubMode) return;
+
     const p = getSelected();
+    if (!p) {
+      if (
+        state.selectedProjectId &&
+        state.projectsRaw.length &&
+        !state.projectsRaw.some((row) => row.id === state.selectedProjectId)
+      ) {
+        exitProjectHub();
+      }
+      return;
+    }
     const tabList = tabsWithGroups(p);
     if (!tabList.some((t) => t.id === state.activeTab)) {
       state.activeTab = "home";
@@ -1368,12 +1766,9 @@ export function mountProjects(container) {
       workspace.className = "proj-workspace";
 
       const header = renderProjectHeader(p, state, {
+        onBack: () => exitProjectHub(),
         onEdit: () => {
-          migrateInlineDetailsIfNeeded(p.id).catch(() => {});
-          state.editProjectId = p.id;
-          state.activeTab = "home";
-          state.activeTabGroup = "overview";
-          renderTabContent();
+          navigateTo(`/projects/new?edit=${encodeURIComponent(p.id)}`);
         },
         onKpiNavigate: navigateProjectTab,
       });
@@ -1399,9 +1794,6 @@ export function mountProjects(container) {
       tabHost.appendChild(workspace);
       return;
     }
-
-    const empty = renderPortfolioMain();
-    tabHost.appendChild(empty);
   }
 
   function buildActiveTabCard() {
@@ -1502,37 +1894,91 @@ export function mountProjects(container) {
   }
 
   function ensureLayout() {
-    if (root.querySelector("#proj-list-host")) {
-      listHost = root.querySelector("#proj-list-host");
+    if (root.querySelector("#proj-directory-tbody")) {
+      metricsRow = root.querySelector("#proj-metrics");
+      directoryTbody = root.querySelector("#proj-directory-tbody");
       tabHost = root.querySelector("#proj-tab-host");
       return;
     }
+    const showDraftChip = hasStoredProjectDraft() && sessionStorage.getItem(DRAFT_CHIP_KEY) !== "1";
+    const typeOptions = PROJECT_TYPES.map(
+      (t) => `<option value="${t.id}">${escapeHtml(t.label)}</option>`
+    ).join("");
+    const statusOptions = PROJECT_STATUSES.map((s) => `<option value="${s}">${escapeHtml(s)}</option>`).join("");
     root.innerHTML = `
-      <div class="projects-layout">
-        <aside class="proj-sidebar card">
-          <div class="card-pad proj-sidebar-head">
-            <div class="proj-sidebar-title-row">
-              <span class="proj-sidebar-title">Projects</span>
-              <span class="proj-sidebar-count" id="proj-sidebar-count">0</span>
-            </div>
-            <a href="/projects/new" class="btn btn-sm btn-primary proj-sidebar-new">+ New</a>
+      <div id="proj-metrics"></div>
+      <section class="dash-widget dash-widget--projects card">
+        <div class="dash-widget-head dash-widget-head--split">
+          <div>
+            <h3 class="dash-widget-title">Project Directory</h3>
+            <p class="dash-widget-sub">Search, filter, and open projects</p>
           </div>
-          <div id="proj-list-host"></div>
-        </aside>
-        <main class="proj-main">
-          <div id="proj-tab-host"></div>
-        </main>
-      </div>
+          <span class="cust-toolbar-count" id="proj-directory-count">Showing 0 projects</span>
+        </div>
+        <div class="dash-widget-body">
+          ${
+            showDraftChip
+              ? `<div class="proj-draft-chip"><span>Draft saved</span><a href="/projects/new" class="proj-draft-chip-link">Resume</a><button type="button" class="proj-draft-chip-dismiss" aria-label="Dismiss">×</button></div>`
+              : ""
+          }
+          <div class="toolbar-row projects-toolbar" id="proj-toolbar">
+            <div class="toolbar-filters">
+              <select class="toolbar-select" id="proj-filter-status" aria-label="Status filter">
+                <option value="all">All statuses</option>
+                ${statusOptions}
+              </select>
+              <select class="toolbar-select" id="proj-filter-type" aria-label="Project type filter">
+                <option value="all">All types</option>
+                ${typeOptions}
+              </select>
+            </div>
+            <div class="toolbar-actions">
+              <div class="cust-toolbar-search toolbar-search">
+                <span class="search-icon" aria-hidden="true">${icon("search", { size: 18 })}</span>
+                <input type="search" class="cust-toolbar-search-input" id="proj-search" placeholder="Search projects..." autocomplete="off" />
+              </div>
+              <div class="cust-toolbar-btn-group">
+                <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="proj-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
+                <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="proj-export">${icon("download", { size: 16 })} Export</button>
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap projects-table-wrap">
+            <table class="dash-table projects-table" id="projects-table">
+              <thead>
+                <tr>
+                  <th class="col-num">#</th>
+                  <th>Project</th>
+                  <th class="cust-col-center">Type</th>
+                  <th>Client</th>
+                  <th class="cust-col-center">PM</th>
+                  <th class="cust-col-center">Progress</th>
+                  <th class="cust-col-center">Status</th>
+                  <th class="cust-col-center">Health</th>
+                  <th class="cust-col-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="proj-directory-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <div id="proj-tab-host" class="proj-tab-host"></div>
     `;
-    listHost = root.querySelector("#proj-list-host");
+    metricsRow = root.querySelector("#proj-metrics");
+    directoryTbody = root.querySelector("#proj-directory-tbody");
     tabHost = root.querySelector("#proj-tab-host");
+    wireDirectoryToolbar();
   }
 
   function render() {
     ensureLayout();
-    renderProjectList();
+    applyHubLayout();
+    renderProjectMetrics();
+    renderProjectDirectory();
     bindProjectSubs();
     renderTabContent();
+    syncOpenProjectDetailModal();
   }
 
   let unsubPhases = () => {};
@@ -1602,20 +2048,18 @@ export function mountProjects(container) {
 
   ensureLayout();
   getCurrentRole();
-  renderProjectList();
-  renderTabContent();
+  render();
 
   const refreshEnrichedProjects = () => {
     state.projects = enrichProjectList(state.projectsRaw);
-    renderProjectList();
-    bindProjectSubs();
-    renderTabContent();
+    render();
   };
 
   const unsubProjects = listenList("projects", (list) => {
     state.projectsRaw = list;
-    if (pendingSelectId && list.some((p) => p.id === pendingSelectId)) {
+    if (pendingSelectId && pendingHub && list.some((p) => p.id === pendingSelectId)) {
       state.selectedProjectId = pendingSelectId;
+      state.hubMode = true;
       migrateInlineDetailsIfNeeded(pendingSelectId).catch(() => {});
     }
     refreshEnrichedProjects();
@@ -1629,10 +2073,11 @@ export function mountProjects(container) {
     if (state.projectsRaw.length) refreshEnrichedProjects();
   });
 
-  const unsubAllMilestones = listenValue("projectMilestones", (root) => {
-    state.milestonesByProject = parseNestedByProject(root);
-    if (!state.selectedProjectId) renderTabContent();
-    renderProjectList();
+  const unsubAllMilestones = listenValue("projectMilestones", (nestedRoot) => {
+    state.milestonesByProject = parseNestedByProject(nestedRoot);
+    renderProjectMetrics();
+    renderProjectDirectory();
+    if (state.selectedProjectId) renderTabContent();
   });
 
   const unsubAudit = listenList("auditLogs", (list) => {
@@ -1658,6 +2103,7 @@ export function mountProjects(container) {
 
   return {
     unmount: () => {
+      closeProjectDetail();
       unsubProjects();
       unsubGovDetails();
       unsubPrivateDetails();

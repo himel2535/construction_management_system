@@ -48,7 +48,7 @@ const ROUTE_CHROME = {
   "/suppliers": { title: "Suppliers", subtitle: "Payees, bills, payments, and outstanding balances." },
   "/inventory": { title: "Inventory", subtitle: "Materials, stock in/out, ledger, and pending returns." },
   "/assets": { title: "Assets", subtitle: "Machinery, vehicles, tools — register, assignment, and maintenance." },
-  "/workers": { title: "Workers", subtitle: "Worker registry, attendance, salary, and site assignments." },
+  "/workers": { title: "HR & Payroll", subtitle: "Worker registry, attendance, salary, and site assignments." },
   "/site-incharge": {
     title: "Site In-charge",
     subtitle: "Field PM — material usage, workers roster, and monthly settlement.",

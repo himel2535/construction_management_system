@@ -235,6 +235,7 @@ export function renderReviewSummary(payload, { onEditStep } = {}) {
 export function govContractFieldsHtml(agencyOpts, values = {}) {
   const v = values;
   return `
+    <section class="gov-form-section">
     <h4 class="r3-subhead">Tender / e-GP</h4>
     <div class="form-grid form-grid--gov gov-tender-block">
       ${renderFormField(
@@ -249,12 +250,16 @@ export function govContractFieldsHtml(agencyOpts, values = {}) {
       ${renderFormField("tenderDocUrl", "Tender document URL", `<input name="tenderDocUrl" type="url" id="field-tenderDocUrl" placeholder="https://..." value="${escapeHtml(v.tenderDocUrl || "")}" />`, { full: true }).outerHTML}
       ${renderFormField("nitNo", "NIT no", `<input name="nitNo" id="field-nitNo" value="${escapeHtml(v.nitNo || "")}" />`).outerHTML}
     </div>
+    </section>
+    <section class="gov-form-section">
     <h4 class="r3-subhead">Work order (কার্যাদেশ)</h4>
     <div class="form-grid form-grid--gov gov-wo-block">
       ${renderFormField("workOrderNo", "Work order reference", `<input name="workOrderNo" id="field-workOrderNo" value="${escapeHtml(v.workOrderNo || "")}" />`).outerHTML}
       ${renderFormField("workOrderIssueDate", "Issue date", `<input name="workOrderIssueDate" type="date" id="field-workOrderIssueDate" value="${v.workOrderIssueDate || ""}" />`).outerHTML}
       ${renderFormField("workOrderScope", "Scope of work", `<textarea name="workOrderScope" id="field-workOrderScope" rows="3">${escapeHtml(v.workOrderScope || "")}</textarea>`, { full: true }).outerHTML}
     </div>
+    </section>
+    <section class="gov-form-section">
     <h4 class="r3-subhead">Contract &amp; retention</h4>
     <div class="form-grid form-grid--gov">
       ${renderFormField(
@@ -277,6 +282,8 @@ export function govContractFieldsHtml(agencyOpts, values = {}) {
         { full: true }
       ).outerHTML}
     </div>
+    </section>
+    <section class="gov-form-section">
     <h4 class="r3-subhead">Guarantees</h4>
     <div class="form-grid form-grid--gov">
       ${renderFormField(
@@ -290,6 +297,8 @@ export function govContractFieldsHtml(agencyOpts, values = {}) {
         `<input name="securityDeposit" type="number" step="0.01" min="0" id="field-securityDeposit" value="${v.securityDeposit || ""}" />`
       ).outerHTML}
     </div>
+    </section>
+    <section class="gov-form-section">
     <h4 class="r3-subhead">Bank guarantee</h4>
     <div class="form-grid form-grid--gov">
       ${renderFormField(
@@ -314,6 +323,7 @@ export function govContractFieldsHtml(agencyOpts, values = {}) {
         </select>`
       ).outerHTML}
     </div>
+    </section>
   `;
 }
 

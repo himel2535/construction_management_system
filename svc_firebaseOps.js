@@ -17,6 +17,22 @@ import { expiryAlertLevel, requiresExpiry, normalizeDocumentType } from "./util_
 import { computeAnalyticsSummaries } from "./util_analytics.js";
 import { buildWorkerPayrollReports } from "./util_payroll.js";
 
+/** Firebase RTDB rejects `undefined` anywhere in update payloads. */
+function omitUndefinedDeep(value) {
+  if (value === undefined) return undefined;
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    return value.map((item) => omitUndefinedDeep(item)).filter((item) => item !== undefined);
+  }
+  const out = {};
+  for (const [key, val] of Object.entries(value)) {
+    if (val === undefined) continue;
+    const next = omitUndefinedDeep(val);
+    if (next !== undefined) out[key] = next;
+  }
+  return out;
+}
+
 async function resolveAccountId(codeOrId) {
   if (codeOrId && !String(codeOrId).startsWith("acc_")) return codeOrId;
   const codeMap = {
@@ -1405,43 +1421,46 @@ export async function refreshReportsCacheClient(tenantId = getActiveTenantId()) 
     monthKey: monthPrefix,
   });
 
-  await update(ref(db, `reportsCache/${tenantId}`), {
-    dailySummary: {
-      date: today,
-      openBills,
-      clientReceivable: outstanding,
-      subcontractOutstanding,
-      govIpcOutstanding,
-      updatedAt: Date.now(),
-      source: "live",
-    },
-    monthlyExpense: { month: monthPrefix, total: monthExpense, updatedAt: Date.now(), source: "live" },
-    projectCostSummary,
-    governanceCompliance: {
-      qualityOpen,
-      qualityApproved,
-      safetyOpen,
-      safetyCritical,
-      ncrOpen,
-      documentExpiryWarn,
-      documentExpiryCritical,
-      updatedAt: Date.now(),
-    },
-    hseSummary: {
-      qualityOpen,
-      safetyOpen,
-      safetyCritical,
-      ncrOpen,
-      updatedAt: Date.now(),
-    },
-    documentExpiry: {
-      warn: documentExpiryWarn,
-      critical: documentExpiryCritical,
-      updatedAt: Date.now(),
-    },
-    analytics,
-    workerPayroll: { ...workerPayroll, monthKey: monthPrefix },
-  });
+  await update(
+    ref(db, `reportsCache/${tenantId}`),
+    omitUndefinedDeep({
+      dailySummary: {
+        date: today,
+        openBills,
+        clientReceivable: outstanding,
+        subcontractOutstanding,
+        govIpcOutstanding,
+        updatedAt: Date.now(),
+        source: "live",
+      },
+      monthlyExpense: { month: monthPrefix, total: monthExpense, updatedAt: Date.now(), source: "live" },
+      projectCostSummary,
+      governanceCompliance: {
+        qualityOpen,
+        qualityApproved,
+        safetyOpen,
+        safetyCritical,
+        ncrOpen,
+        documentExpiryWarn,
+        documentExpiryCritical,
+        updatedAt: Date.now(),
+      },
+      hseSummary: {
+        qualityOpen,
+        safetyOpen,
+        safetyCritical,
+        ncrOpen,
+        updatedAt: Date.now(),
+      },
+      documentExpiry: {
+        warn: documentExpiryWarn,
+        critical: documentExpiryCritical,
+        updatedAt: Date.now(),
+      },
+      analytics,
+      workerPayroll: { ...workerPayroll, monthKey: monthPrefix },
+    })
+  );
 }
 
 export async function triggerBackupMetaClient() {

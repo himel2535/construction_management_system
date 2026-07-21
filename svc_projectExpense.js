@@ -7,6 +7,7 @@ import {
   guardAction,
   upsertApprovalQueue,
   clearApprovalQueue,
+  getCurrentRole,
 } from "./svc_governance.js";
 import { normalizeRole } from "./util_roles.js";
 import { isGovProject } from "./util_govProject.js";
@@ -38,8 +39,12 @@ function expenseTitle(expense) {
 }
 
 async function refreshReports() {
-  const { refreshReportsCacheClient } = await import("./svc_operations.js");
-  await refreshReportsCacheClient();
+  try {
+    const { refreshReportsCacheClient } = await import("./svc_operations.js");
+    await refreshReportsCacheClient();
+  } catch (err) {
+    console.warn("Reports cache refresh failed after expense action:", err?.message || err);
+  }
 }
 
 export async function createProjectExpense({

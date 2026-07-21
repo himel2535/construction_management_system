@@ -162,9 +162,9 @@ export function buildSitePayrollSummary(projects = [], payments = [], calculatio
       )
       .reduce((s, c) => s + (Number(c.netPayable) || 0), 0);
     return {
-      projectId: p.id,
-      projectName: p.name,
-      monthKey,
+      projectId: p.id ?? "",
+      projectName: p.name ?? "",
+      monthKey: monthKey ?? "",
       laborPaid: payTotal,
       laborCalculated: calcTotal,
       totalLaborCost: payTotal || calcTotal,
@@ -181,10 +181,10 @@ export function buildPaymentConfirmationLog(payments = [], workers = [], siteInC
       const w = workerMap.get(p.workerId);
       const sic = sicMap.get(p.siteInChargeId);
       return {
-        paymentId: p.id,
-        date: p.date,
-        workerId: p.workerId,
-        workerName: w?.name || p.workerId,
+        paymentId: p.id ?? "",
+        date: p.date ?? "",
+        workerId: p.workerId ?? "",
+        workerName: w?.name || p.workerId || "",
         amount: Number(p.amount) || 0,
         paymentMode: p.paymentMode || (String(p.note || "").includes("bkash") ? "bkash" : "cash"),
         paidBy: p.paidBy || p.createdBy || "",

@@ -7,6 +7,8 @@ import { showToast } from "./cmp_toast.js";
 import { formatBDT } from "./util_format.js";
 import { openEditDialog, renderDataTable, escapeHtml } from "./cmp_projectTab.js";
 import { icon } from "./cmp_icons.js";
+import { kpiIcon } from "./cmp_dashboardIcons.js";
+import { formatCompactBDT } from "./util_dashboard.js";
 import {
   WORKER_TABS,
   WORKER_PROFILE_TABS,
@@ -20,8 +22,8 @@ import {
   renderAttendanceCell,
   renderAttendanceLegend,
   renderMonthPicker,
-  renderWorkerEmptyState,
   renderWorkerStatCards,
+  renderWorkerEmptyState,
   renderIconBtn,
   renderListDetailsBtn,
   renderMobileDetailsBadge,
@@ -79,6 +81,30 @@ const PAYMENT_METHODS = [
 
 function currentMonthKey() {
   return todayISO().slice(0, 7);
+}
+
+function workerSparklineSvg(values = [], tone = "green") {
+  const pts = values.length ? values : [3, 4, 4, 5, 5, 6, 6];
+  const max = Math.max(...pts, 1);
+  const w = 56;
+  const h = 22;
+  const coords = pts
+    .map((v, i) => {
+      const x = (i / (pts.length - 1 || 1)) * w;
+      const y = h - (v / max) * (h - 4) - 2;
+      return `${x},${y}`;
+    })
+    .join(" ");
+  const strokes = {
+    blue: "#2563eb",
+    green: "#047857",
+    orange: "#d97706",
+    teal: "#0d9488",
+    red: "#B91C1C",
+    yellow: "#CA8A04",
+  };
+  const stroke = strokes[tone] || strokes.green;
+  return `<svg class="dash-sparkline dash-sparkline--${tone}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${coords}" fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 function nextAttendanceStatus(current) {
@@ -145,7 +171,7 @@ function defaultWorkerValues() {
 }
 
 function printPayslip(worker, { monthKey, daysPresent, advance, gross, net, paymentDate, note }) {
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Payslip ù ${escapeHtml(worker.name)}</title>
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Payslip ? ${escapeHtml(worker.name)}</title>
 <style>
 body{font-family:system-ui,sans-serif;padding:32px;max-width:640px;margin:0 auto;color:#111}
 h1{font-size:1.25rem;margin:0 0 8px}
@@ -158,8 +184,8 @@ td,th{padding:10px 0;border-bottom:1px solid #e5e5e5}
 </style></head><body>
 <h1>Salary Payslip</h1>
 <div class="meta">
-<strong>${escapeHtml(worker.name)}</strong> (${escapeHtml(worker.workerCode || "ù")})<br>
-${escapeHtml(designationLabel(worker.designation))} ù ${escapeHtml(employmentTypeLabel(worker.employmentType))}<br>
+<strong>${escapeHtml(worker.name)}</strong> (${escapeHtml(worker.workerCode || "?")})<br>
+${escapeHtml(designationLabel(worker.designation))} ? ${escapeHtml(employmentTypeLabel(worker.employmentType))}<br>
 Period: ${escapeHtml(monthKey)}
 </div>
 <table>
@@ -174,7 +200,7 @@ ${note ? `<p>Note: ${escapeHtml(note)}</p>` : ""}
 </body></html>`;
   const win = window.open("", "_blank");
   if (!win) {
-    showToast("Popup blocked ù allow popups for payslip", "error");
+    showToast("Popup blocked ? allow popups for payslip", "error");
     return;
   }
   win.document.write(html);
@@ -186,7 +212,7 @@ ${note ? `<p>Note: ${escapeHtml(note)}</p>` : ""}
 export function mountWorkers(container) {
   setActiveNav();
   setPageChrome({
-    title: "Workers",
+    title: "HR & Payroll",
     subtitle: "Worker registry, attendance, salary, and site assignments",
     showDateRange: false,
     quickActionLabel: "",
@@ -194,7 +220,7 @@ export function mountWorkers(container) {
   });
 
   const root = document.createElement("div");
-  root.className = "workers-page dashboard-page";
+  root.className = "workers-page dashboard-page dashboard-mockup";
   container.appendChild(root);
 
   const state = {
@@ -233,7 +259,7 @@ export function mountWorkers(container) {
   let unsubTransfers = () => {};
   let unsubDocuments = () => {};
 
-  const projectName = (id) => state.projects.find((p) => p.id === id)?.name || "ù";
+  const projectName = (id) => state.projects.find((p) => p.id === id)?.name || "?";
   const getWorker = (id) => state.workers.find((w) => w.id === id);
   const activeWorkers = () => state.workers.filter((w) => (w.status || "active") === "active");
   const workerListStatus = (worker) => resolveWorkerListStatus(worker, state.attendance, todayISO());
@@ -303,7 +329,7 @@ export function mountWorkers(container) {
     if (status === "pending") {
       return `<span class="wrk-sal-indicator wrk-sal-indicator--pending" title="Pending">${icon("banknote", { size: 14, className: "icon" })}</span>`;
     }
-    return `<span class="wrk-sal-indicator wrk-sal-indicator--neutral" title="Clear">ù</span>`;
+    return `<span class="wrk-sal-indicator wrk-sal-indicator--neutral" title="Clear">?</span>`;
   }
 
   function openProfile(workerId, tab = "overview") {
@@ -434,7 +460,7 @@ export function mountWorkers(container) {
       <dl class="wrk-pay-breakdown">
         <dt>Wage rate</dt><dd>${formatBDT(row.wageRate)}</dd>
         <dt>Days present</dt><dd>${row.daysPresent}</dd>
-        <dt>Gross (${row.daysPresent} ù ${formatBDT(row.wageRate)})</dt><dd>${formatBDT(row.gross)}</dd>
+        <dt>Gross (${row.daysPresent} ? ${formatBDT(row.wageRate)})</dt><dd>${formatBDT(row.gross)}</dd>
         <dt>Advance</dt><dd>? ${formatBDT(row.advance)}</dd>
         <dt class="wrk-pay-total">Final due</dt><dd class="wrk-pay-total">${formatBDT(row.due)}</dd>
       </dl>
@@ -568,36 +594,73 @@ export function mountWorkers(container) {
       : [];
 
     wrap.innerHTML = `
-      <div class="wrk-sal-head">
-        ${renderMonthPicker("wrk-reports-month", month)}
-        <select id="wrk-reports-project" class="toolbar-select">
-          <option value="all">All projects</option>
-          ${state.projects.map((p) => `<option value="${p.id}" ${projectFilter === p.id ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
-        </select>
-        ${canPerformAction("approve") || canPerformAction("approve_expense")
-          ? `<button type="button" class="btn btn-primary btn-sm" id="wrk-reconcile-btn">Reconcile payroll</button>`
-          : ""}
+      <div class="toolbar-row projects-toolbar workers-toolbar wrk-reports-toolbar" id="wrk-reports-toolbar">
+        <div class="toolbar-filters">
+          ${renderMonthPicker("wrk-reports-month", month)}
+          <select id="wrk-reports-project" class="toolbar-select">
+            <option value="all">All projects</option>
+            ${state.projects.map((p) => `<option value="${p.id}" ${projectFilter === p.id ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="toolbar-actions">
+          ${
+            canPerformAction("approve") || canPerformAction("approve_expense")
+              ? `<button type="button" class="btn btn-primary btn-sm" id="wrk-reconcile-btn">Reconcile payroll</button>`
+              : ""
+          }
+        </div>
       </div>
-      <section class="card card-pad wrk-report-block">
-        <h4 class="section-title">Site-wise payroll summary</h4>
-        <table class="dash-table"><thead><tr><th>Project</th><th>Paid</th><th>Calculated</th></tr></thead>
-        <tbody>${siteSummary.map((r) => `<tr><td>${escapeHtml(r.projectName)}</td><td>${formatBDT(r.laborPaid)}</td><td>${formatBDT(r.laborCalculated)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="3">No data</td></tr>`}</tbody></table>
+      <section class="dash-widget dash-widget--projects card wrk-report-block">
+        <div class="dash-widget-head">
+          <h3 class="dash-widget-title">Site-wise payroll summary</h3>
+        </div>
+        <div class="dash-widget-body">
+          <div class="table-wrap projects-table-wrap">
+            <table class="dash-table projects-table workers-table"><thead><tr><th>Project</th><th>Paid</th><th>Calculated</th></tr></thead>
+            <tbody>${siteSummary.map((r) => `<tr><td>${escapeHtml(r.projectName)}</td><td>${formatBDT(r.laborPaid)}</td><td>${formatBDT(r.laborCalculated)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="3">No data</td></tr>`}</tbody></table>
+          </div>
+        </div>
       </section>
-      <section class="card card-pad wrk-report-block">
-        <h4 class="section-title">Outstanding advances</h4>
-        <table class="dash-table"><thead><tr><th>Worker</th><th>Advanced</th><th>Outstanding</th></tr></thead>
-        <tbody>${outstanding.map((r) => `<tr><td>${escapeHtml(r.workerName)}</td><td>${formatBDT(r.totalAdvanced)}</td><td>${formatBDT(r.outstanding)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="3">None</td></tr>`}</tbody></table>
+      <section class="dash-widget dash-widget--projects card wrk-report-block">
+        <div class="dash-widget-head">
+          <h3 class="dash-widget-title">Outstanding advances</h3>
+        </div>
+        <div class="dash-widget-body">
+          <div class="table-wrap projects-table-wrap">
+            <table class="dash-table projects-table workers-table"><thead><tr><th>Worker</th><th>Advanced</th><th>Outstanding</th></tr></thead>
+            <tbody>${outstanding.map((r) => `<tr><td>${escapeHtml(r.workerName)}</td><td>${formatBDT(r.totalAdvanced)}</td><td>${formatBDT(r.outstanding)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="3">None</td></tr>`}</tbody></table>
+          </div>
+        </div>
       </section>
-      <section class="card card-pad wrk-report-block">
-        <h4 class="section-title">Payment confirmation log</h4>
-        <table class="dash-table"><thead><tr><th>Date</th><th>Worker</th><th>Amount</th><th>Mode</th><th>Paid by</th><th>Site In-charge</th></tr></thead>
-        <tbody>${paymentLog.slice(0, 20).map((r) => `<tr><td>${escapeHtml(r.date || "")}</td><td>${escapeHtml(r.workerName)}</td><td>${formatBDT(r.amount)}</td><td>${escapeHtml(paymentModeLabel(r.paymentMode))}</td><td>${escapeHtml(r.paidBy)}</td><td>${escapeHtml(r.siteInChargeName)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="6">No payments</td></tr>`}</tbody></table>
+      <section class="dash-widget dash-widget--projects card wrk-report-block">
+        <div class="dash-widget-head">
+          <h3 class="dash-widget-title">Payment confirmation log</h3>
+        </div>
+        <div class="dash-widget-body">
+          <div class="table-wrap projects-table-wrap">
+            <table class="dash-table projects-table workers-table"><thead><tr><th>Date</th><th>Worker</th><th>Amount</th><th>Mode</th><th>Paid by</th><th>Site In-charge</th></tr></thead>
+            <tbody>${paymentLog.slice(0, 20).map((r) => `<tr><td>${escapeHtml(r.date || "")}</td><td>${escapeHtml(r.workerName)}</td><td>${formatBDT(r.amount)}</td><td>${escapeHtml(paymentModeLabel(r.paymentMode))}</td><td>${escapeHtml(r.paidBy)}</td><td>${escapeHtml(r.siteInChargeName)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="6">No payments</td></tr>`}</tbody></table>
+          </div>
+        </div>
       </section>
-      <section class="card card-pad wrk-report-block">
-        <h4 class="section-title">Worker attendance history</h4>
-        <select id="wrk-reports-worker" class="toolbar-select">${workerOpts.map((o) => `<option value="${o.value}" ${state.reportsWorker === o.value ? "selected" : ""}>${escapeHtml(o.label)}</option>`).join("")}</select>
-        <table class="dash-table" style="margin-top:0.5rem"><thead><tr><th>Date</th><th>Project</th><th>Status</th><th>OT</th><th>Marked by</th></tr></thead>
-        <tbody>${history.slice(0, 30).map((r) => `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.projectName)}</td><td>${escapeHtml(r.status)}</td><td>${r.overtimeHours}</td><td>${escapeHtml(r.markedBy)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="5">Select a worker</td></tr>`}</tbody></table>
+      <section class="dash-widget dash-widget--projects card wrk-report-block">
+        <div class="dash-widget-head dash-widget-head--split">
+          <div>
+            <h3 class="dash-widget-title">Worker attendance history</h3>
+            <p class="dash-widget-sub">Cross-site attendance for a selected worker</p>
+          </div>
+        </div>
+        <div class="dash-widget-body">
+          <div class="toolbar-row projects-toolbar workers-toolbar">
+            <div class="toolbar-filters">
+              <select id="wrk-reports-worker" class="toolbar-select wrk-reports-worker-select">${workerOpts.map((o) => `<option value="${o.value}" ${state.reportsWorker === o.value ? "selected" : ""}>${escapeHtml(o.label)}</option>`).join("")}</select>
+            </div>
+          </div>
+          <div class="table-wrap projects-table-wrap">
+            <table class="dash-table projects-table workers-table"><thead><tr><th>Date</th><th>Project</th><th>Status</th><th>OT</th><th>Marked by</th></tr></thead>
+            <tbody>${history.slice(0, 30).map((r) => `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.projectName)}</td><td>${escapeHtml(r.status)}</td><td>${r.overtimeHours}</td><td>${escapeHtml(r.markedBy)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="5">Select a worker</td></tr>`}</tbody></table>
+          </div>
+        </div>
       </section>
     `;
 
@@ -631,62 +694,73 @@ export function mountWorkers(container) {
 
   function renderKpiStrip() {
     if (!kpiHost) return;
-    kpiHost.innerHTML = "";
     const today = todayISO();
-    kpiHost.appendChild(
-      renderWorkerStatCards([
-        { label: "Total workers", value: countTotalWorkers(state.workers), icon: "users", iconCls: "mod-stat-icon--blue" },
-        {
-          label: "Present today",
-          value: countPresentToday(state.attendance, today),
-          icon: "check",
-          iconCls: "mod-stat-icon--green",
-          valueCls: "mod-stat-value--green",
-        },
-        {
-          label: "On leave",
-          value: countOnLeaveToday(state.attendance, today),
-          icon: "clock",
-          iconCls: "mod-stat-icon--amber",
-          valueCls: "mod-stat-value--amber",
-        },
-        {
-          label: "Salary due",
-          value: formatBDT(totalSalaryPending()),
-          icon: "wallet",
-          iconCls: "mod-stat-icon--red",
-          valueCls: "mod-stat-value--red",
-        },
-      ])
-    );
+    const total = countTotalWorkers(state.workers);
+    const present = countPresentToday(state.attendance, today);
+    const onLeave = countOnLeaveToday(state.attendance, today);
+    const salaryDue = totalSalaryPending();
+
+    const cards = [
+      {
+        label: "Total workers",
+        value: String(total),
+        iconKey: "projects",
+        tone: "blue",
+        footLeft: total ? "Registered on payroll" : "No workers yet",
+        spark: workerSparklineSvg([2, total || 1, total || 2, total || 3, 2, 2, 2], "blue"),
+      },
+      {
+        label: "Present today",
+        value: String(present),
+        iconKey: "collection",
+        tone: "green",
+        footLeft: total ? `${Math.round((present / total) * 100) || 0}% attendance` : "?",
+        spark: workerSparklineSvg([1, 2, present || 1, present || 2, present, present, present], "green"),
+      },
+      {
+        label: "On leave",
+        value: String(onLeave),
+        iconKey: "expense",
+        tone: "orange",
+        footLeft: onLeave ? "Marked leave today" : "No leave today",
+        spark: workerSparklineSvg([onLeave || 1, onLeave, onLeave, onLeave, 1, 1, 1], "orange"),
+      },
+      {
+        label: "Salary due",
+        value: formatCompactBDT(salaryDue),
+        iconKey: "receivable",
+        tone: "teal",
+        footLeft: formatBDT(salaryDue),
+        spark: workerSparklineSvg([2, salaryDue ? 4 : 2, 3, salaryDue ? 5 : 2, 3, 2, 2], "teal"),
+      },
+    ];
+
+    kpiHost.className = "dash-kpi-row wrk-kpi-host";
+    kpiHost.innerHTML = cards
+      .map(
+        (c) => `<div class="dash-kpi-card card cust-kpi-card">
+      <div class="cust-kpi-spark">${c.spark}</div>
+      <div class="dash-kpi-head">
+        <div class="dash-kpi-icon dash-kpi-icon--flat">${kpiIcon(c.iconKey).replace('class="dash-color-icon"', 'class="dash-color-icon cust-kpi-flat-icon"')}</div>
+        <div class="dash-kpi-main">
+          <span class="dash-kpi-label">${escapeHtml(c.label)}</span>
+          <div class="dash-kpi-value">${escapeHtml(c.value)}</div>
+        </div>
+      </div>
+      <div class="dash-kpi-foot">
+        <div class="dash-kpi-foot-left">${escapeHtml(c.footLeft)}</div>
+      </div>
+    </div>`
+      )
+      .join("");
   }
 
   function renderListTab() {
     const wrap = document.createElement("div");
     wrap.className = "wrk-tab-panel";
 
-    if (!state.workers.length) {
-      wrap.appendChild(renderWorkerEmptyState({ onAdd: () => openWorkerDialog() }));
-      return wrap;
-    }
-
-    const filterRow = document.createElement("div");
-    filterRow.className = "wrk-filter-row";
-    filterRow.innerHTML = `
-      <label class="mod-search">${icon("search", { size: 14, className: "icon" })}
-        <input type="search" class="mod-search-input" id="wrk-list-search" placeholder="Search by name..." value="${escapeHtml(state.listQuery)}" />
-      </label>
-      <select class="toolbar-select" id="wrk-filter-designation">
-        <option value="all">Designation: All</option>
-        ${WORKER_DESIGNATIONS.map((d) => `<option value="${d.id}" ${state.listDesignation === d.id ? "selected" : ""}>${escapeHtml(d.label)}</option>`).join("")}
-      </select>
-      <select class="toolbar-select" id="wrk-filter-project">
-        <option value="all">Site: All</option>
-        ${state.projects.map((p) => `<option value="${p.id}" ${state.listProject === p.id ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
-      </select>
-      <button type="button" class="btn btn-primary btn-sm wrk-btn-primary" id="wrk-add-btn">+ Add Worker</button>
-    `;
-    wrap.appendChild(filterRow);
+    const section = document.createElement("section");
+    section.className = "dash-widget dash-widget--projects card";
 
     const list = filterWorkers(state.workers, {
       query: state.listQuery,
@@ -697,23 +771,58 @@ export function mountWorkers(container) {
     const page = paginateSlice(list, state.listPage, state.listPageSize);
     if (page.page !== state.listPage) state.listPage = page.page;
 
-    if (!page.items.length) {
+    section.innerHTML = `
+      <div class="dash-widget-head dash-widget-head--split">
+        <div>
+          <h3 class="dash-widget-title">Worker directory</h3>
+          <p class="dash-widget-sub">Search, filter, and open worker profiles</p>
+        </div>
+        <span class="cust-toolbar-count">Showing ${page.total} worker${page.total === 1 ? "" : "s"}</span>
+      </div>
+      <div class="dash-widget-body">
+        <div class="toolbar-row projects-toolbar workers-toolbar" id="wrk-list-toolbar">
+          <div class="toolbar-filters">
+            <select class="toolbar-select" id="wrk-filter-designation">
+              <option value="all">All designations</option>
+              ${WORKER_DESIGNATIONS.map((d) => `<option value="${d.id}" ${state.listDesignation === d.id ? "selected" : ""}>${escapeHtml(d.label)}</option>`).join("")}
+            </select>
+            <select class="toolbar-select" id="wrk-filter-project">
+              <option value="all">All sites</option>
+              ${state.projects.map((p) => `<option value="${p.id}" ${state.listProject === p.id ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
+            </select>
+          </div>
+          <div class="toolbar-actions">
+            <div class="cust-toolbar-search toolbar-search">
+              <span class="search-icon" aria-hidden="true">${icon("search", { size: 18 })}</span>
+              <input type="search" class="cust-toolbar-search-input" id="wrk-list-search" placeholder="Search by name..." autocomplete="off" value="${escapeHtml(state.listQuery)}" />
+            </div>
+            <div class="cust-toolbar-btn-group">
+              <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="wrk-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
+              <button type="button" class="btn btn-primary btn-sm" id="wrk-add-btn">+ Add Worker</button>
+            </div>
+          </div>
+        </div>
+        <div class="wrk-list-content-host"></div>
+      </div>
+    `;
+
+    const contentHost = section.querySelector(".wrk-list-content-host");
+
+    if (!state.workers.length) {
+      contentHost.appendChild(renderWorkerEmptyState({ onAdd: () => openWorkerDialog() }));
+    } else if (!page.items.length) {
       const empty = document.createElement("p");
       empty.className = "proj-empty";
       empty.textContent = "No workers match your filters";
-      wrap.appendChild(empty);
+      contentHost.appendChild(empty);
     } else {
-      const listSection = document.createElement("div");
-      listSection.className = "wrk-list-card";
-      listSection.innerHTML = `<h3 class="wrk-list-title">Worker list</h3>`;
-
       const desktop = document.createElement("div");
-      desktop.className = "table-wrap wrk-list-table wrk-table-desktop";
+      desktop.className = "table-wrap projects-table-wrap wrk-table-desktop";
       desktop.innerHTML = `
-        <table class="dash-table wrk-responsive-table">
+        <table class="dash-table projects-table workers-table wrk-responsive-table">
           <thead>
             <tr>
-              <th>Worker</th><th>Designation</th><th>Site</th><th>Status</th><th>Action</th>
+              <th>Worker</th><th>Designation</th><th>Site</th><th class="cust-col-center">Status</th><th class="cust-col-center">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -723,8 +832,8 @@ export function mountWorkers(container) {
               <td>${renderWorkerListNameCell(w)}</td>
               <td>${escapeHtml(designationLabel(w.designation))}</td>
               <td>${escapeHtml(projectName(w.assignedProjectId))}</td>
-              <td>${renderWorkerStatusBadge(workerListStatus(w))}</td>
-              <td class="wrk-list-action-cell">
+              <td class="cust-col-center">${renderWorkerStatusBadge(workerListStatus(w))}</td>
+              <td class="cust-col-center wrk-list-action-cell">
                 ${renderListDetailsBtn(w.id)}
               </td>
             </tr>`
@@ -733,8 +842,7 @@ export function mountWorkers(container) {
           </tbody>
         </table>
       `;
-      listSection.appendChild(desktop);
-      wrap.appendChild(listSection);
+      contentHost.appendChild(desktop);
 
       const mobile = document.createElement("div");
       mobile.className = "wrk-mobile-cards";
@@ -755,9 +863,9 @@ export function mountWorkers(container) {
         </div>`
         )
         .join("");
-      wrap.appendChild(mobile);
+      contentHost.appendChild(mobile);
 
-      wrap.appendChild(
+      contentHost.appendChild(
         renderPagination({
           page: page.page,
           pageSize: state.listPageSize,
@@ -771,22 +879,32 @@ export function mountWorkers(container) {
       );
     }
 
-    filterRow.querySelector("#wrk-list-search").oninput = (e) => {
+    wrap.appendChild(section);
+
+    const toolbar = section.querySelector("#wrk-list-toolbar");
+    toolbar.querySelector("#wrk-list-search").oninput = (e) => {
       state.listQuery = e.target.value;
       state.listPage = 1;
       renderContent();
     };
-    filterRow.querySelector("#wrk-filter-designation").onchange = (e) => {
+    toolbar.querySelector("#wrk-filter-designation").onchange = (e) => {
       state.listDesignation = e.target.value;
       state.listPage = 1;
       renderContent();
     };
-    filterRow.querySelector("#wrk-filter-project").onchange = (e) => {
+    toolbar.querySelector("#wrk-filter-project").onchange = (e) => {
       state.listProject = e.target.value;
       state.listPage = 1;
       renderContent();
     };
-    filterRow.querySelector("#wrk-add-btn").onclick = () => openWorkerDialog();
+    toolbar.querySelector("#wrk-add-btn").onclick = () => openWorkerDialog();
+    toolbar.querySelector("#wrk-clear-filters").onclick = () => {
+      state.listQuery = "";
+      state.listDesignation = "all";
+      state.listProject = "all";
+      state.listPage = 1;
+      renderContent();
+    };
 
     wrap.querySelectorAll(".wrk-list-row, .wrk-mobile-card").forEach((row) => {
       row.onclick = (e) => {
@@ -808,17 +926,6 @@ export function mountWorkers(container) {
     const wrap = document.createElement("div");
     wrap.className = "wrk-tab-panel";
 
-    const head = document.createElement("div");
-    head.className = "wrk-att-head";
-    head.innerHTML = `
-      ${renderMonthPicker("wrk-att-month", state.attendanceMonth)}
-      <select class="toolbar-select" id="wrk-att-project">
-        <option value="all">Site: All</option>
-        ${state.projects.map((p) => `<option value="${p.id}" ${state.attendanceProject === p.id ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
-      </select>
-    `;
-    wrap.appendChild(head);
-
     let workers = activeWorkers();
     if (state.attendanceProject !== "all") {
       workers = workers.filter((w) => w.assignedProjectId === state.attendanceProject);
@@ -826,8 +933,37 @@ export function mountWorkers(container) {
 
     const days = monthDays(state.attendanceMonth);
 
+    const section = document.createElement("section");
+    section.className = "dash-widget dash-widget--projects card";
+    section.innerHTML = `
+      <div class="dash-widget-head dash-widget-head--split">
+        <div>
+          <h3 class="dash-widget-title">Attendance</h3>
+          <p class="dash-widget-sub">Mark daily status by worker and site</p>
+        </div>
+        <span class="cust-toolbar-count">Showing ${workers.length} worker${workers.length === 1 ? "" : "s"}</span>
+      </div>
+      <div class="dash-widget-body">
+        <div class="toolbar-row projects-toolbar workers-toolbar" id="wrk-att-toolbar">
+          <div class="toolbar-filters">
+            ${renderMonthPicker("wrk-att-month", state.attendanceMonth)}
+            <select class="toolbar-select" id="wrk-att-project">
+              <option value="all">All sites</option>
+              ${state.projects.map((p) => `<option value="${p.id}" ${state.attendanceProject === p.id ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+        <div class="wrk-att-content-host"></div>
+      </div>
+    `;
+
+    const contentHost = section.querySelector(".wrk-att-content-host");
+
     if (!workers.length) {
-      wrap.innerHTML += `<p class="proj-empty">No active workers for selected site</p>`;
+      const empty = document.createElement("p");
+      empty.className = "proj-empty";
+      empty.textContent = "No active workers for selected site";
+      contentHost.appendChild(empty);
     } else {
       const desktop = document.createElement("div");
       desktop.className = "wrk-att-grid-wrap wrk-att-desktop";
@@ -856,7 +992,7 @@ export function mountWorkers(container) {
           </tbody>
         </table>
       `;
-      wrap.appendChild(desktop);
+      contentHost.appendChild(desktop);
       bindAttendanceCells(desktop);
 
       const mobile = document.createElement("div");
@@ -879,17 +1015,20 @@ export function mountWorkers(container) {
         </details>`
         )
         .join("");
-      wrap.appendChild(mobile);
+      contentHost.appendChild(mobile);
       bindAttendanceCells(mobile);
 
-      wrap.insertAdjacentHTML("beforeend", renderAttendanceLegend());
+      contentHost.insertAdjacentHTML("beforeend", renderAttendanceLegend());
     }
 
-    head.querySelector("#wrk-att-month").onchange = (e) => {
+    wrap.appendChild(section);
+
+    const toolbar = section.querySelector("#wrk-att-toolbar");
+    toolbar.querySelector("#wrk-att-month").onchange = (e) => {
       state.attendanceMonth = e.target.value;
       renderContent();
     };
-    head.querySelector("#wrk-att-project").onchange = (e) => {
+    toolbar.querySelector("#wrk-att-project").onchange = (e) => {
       state.attendanceProject = e.target.value;
       renderContent();
     };
@@ -901,23 +1040,39 @@ export function mountWorkers(container) {
     const wrap = document.createElement("div");
     wrap.className = "wrk-tab-panel";
 
-    const head = document.createElement("div");
-    head.className = "wrk-sal-head";
-    head.innerHTML = `
-      ${renderMonthPicker("wrk-sal-month", state.salaryMonth)}
-      <button type="button" class="btn btn-ghost btn-sm wrk-btn-outline" id="wrk-advance-btn">${icon("userPlus", { size: 14, className: "icon" })} + Give Advance</button>
-    `;
-    wrap.appendChild(head);
-
     const rows = activeWorkers().map((w) => ({ worker: w, ...salaryRow(w) }));
 
+    const section = document.createElement("section");
+    section.className = "dash-widget dash-widget--projects card";
+    section.innerHTML = `
+      <div class="dash-widget-head dash-widget-head--split">
+        <div>
+          <h3 class="dash-widget-title">Salary &amp; advances</h3>
+          <p class="dash-widget-sub">Monthly pay, advances, and payment actions</p>
+        </div>
+        <span class="cust-toolbar-count">Showing ${rows.length} worker${rows.length === 1 ? "" : "s"}</span>
+      </div>
+      <div class="dash-widget-body">
+        <div class="toolbar-row projects-toolbar workers-toolbar" id="wrk-sal-toolbar">
+          <div class="toolbar-filters">
+            ${renderMonthPicker("wrk-sal-month", state.salaryMonth)}
+          </div>
+          <div class="toolbar-actions">
+            <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn" id="wrk-advance-btn">${icon("userPlus", { size: 14, className: "icon" })} Give Advance</button>
+          </div>
+        </div>
+        <div class="wrk-sal-content-host"></div>
+      </div>
+    `;
+
+    const contentHost = section.querySelector(".wrk-sal-content-host");
     const desktop = document.createElement("div");
-    desktop.className = "table-wrap wrk-table-desktop";
+    desktop.className = "table-wrap projects-table-wrap wrk-table-desktop";
     desktop.innerHTML = `
-      <table class="dash-table wrk-responsive-table">
+      <table class="dash-table projects-table workers-table wrk-responsive-table">
         <thead>
           <tr>
-            <th>Worker</th><th>Rate/day</th><th>Days present</th><th>Advance</th><th>Due</th><th>Status</th><th>Action</th>
+            <th>Worker</th><th>Rate/day</th><th>Days present</th><th>Advance</th><th>Due</th><th class="cust-col-center">Status</th><th class="cust-col-center">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -931,14 +1086,14 @@ export function mountWorkers(container) {
               <td>${r.daysPresent}</td>
               <td>${formatBDT(r.advance)}</td>
               <td class="wrk-sal-due">${formatBDT(r.due)}</td>
-              <td>${salaryStatusIcon(r.status)}</td>
-              <td class="proj-row-actions-cell">
+              <td class="cust-col-center">${salaryStatusIcon(r.status)}</td>
+              <td class="cust-col-center proj-row-actions-cell">
                 ${
                   r.status === "paid"
                     ? `<span class="text-muted">Paid</span>`
                     : r.due > 0
                       ? `<button type="button" class="btn btn-primary btn-sm wrk-pay-btn" data-id="${escapeHtml(r.worker.id)}">Pay</button>`
-                      : `<span class="text-muted">ù</span>`
+                      : `<span class="text-muted">?</span>`
                 }
               </td>
             </tr>`
@@ -949,7 +1104,7 @@ export function mountWorkers(container) {
         </tbody>
       </table>
     `;
-    wrap.appendChild(desktop);
+    contentHost.appendChild(desktop);
 
     const mobile = document.createElement("div");
     mobile.className = "wrk-mobile-cards";
@@ -971,14 +1126,17 @@ export function mountWorkers(container) {
       </div>`
       )
       .join("");
-    wrap.appendChild(mobile);
+    contentHost.appendChild(mobile);
 
-    head.querySelector("#wrk-sal-month").onchange = (e) => {
+    wrap.appendChild(section);
+
+    const toolbar = section.querySelector("#wrk-sal-toolbar");
+    toolbar.querySelector("#wrk-sal-month").onchange = (e) => {
       state.salaryMonth = e.target.value;
       renderKpiStrip();
       renderContent();
     };
-    head.querySelector("#wrk-advance-btn").onclick = () => openAdvanceModal();
+    toolbar.querySelector("#wrk-advance-btn").onclick = () => openAdvanceModal();
 
     wrap.querySelectorAll(".wrk-sal-row").forEach((row) => {
       row.onclick = (e) => {
@@ -1005,15 +1163,15 @@ export function mountWorkers(container) {
     const detailsBody = document.createElement("dl");
     detailsBody.className = "wrk-info-grid";
     detailsBody.innerHTML = `
-      <dt>Worker code</dt><dd>${escapeHtml(worker.workerCode || "ù")}</dd>
-      <dt>Phone</dt><dd>${worker.phone ? `<a href="tel:${escapeHtml(worker.phone)}">${escapeHtml(worker.phone)}</a>` : "ù"}</dd>
-      <dt>NID</dt><dd>${escapeHtml(worker.nid || "ù")}</dd>
-      <dt>Address</dt><dd>${escapeHtml(worker.address || "ù")}</dd>
+      <dt>Worker code</dt><dd>${escapeHtml(worker.workerCode || "?")}</dd>
+      <dt>Phone</dt><dd>${worker.phone ? `<a href="tel:${escapeHtml(worker.phone)}">${escapeHtml(worker.phone)}</a>` : "?"}</dd>
+      <dt>NID</dt><dd>${escapeHtml(worker.nid || "?")}</dd>
+      <dt>Address</dt><dd>${escapeHtml(worker.address || "?")}</dd>
       <dt>Designation</dt><dd>${escapeHtml(designationLabel(worker.designation))}</dd>
       <dt>Employment</dt><dd>${escapeHtml(employmentTypeLabel(worker.employmentType))}</dd>
       <dt>Wage rate</dt><dd>${formatBDT(worker.wageRate ?? worker.dailyWage)}</dd>
       <dt>Site</dt><dd>${escapeHtml(projectName(worker.assignedProjectId))}</dd>
-      <dt>Joining date</dt><dd>${escapeHtml(worker.joiningDate || "ù")}</dd>
+      <dt>Joining date</dt><dd>${escapeHtml(worker.joiningDate || "?")}</dd>
       <dt>Status</dt><dd>${renderWorkerStatusBadge(workerListStatus(worker))}</dd>
     `;
 
@@ -1075,7 +1233,7 @@ export function mountWorkers(container) {
   }
 
   function attendanceStatusBadge(status) {
-    if (!status) return "ù";
+    if (!status) return "?";
     const labels = { present: "Present", absent: "Absent", half_day: "Half-day", leave: "Leave" };
     const cls = {
       present: "wrk-badge--success",
@@ -1404,11 +1562,16 @@ export function mountWorkers(container) {
     if (!tabHost) return;
     tabHost.innerHTML = "";
     tabHost.appendChild(
-      renderWorkerTabBar(WORKER_TABS, state.activeTab, (tab) => {
-        state.activeTab = tab;
-        renderKpiStrip();
-        renderContent();
-      })
+      renderWorkerTabBar(
+        WORKER_TABS,
+        state.activeTab,
+        (tab) => {
+          state.activeTab = tab;
+          renderKpiStrip();
+          renderContent();
+        },
+        { variant: "hr-main" }
+      )
     );
   }
 
@@ -1421,11 +1584,11 @@ export function mountWorkers(container) {
 
   function ensureLayout() {
     root.innerHTML = `
-      <div class="wrk-kpi-host"></div>
+      <div id="wrk-metrics" class="wrk-kpi-host"></div>
       <div class="wrk-tab-host"></div>
       <div class="wrk-content-host"></div>
     `;
-    kpiHost = root.querySelector(".wrk-kpi-host");
+    kpiHost = root.querySelector("#wrk-metrics");
     tabHost = root.querySelector(".wrk-tab-host");
     contentHost = root.querySelector(".wrk-content-host");
   }
