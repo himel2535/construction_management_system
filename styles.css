@@ -5706,6 +5706,9 @@ button.proj-header-kpi--link:hover {
   flex-direction: column;
   gap: 0.375rem;
 }
+.suppliers-page.dashboard-mockup .sup-kpi-host {
+  margin-bottom: 0;
+}
 .suppliers-page.dashboard-mockup .dash-kpi-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -6021,6 +6024,28 @@ button.proj-header-kpi--link:hover {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
+}
+.suppliers-page.dashboard-mockup .sup-tab-content.sup-overview {
+  gap: 0.375rem;
+}
+.suppliers-page.dashboard-mockup .sup-tab-content > .sup-txn-widget,
+.suppliers-page.dashboard-mockup .sup-tab-content > .dash-widget.sup-report-block {
+  margin-top: 0;
+}
+.suppliers-page.dashboard-mockup .dash-widget-head {
+  padding: 0.625rem 0.875rem 0.25rem;
+}
+.suppliers-page.dashboard-mockup .dash-widget-body,
+.suppliers-page.dashboard-mockup .sup-section-card-body {
+  padding: 0.625rem 0.875rem 0.75rem;
+}
+.suppliers-page.dashboard-mockup .sup-txn-widget .dash-widget-head--split,
+.suppliers-page.dashboard-mockup .sup-report-block .dash-widget-head--split {
+  padding-bottom: 0.25rem;
+}
+.suppliers-page.dashboard-mockup .sup-txn-widget .projects-table-wrap,
+.suppliers-page.dashboard-mockup .sup-report-block .projects-table-wrap {
+  margin-top: 0;
 }
 .suppliers-page.dashboard-mockup .sup-activity-list {
   display: flex;
