@@ -2,6 +2,7 @@
 
 import { icon } from "./cmp_icons.js";
 import { statusChip } from "./cmp_ui.js";
+import { supplierKpiIcon } from "./cmp_dashboardIcons.js";
 import { formatBDT } from "./util_format.js";
 import {
   SUPPLIER_TYPES,
@@ -50,55 +51,97 @@ function menuItemButton(label, iconName, attrs = "") {
   </button>`;
 }
 
+function supSparklineSvg(values = [], tone = "green") {
+  const pts = values.length ? values : [3, 4, 4, 5, 5, 6, 6];
+  const max = Math.max(...pts, 1);
+  const w = 56;
+  const h = 22;
+  const coords = pts
+    .map((v, i) => {
+      const x = (i / (pts.length - 1 || 1)) * w;
+      const y = h - (v / max) * (h - 4) - 2;
+      return `${x},${y}`;
+    })
+    .join(" ");
+  const strokes = {
+    blue: "#2563eb",
+    green: "#047857",
+    orange: "#d97706",
+    teal: "#0d9488",
+    red: "#B91C1C",
+    yellow: "#CA8A04",
+  };
+  const stroke = strokes[tone] || strokes.green;
+  return `<svg class="dash-sparkline dash-sparkline--${tone}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${coords}" fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+export function renderSupplierKpiStripHtml(kpis) {
+  const paidSub = kpis.paidMonthSubtext || "No payments yet";
+  const footTone =
+    paidSub === "No payments yet"
+      ? ""
+      : (kpis.paidMonthDeltaPct || 0) >= 0
+        ? " sup-kpi-foot--up"
+        : " sup-kpi-foot--down";
+  const cards = [
+    {
+      label: "Total suppliers",
+      value: String(kpis.supplierCount ?? 0),
+      iconKey: "suppliers",
+      tone: "blue",
+      footLeft: `${kpis.activeSuppliers ?? 0} active`,
+      spark: supSparklineSvg([kpis.supplierCount || 1, 2, 2, kpis.activeSuppliers || 1, 2, 2, 2], "blue"),
+    },
+    {
+      label: "Total outstanding",
+      value: formatBDT(kpis.totalOutstanding),
+      iconKey: "outstanding",
+      tone: "orange",
+      footLeft: `${kpis.outstandingSupplierCount ?? 0} supplier(s)`,
+      spark: supSparklineSvg([3, 4, 5, 4, 5, 6, 5], "orange"),
+    },
+    {
+      label: "Overdue amount",
+      value: formatBDT(kpis.overdueAmount),
+      iconKey: "overdue",
+      tone: "red",
+      footLeft: `${kpis.overdueSupplierCount ?? 0} supplier(s)`,
+      spark: supSparklineSvg([2, 3, 4, 3, 4, 5, 4], "red"),
+    },
+    {
+      label: "Paid this month",
+      value: formatBDT(kpis.paidThisMonth),
+      iconKey: "paidMonth",
+      tone: "green",
+      footLeft: paidSub,
+      footCls: footTone,
+      spark: supSparklineSvg([2, 3, 4, 5, 5, 6, 6], "green"),
+    },
+  ];
+  return cards
+    .map(
+      (c) => `<div class="dash-kpi-card card cust-kpi-card">
+      <div class="cust-kpi-spark">${c.spark}</div>
+      <div class="dash-kpi-head">
+        <div class="dash-kpi-icon dash-kpi-icon--flat">${supplierKpiIcon(c.iconKey)}</div>
+        <div class="dash-kpi-main">
+          <span class="dash-kpi-label">${escapeHtml(c.label)}</span>
+          <div class="dash-kpi-value">${escapeHtml(c.value)}</div>
+        </div>
+      </div>
+      <div class="dash-kpi-foot">
+        <div class="dash-kpi-foot-left${c.footCls || ""}">${escapeHtml(c.footLeft)}</div>
+      </div>
+    </div>`
+    )
+    .join("");
+}
+
+/** @deprecated use renderSupplierKpiStripHtml */
 export function renderSupplierKpiRow(kpis, handlers = {}) {
   const row = document.createElement("div");
-  row.className = "sup-kpi-row";
-  const paidSub = kpis.paidMonthSubtext || "No payments yet";
-  const deltaCls =
-    paidSub === "No payments yet" ? "" : (kpis.paidMonthDeltaPct || 0) >= 0 ? "is-up" : "is-down";
-
-  row.innerHTML = `
-    <div class="sup-kpi-cards">
-      <div class="sup-kpi-card">
-        <span class="sup-kpi-card-icon">${icon("users", { size: 18, className: "icon" })}</span>
-        <div class="sup-kpi-card-body">
-          <span class="sup-kpi-card-label">Total Suppliers</span>
-          <strong class="sup-kpi-card-value">${kpis.supplierCount}</strong>
-          <span class="sup-kpi-card-sub">${kpis.activeSuppliers} active</span>
-        </div>
-      </div>
-      <div class="sup-kpi-card">
-        <span class="sup-kpi-card-icon sup-kpi-card-icon--warn">${icon("fileText", { size: 18, className: "icon" })}</span>
-        <div class="sup-kpi-card-body">
-          <span class="sup-kpi-card-label">Total Outstanding</span>
-          <strong class="sup-kpi-card-value">${formatBDT(kpis.totalOutstanding)}</strong>
-          <span class="sup-kpi-card-sub">${kpis.outstandingSupplierCount} supplier(s)</span>
-        </div>
-      </div>
-      <div class="sup-kpi-card">
-        <span class="sup-kpi-card-icon sup-kpi-card-icon--danger">${icon("calendar", { size: 18, className: "icon" })}</span>
-        <div class="sup-kpi-card-body">
-          <span class="sup-kpi-card-label">Overdue Amount</span>
-          <strong class="sup-kpi-card-value">${formatBDT(kpis.overdueAmount)}</strong>
-          <span class="sup-kpi-card-sub">${kpis.overdueSupplierCount} supplier(s)</span>
-        </div>
-      </div>
-      <div class="sup-kpi-card">
-        <span class="sup-kpi-card-icon sup-kpi-card-icon--ok">${icon("check", { size: 18, className: "icon" })}</span>
-        <div class="sup-kpi-card-body">
-          <span class="sup-kpi-card-label">Paid This Month</span>
-          <strong class="sup-kpi-card-value">${formatBDT(kpis.paidThisMonth)}</strong>
-          <span class="sup-kpi-card-sub ${deltaCls}">${escapeHtml(paidSub)}</span>
-        </div>
-      </div>
-    </div>
-    <div class="sup-kpi-actions">
-      <button type="button" class="btn btn-ghost btn-sm" id="sup-export-btn">${icon("download", { size: 14, className: "icon" })} Export</button>
-      <button type="button" class="btn btn-primary btn-sm" id="sup-kpi-new-btn">+ New Supplier</button>
-    </div>
-  `;
-  row.querySelector("#sup-export-btn")?.addEventListener("click", () => handlers.onExport?.());
-  row.querySelector("#sup-kpi-new-btn")?.addEventListener("click", () => handlers.onNew?.());
+  row.className = "dash-kpi-row";
+  row.innerHTML = renderSupplierKpiStripHtml(kpis);
   return row;
 }
 
@@ -187,8 +230,8 @@ export function renderPagination({ page, pageSize, total, onPage, showInfo = tru
  * @param {object} handlers
  */
 export function renderSupplierDetailHeader(s, stats, handlers = {}, permissions = {}, menuState = {}) {
-  const header = document.createElement("div");
-  header.className = "sup-detail-header card";
+  const header = document.createElement("section");
+  header.className = "dash-widget dash-widget--projects card sup-detail-header";
   const loc = [s.city, s.address].filter(Boolean).join(", ") || "—";
   const since = formatSinceDate(s.createdAt);
   const codeLine = s.code ? `<span class="sup-detail-code">${escapeHtml(s.code)}</span>` : "";
@@ -215,18 +258,20 @@ export function renderSupplierDetailHeader(s, stats, handlers = {}, permissions 
   }
 
   header.innerHTML = `
-    <div class="sup-detail-header-inner">
-      ${renderSupplierAvatar(s, "lg")}
+    <div class="dash-widget-head dash-widget-head--split sup-detail-header-inner">
       <div class="sup-detail-header-main">
-        <div class="sup-detail-title-row">
-          <h2 class="sup-detail-title">${escapeHtml(s.name)}</h2>
-          ${codeLine}
-          ${statusChip(s.status || "active")}
+        ${renderSupplierAvatar(s, "lg")}
+        <div>
+          <div class="sup-detail-title-row">
+            <h2 class="dash-widget-title sup-detail-title">${escapeHtml(s.name)}</h2>
+            ${codeLine}
+            ${statusChip(s.status || "active")}
+          </div>
+          <p class="dash-widget-sub">${escapeHtml(supplierTypeLabel(s.type))} · ${escapeHtml(loc)}</p>
+          <p class="sup-detail-since">Since ${escapeHtml(since)}</p>
         </div>
-        <p class="sup-detail-sub">${escapeHtml(supplierTypeLabel(s.type))} · ${escapeHtml(loc)}</p>
-        <p class="sup-detail-since">Since ${escapeHtml(since)}</p>
       </div>
-      <div class="sup-detail-header-actions sup-header-actions-root">
+      <div class="sup-detail-header-actions sup-header-actions-root cust-toolbar-btn-group">
         ${canEdit ? '<button type="button" class="btn btn-ghost btn-sm" id="sup-header-edit">Edit</button>' : ""}
         ${
           canPay || canToggleStatus
@@ -287,13 +332,13 @@ export function renderSupplierDetailHeader(s, stats, handlers = {}, permissions 
 
 export function renderSupplierTabBar(activeTab, onChange) {
   const bar = document.createElement("div");
-  bar.className = "sup-tab-bar";
+  bar.className = "proj-tab-subnav sup-pill-tabs sup-pill-tabs--sup-main sup-tab-bar";
   bar.setAttribute("role", "tablist");
   for (const t of SUPPLIER_TABS) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.role = "tab";
-    btn.className = `sup-tab${activeTab === t.id ? " is-active" : ""}`;
+    btn.className = `sup-tab-pill sup-tab-pill--${t.id}${activeTab === t.id ? " is-active" : ""}`;
     btn.textContent = t.label;
     btn.setAttribute("aria-selected", activeTab === t.id ? "true" : "false");
     btn.onclick = () => onChange(t.id);
@@ -303,14 +348,14 @@ export function renderSupplierTabBar(activeTab, onChange) {
 }
 
 export function sectionCard(title, subtitle = "") {
-  const card = document.createElement("div");
-  card.className = "sup-section-card card";
+  const card = document.createElement("section");
+  card.className = "dash-widget dash-widget--projects card sup-report-block sup-section-card";
   card.innerHTML = `
-    <div class="sup-section-card-head">
-      <h4 class="sup-section-card-title">${escapeHtml(title)}</h4>
-      ${subtitle ? `<p class="sup-section-card-sub">${escapeHtml(subtitle)}</p>` : ""}
+    <div class="dash-widget-head">
+      <h3 class="dash-widget-title sup-section-card-title">${escapeHtml(title)}</h3>
+      ${subtitle ? `<p class="dash-widget-sub sup-section-card-sub">${escapeHtml(subtitle)}</p>` : ""}
     </div>
-    <div class="sup-section-card-body"></div>
+    <div class="dash-widget-body sup-section-card-body"></div>
   `;
   return card;
 }

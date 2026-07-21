@@ -2,6 +2,59 @@
 
 /** @typedef {{ supplierId: string, supplierName: string, productId: string, name: string, code: string, unit: string, rate: number, status: string, productKey: string }} CatalogEntry */
 
+/** Common construction material names for PO product picker (merged with supplier catalog). */
+export const COMMON_CONSTRUCTION_PRODUCT_NAMES = [
+  "Cement",
+  "Rod / MS Rod",
+  "Brick",
+  "Sand (Fine)",
+  "Sand (Coarse)",
+  "Stone / Aggregate",
+  "Ready Mix Concrete",
+  "Block (AAC)",
+  "Paint",
+  "Tiles",
+  "Pipe (PVC)",
+  "Pipe (GI)",
+  "Wire / Cable",
+  "Switch / Socket",
+  "Glass",
+  "Aluminum Section",
+  "Wood / Timber",
+  "Plywood",
+  "Nails",
+  "Binding Wire",
+  "Waterproofing Chemical",
+  "Adhesive",
+  "Granite",
+  "Marble",
+  "Door Frame",
+  "Window Frame",
+  "Hinges",
+  "Lock Set",
+  "Sanitary Ware",
+  "CP Fitting",
+  "GI Sheet",
+  "Profile Sheet",
+  "Welding Rod",
+  "Safety Helmet",
+  "Gloves",
+];
+
+function suggestionEntryFromName(name) {
+  return {
+    name,
+    productKey: productKeyFromName(name),
+    code: "",
+    supplierId: "",
+    supplierName: "",
+    productId: "",
+    unit: "",
+    rate: 0,
+    status: "active",
+  };
+}
+
 /**
  * Normalize product name for grouping suppliers offering the same item.
  * @param {string} name
@@ -67,10 +120,69 @@ export function searchProducts(catalog, query, limit = 20) {
 }
 
 /**
+ * Unique products for PO picker (one row per productKey, sorted by name).
+ * @param {CatalogEntry[]} catalog
+ * @param {number} [limit]
+ */
+export function listUniqueCatalogProducts(catalog, limit = 0) {
+  const seen = new Set();
+  const out = [];
+  for (const entry of catalog || []) {
+    if (seen.has(entry.productKey)) continue;
+    seen.add(entry.productKey);
+    out.push(entry);
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return limit > 0 ? out.slice(0, limit) : out;
+}
+
+/**
+ * Catalog products plus common construction names (for PO picker).
+ * @param {CatalogEntry[]} catalog
+ * @param {number} [limit] 0 = no cap
+ */
+export function listAllProductPickerEntries(catalog, limit = 0) {
+  const out = listUniqueCatalogProducts(catalog, 0);
+  const keys = new Set(out.map((e) => e.productKey));
+  for (const name of COMMON_CONSTRUCTION_PRODUCT_NAMES) {
+    const key = productKeyFromName(name);
+    if (keys.has(key)) continue;
+    keys.add(key);
+    out.push(suggestionEntryFromName(name));
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return limit > 0 ? out.slice(0, limit) : out;
+}
+
+/**
+ * @param {CatalogEntry[]} catalog
+ * @param {string} query
+ * @param {number} [limit]
+ */
+export function searchProductPickerEntries(catalog, query, limit = 40) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q) return listAllProductPickerEntries(catalog, limit || 0);
+  const out = searchProducts(catalog, query, limit);
+  const keys = new Set(out.map((e) => e.productKey));
+  for (const name of COMMON_CONSTRUCTION_PRODUCT_NAMES) {
+    if (limit > 0 && out.length >= limit) break;
+    if (!name.toLowerCase().includes(q)) continue;
+    const key = productKeyFromName(name);
+    if (keys.has(key)) continue;
+    keys.add(key);
+    out.push(suggestionEntryFromName(name));
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return limit > 0 ? out.slice(0, limit) : out;
+}
+
+/**
  * Unique product names for autocomplete (first match per productKey).
  * @param {CatalogEntry[]} catalog
  */
 export function listProductSuggestions(catalog, query, limit = 20) {
+  const q = String(query || "").trim();
+  if (!q) return listUniqueCatalogProducts(catalog, limit);
   return searchProducts(catalog, query, limit);
 }
 
@@ -91,6 +203,17 @@ export function suppliersForProduct(catalog, productKey) {
  */
 export function findCatalogEntry(catalog, supplierId, productId) {
   return catalog.find((e) => e.supplierId === supplierId && e.productId === productId) || null;
+}
+
+/**
+ * Catalog row for supplier + product name key (rate/unit for PO line).
+ * @param {CatalogEntry[]} catalog
+ * @param {string} supplierId
+ * @param {string} productKey
+ */
+export function catalogEntryFor(catalog, supplierId, productKey) {
+  if (!supplierId || !productKey) return null;
+  return catalog.find((e) => e.supplierId === supplierId && e.productKey === productKey) || null;
 }
 
 /**

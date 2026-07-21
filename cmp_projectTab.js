@@ -3,6 +3,7 @@
 import { getCurrentUserId, getCurrentUserName } from "./svc_auth.js";
 import { writeAuditLog } from "./svc_workflow.js";
 import { renderFormField } from "./cmp_projectForm.js";
+import { icon } from "./cmp_icons.js";
 
 export function escapeHtml(s) {
   return String(s)
@@ -152,4 +153,170 @@ export function openEditDialog(title, fields, values, onSave) {
   };
 
   return { close, form };
+}
+
+function renderCustFormFieldHtml(f, val) {
+  const name = escapeHtml(f.name);
+  const req = f.required ? "required" : "";
+  const step = f.step ? ` step="${escAttr(f.step)}"` : "";
+  const min = f.min != null ? ` min="${escAttr(f.min)}"` : "";
+  const aria = ` aria-label="${escAttr(f.label.replace(/\s*\*?\s*$/, ""))}"`;
+
+  if (f.type === "textarea") {
+    return `<textarea name="${name}" class="cust-form-input cust-form-textarea" rows="${f.rows || 3}" ${req}${aria}>${escapeHtml(val)}</textarea>`;
+  }
+  if (f.type === "select" && f.options) {
+    return `<select name="${name}" class="cust-form-input" ${req}${aria}>${f.options
+      .map(
+        (o) =>
+          `<option value="${escAttr(o.value)}" ${String(val) === String(o.value) ? "selected" : ""}>${escapeHtml(o.label)}</option>`
+      )
+      .join("")}</select>`;
+  }
+  if (f.type === "checkbox") {
+    const checked = val === true || val === "on" || val === "1";
+    const text = f.checkboxLabel != null ? f.checkboxLabel : f.label;
+    return `<label class="cust-form-checkbox"><input type="checkbox" name="${name}" ${checked ? "checked" : ""}${aria} /> ${escapeHtml(text)}</label>`;
+  }
+  return `<input name="${name}" type="${f.type || "text"}" class="cust-form-input" value="${escAttr(val)}" ${req}${step}${min}${aria} />`;
+}
+
+/**
+ * @param {{
+ *   title: string,
+ *   subtitle?: string,
+ *   sections: Array<{ title: string, fields: Array<{name:string,label:string,type?:string,required?:boolean,step?:string,hint?:string,fullWidth?:boolean,options?:Array<{value:string,label:string}>}> }>,
+ *   values: object,
+ *   submitLabel?: string,
+ *   modalClass?: string,
+ *   onSave: (vals: object) => Promise<void>|void,
+ *   onReady?: (ctx: { form: HTMLFormElement, modal: HTMLElement, close: () => void }) => void,
+ * }} opts
+ */
+export function openCustFormDialog({ title, subtitle = "", sections, values, submitLabel = "Save", modalClass = "", onSave, onReady }) {
+  const titleId = `cust-form-modal-title-${Math.random().toString(36).slice(2, 9)}`;
+  const overlay = document.createElement("div");
+  overlay.className = "cust-detail-overlay";
+  overlay.setAttribute("role", "presentation");
+
+  const modal = document.createElement("div");
+  modal.className = `cust-detail-modal card${modalClass ? ` ${modalClass}` : ""}`;
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  modal.setAttribute("aria-labelledby", titleId);
+  modal.setAttribute("tabindex", "-1");
+
+  const subtitleHtml = subtitle ? `<span class="text-muted">${escapeHtml(subtitle)}</span>` : "";
+  modal.innerHTML = `
+    <div class="cust-detail-head">
+      <div class="cust-detail-title">
+        <strong id="${titleId}">${escapeHtml(title)}</strong>
+        ${subtitleHtml}
+      </div>
+      <button type="button" class="icon-btn icon-btn--sm cust-detail-close" data-close aria-label="Close">${icon("x", { size: 16 })}</button>
+    </div>
+  `;
+
+  const form = document.createElement("form");
+  form.className = "cust-form cust-form--compact";
+
+  const shell = document.createElement("div");
+  shell.className = "cust-form-shell";
+
+  const allFields = [];
+  for (const section of sections) {
+    const row = document.createElement("div");
+    row.className = "cust-form-row";
+    const sectionEl = document.createElement("div");
+    sectionEl.className = "cust-form-section";
+    sectionEl.innerHTML = `
+      <div class="cust-form-section-head">
+        <h4 class="cust-form-section-title">${escapeHtml(section.title)}</h4>
+      </div>
+    `;
+    const body = document.createElement("div");
+    body.className = "cust-form-section-body";
+    const grid = document.createElement("div");
+    grid.className = "cust-form-grid cust-form-grid--2";
+
+    for (const f of section.fields) {
+      allFields.push(f);
+      const val = values[f.name] ?? "";
+      const full = f.fullWidth || f.type === "textarea" || f.type === "checkbox";
+      let fieldCls = full ? "cust-form-field cust-form-field--full" : "cust-form-field";
+      if (f.wrapperClass) fieldCls += ` ${f.wrapperClass}`;
+      const label = document.createElement(f.type === "checkbox" ? "div" : "label");
+      label.className = fieldCls;
+      if (f.hidden) label.hidden = true;
+      if (f.type === "checkbox") {
+        label.innerHTML = `
+        <span class="cust-form-label">${escapeHtml(f.label)}</span>
+        ${renderCustFormFieldHtml(f, val)}
+        ${f.hint ? `<span class="cust-form-help">${escapeHtml(f.hint)}</span>` : ""}
+      `;
+      } else {
+        label.innerHTML = `
+        <span class="cust-form-label">${escapeHtml(f.label)}</span>
+        ${renderCustFormFieldHtml(f, val)}
+        ${f.hint ? `<span class="cust-form-help">${escapeHtml(f.hint)}</span>` : ""}
+      `;
+      }
+      grid.appendChild(label);
+    }
+
+    body.appendChild(grid);
+    sectionEl.appendChild(body);
+    row.appendChild(sectionEl);
+    shell.appendChild(row);
+  }
+
+  form.appendChild(shell);
+
+  const footer = document.createElement("div");
+  footer.className = "cust-form-footer";
+  footer.innerHTML = `
+    <div class="form-actions cust-form-actions">
+      <button type="submit" class="btn btn-primary">${escapeHtml(submitLabel)}</button>
+      <button type="button" class="btn btn-ghost" data-cancel>Cancel</button>
+    </div>
+  `;
+  form.appendChild(footer);
+
+  modal.appendChild(form);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  document.body.classList.add("cust-detail-open");
+
+  const close = () => {
+    overlay.remove();
+    document.body.classList.remove("cust-detail-open");
+  };
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) close();
+  });
+  modal.querySelector("[data-close]").onclick = close;
+  footer.querySelector("[data-cancel]").onclick = close;
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const next = {};
+    for (const f of allFields) {
+      if (f.type === "checkbox") {
+        next[f.name] = form.querySelector(`[name="${CSS.escape(f.name)}"]`)?.checked ? "on" : "";
+      } else {
+        next[f.name] = new FormData(form).get(f.name);
+      }
+    }
+    try {
+      await onSave(next);
+      close();
+    } catch {
+      /* caller shows toast; keep modal open */
+    }
+  };
+
+  modal.focus();
+  onReady?.({ form, modal, close });
+  return { close, form, modal, overlay };
 }

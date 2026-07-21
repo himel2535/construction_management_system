@@ -6,7 +6,9 @@ import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
 import { navigateTo } from "./util_route.js";
 import { statusChip } from "./cmp_ui.js";
-import { renderTabToolbar, openEditDialog, validateUrl } from "./cmp_projectTab.js";
+import { openEditDialog, openCustFormDialog, validateUrl } from "./cmp_projectTab.js";
+import { confirmAction } from "./cmp_confirm.js";
+import { supplierAgingIcon } from "./cmp_dashboardIcons.js";
 import { icon } from "./cmp_icons.js";
 import {
   SUPPLIER_TYPES,
@@ -44,7 +46,7 @@ import {
   createSupplierNote,
 } from "./svc_supplier.js";
 import {
-  renderSupplierKpiRow,
+  renderSupplierKpiStripHtml,
   renderSupplierListItem,
   renderTypeTabs,
   renderPagination,
@@ -108,7 +110,7 @@ export function mountSuppliers(container) {
   });
 
   const root = document.createElement("div");
-  root.className = "suppliers-page dashboard-page";
+  root.className = "suppliers-page dashboard-page dashboard-mockup";
   container.appendChild(root);
 
   const state = {
@@ -123,9 +125,6 @@ export function mountSuppliers(container) {
     notes: [],
     selectedSupplierId: "",
     activeTab: "overview",
-    editMode: false,
-    showBillForm: false,
-    showPaymentForm: false,
     showFullLedger: false,
     paymentMode: "allocated",
     focusBillsLedger: false,
@@ -141,10 +140,9 @@ export function mountSuppliers(container) {
     listPageSize: 8,
   };
 
-  let listHost = null;
+  let listPanel = null;
   let detailHost = null;
   let kpiHost = null;
-  let paginationHost = null;
   let migrated = false;
   let unsubProducts = () => {};
   let unsubDocuments = () => {};
@@ -170,8 +168,7 @@ export function mountSuppliers(container) {
     renderDetail();
   }
 
-  const isUiLocked = () =>
-    state.editMode || state.showBillForm || state.showPaymentForm || state.selectedSupplierId === "__new__";
+  const isUiLocked = () => state.selectedSupplierId === "__new__";
 
   function renderDataUpdate(scope = "all") {
     if (scope === "kpi" || scope === "all") renderKpiStrip();
@@ -228,8 +225,8 @@ export function mountSuppliers(container) {
   function openNewSupplier() {
     state.selectedSupplierId = "__new__";
     state.activeTab = "profile";
-    state.editMode = true;
     render();
+    requestAnimationFrame(() => openSupplierProfileDialog(null));
   }
 
   function exportSuppliersCsv() {
@@ -255,41 +252,47 @@ export function mountSuppliers(container) {
 
   function renderKpiStrip() {
     if (!kpiHost) return;
-    kpiHost.innerHTML = "";
     const k = aggregatePageKpis(state.suppliers, state.bills, state.payments);
-    kpiHost.appendChild(
-      renderSupplierKpiRow(k, {
-        onExport: exportSuppliersCsv,
-        onNew: openNewSupplier,
-      })
-    );
+    kpiHost.innerHTML = renderSupplierKpiStripHtml(k);
   }
 
   function renderList() {
-    if (!listHost) return;
+    if (!listPanel) return;
     const list = filteredSuppliers();
     const page = paginateSlice(list, state.listPage, state.listPageSize);
     if (page.page !== state.listPage) state.listPage = page.page;
+    const totalFiltered = filteredSuppliers().length;
 
-    listHost.innerHTML = `
-      <div class="sup-list-toolbar">
-        <div class="sup-search-row">
-          <span class="sup-search-wrap">
-            ${icon("search", { size: 14, className: "icon sup-search-icon" })}
-            <input type="search" class="toolbar-input sup-search-input" id="sup-search" placeholder="Search suppliers..." value="${escapeHtml(state.filterQuery)}" />
-          </span>
-          <button type="button" class="btn btn-ghost btn-icon sup-filter-btn" id="sup-filter-toggle" title="More filters">${icon("filter", { size: 16, className: "icon" })}</button>
+    listPanel.innerHTML = `
+      <div class="dash-widget-head dash-widget-head--split">
+        <div>
+          <h3 class="dash-widget-title">Suppliers</h3>
+          <p class="dash-widget-sub">Search, filter, and open payee profiles</p>
         </div>
-        <div class="sup-filter-row">
-          <select class="toolbar-select" id="sup-status-filter">
-            <option value="all">Status: All</option>
-            <option value="active" ${state.filterStatus === "active" ? "selected" : ""}>Active</option>
-            <option value="inactive" ${state.filterStatus === "inactive" ? "selected" : ""}>Inactive</option>
-          </select>
-          <select class="toolbar-select" id="sup-category-filter">
-            <option value="all">Categories: All</option>
-            ${SUPPLIER_TYPES.map((t) => `<option value="${t.id}" ${state.filterCategory === t.id ? "selected" : ""}>${t.label}</option>`).join("")}
-          </select>
+        <span class="cust-toolbar-count" id="sup-list-count">${totalFiltered}</span>
+      </div>
+      <div class="dash-widget-body sup-list-body">
+        <div class="sup-list-toolbar-compact">
+          <div class="cust-toolbar-search toolbar-search sup-list-search">
+            <span class="search-icon" aria-hidden="true">${icon("search", { size: 16 })}</span>
+            <input type="search" class="cust-toolbar-search-input" id="sup-search" placeholder="Search suppliers..." autocomplete="off" value="${escapeHtml(state.filterQuery)}" />
+          </div>
+          <div class="sup-list-select-row">
+            <select class="toolbar-select" id="sup-status-filter">
+              <option value="all">Status: All</option>
+              <option value="active" ${state.filterStatus === "active" ? "selected" : ""}>Active</option>
+              <option value="inactive" ${state.filterStatus === "inactive" ? "selected" : ""}>Inactive</option>
+            </select>
+            <select class="toolbar-select" id="sup-category-filter">
+              <option value="all">Categories: All</option>
+              ${SUPPLIER_TYPES.map((t) => `<option value="${t.id}" ${state.filterCategory === t.id ? "selected" : ""}>${t.label}</option>`).join("")}
+            </select>
+          </div>
+          <div class="sup-list-actions cust-toolbar-btn-group">
+            <button type="button" class="btn btn-ghost btn-sm btn-icon sup-filter-btn" id="sup-filter-toggle" title="More filters">${icon("filter", { size: 16 })}</button>
+            <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="sup-export-btn">${icon("download", { size: 14 })} Export</button>
+            <button type="button" class="btn btn-primary btn-sm" id="sup-new-btn">+ New Supplier</button>
+          </div>
         </div>
         <div class="sup-advanced-filters${state.showAdvancedFilters ? " is-open" : ""}" id="sup-advanced-filters">
           <label class="sup-filter-toggle"><input type="checkbox" id="sup-outstanding-only" ${state.filterOutstanding ? "checked" : ""} /> Has outstanding</label>
@@ -298,12 +301,16 @@ export function mountSuppliers(container) {
             ${state.projects.map((p) => `<option value="${p.id}" ${state.filterProject === p.id ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
           </select>
         </div>
+        <div id="sup-type-tabs-host"></div>
+        <div class="sup-list-items" id="sup-list-items"></div>
+        <div id="sup-pagination-host"></div>
       </div>
-      <div id="sup-type-tabs-host"></div>
-      <div class="sup-list-items" id="sup-list-items"></div>
     `;
 
-    const typeHost = listHost.querySelector("#sup-type-tabs-host");
+    listPanel.querySelector("#sup-export-btn")?.addEventListener("click", exportSuppliersCsv);
+    listPanel.querySelector("#sup-new-btn")?.addEventListener("click", openNewSupplier);
+
+    const typeHost = listPanel.querySelector("#sup-type-tabs-host");
     typeHost.appendChild(
       renderTypeTabs(countSuppliersByType(state.suppliers), state.filterType, (type) => {
         state.filterType = type;
@@ -313,7 +320,7 @@ export function mountSuppliers(container) {
       })
     );
 
-    const itemsEl = listHost.querySelector("#sup-list-items");
+    const itemsEl = listPanel.querySelector("#sup-list-items");
     if (!page.items.length) {
       itemsEl.innerHTML = `<p class="proj-empty">No suppliers match filters</p>`;
     } else {
@@ -322,9 +329,6 @@ export function mountSuppliers(container) {
         item.onclick = () => {
           state.selectedSupplierId = s.id;
           state.activeTab = "overview";
-          state.editMode = false;
-          state.showBillForm = false;
-          state.showPaymentForm = false;
           state.showFullLedger = false;
           state.openHeaderMenu = null;
           bindSupplierSubcollections();
@@ -334,6 +338,7 @@ export function mountSuppliers(container) {
       }
     }
 
+    const paginationHost = listPanel.querySelector("#sup-pagination-host");
     if (paginationHost) {
       paginationHost.innerHTML = "";
       paginationHost.appendChild(
@@ -349,35 +354,32 @@ export function mountSuppliers(container) {
       );
     }
 
-    const countEl = root.querySelector("#sup-sidebar-count");
-    if (countEl) countEl.textContent = String(filteredSuppliers().length);
-
-    listHost.querySelector("#sup-search").oninput = (e) => {
+    listPanel.querySelector("#sup-search").oninput = (e) => {
       state.filterQuery = e.target.value;
       state.listPage = 1;
       renderList();
     };
-    listHost.querySelector("#sup-status-filter").onchange = (e) => {
+    listPanel.querySelector("#sup-status-filter").onchange = (e) => {
       state.filterStatus = e.target.value;
       state.listPage = 1;
       renderList();
     };
-    listHost.querySelector("#sup-category-filter").onchange = (e) => {
+    listPanel.querySelector("#sup-category-filter").onchange = (e) => {
       state.filterCategory = e.target.value;
       state.filterType = e.target.value;
       state.listPage = 1;
       renderList();
     };
-    listHost.querySelector("#sup-filter-toggle").onclick = () => {
+    listPanel.querySelector("#sup-filter-toggle").onclick = () => {
       state.showAdvancedFilters = !state.showAdvancedFilters;
       renderList();
     };
-    listHost.querySelector("#sup-outstanding-only")?.addEventListener("change", (e) => {
+    listPanel.querySelector("#sup-outstanding-only")?.addEventListener("change", (e) => {
       state.filterOutstanding = e.target.checked;
       state.listPage = 1;
       renderList();
     });
-    listHost.querySelector("#sup-project-filter")?.addEventListener("change", (e) => {
+    listPanel.querySelector("#sup-project-filter")?.addEventListener("change", (e) => {
       state.filterProject = e.target.value;
       state.listPage = 1;
       renderList();
@@ -407,10 +409,8 @@ export function mountSuppliers(container) {
     });
   }
 
-  function buildProfileForm(s) {
-    const form = document.createElement("form");
-    form.className = "form-grid proj-form sup-profile-form";
-    const v = s || {
+  function defaultSupplierProfileValues() {
+    return {
       name: "",
       code: "",
       type: "material",
@@ -428,144 +428,445 @@ export function mountSuppliers(container) {
       paymentMethod: "bank",
       paymentTermsDays: 30,
       creditLimit: 0,
-      defaultCostCategory: "material",
       remarks: "",
     };
-    form.innerHTML = `
-      <input name="name" placeholder="Supplier name *" required value="${escapeHtml(v.name)}" />
-      <input name="code" placeholder="Code" value="${escapeHtml(v.code || "")}" />
-      <select name="type">${SUPPLIER_TYPES.map((t) => `<option value="${t.id}" ${v.type === t.id ? "selected" : ""}>${t.label}</option>`).join("")}</select>
-      <select name="status"><option value="active" ${v.status === "active" ? "selected" : ""}>Active</option><option value="inactive" ${v.status === "inactive" ? "selected" : ""}>Inactive</option></select>
-      <input name="phone" placeholder="Phone" value="${escapeHtml(v.phone || "")}" />
-      <input name="email" placeholder="Email" type="email" value="${escapeHtml(v.email || "")}" />
-      <input name="contactPerson" placeholder="Contact person" value="${escapeHtml(v.contactPerson || "")}" />
-      <input name="city" placeholder="City" value="${escapeHtml(v.city || "")}" />
-      <input name="address" placeholder="Address" class="form-field--full" value="${escapeHtml(v.address || "")}" />
-      <input name="tin" placeholder="TIN / Tax ID" value="${escapeHtml(v.tin || "")}" />
-      <input name="binVat" placeholder="BIN / VAT" value="${escapeHtml(v.binVat || "")}" />
-      <input name="bankName" placeholder="Bank name" value="${escapeHtml(v.bankName || "")}" />
-      <input name="accountNo" placeholder="Account no" value="${escapeHtml(v.accountNo || "")}" />
-      <input name="branch" placeholder="Branch" value="${escapeHtml(v.branch || "")}" />
-      <select name="paymentMethod">${PAYMENT_METHODS.map((m) => `<option value="${m.id}" ${v.paymentMethod === m.id ? "selected" : ""}>${m.label}</option>`).join("")}</select>
-      <input name="paymentTermsDays" type="number" placeholder="Payment terms (days)" value="${v.paymentTermsDays ?? 30}" />
-      <input name="creditLimit" type="number" placeholder="Credit limit" value="${v.creditLimit || 0}" />
-      <textarea name="remarks" placeholder="Remarks" rows="2" class="form-field--full">${escapeHtml(v.remarks || "")}</textarea>
-      <div class="form-actions form-field--full">
-        <button type="submit" class="btn btn-primary btn-sm">Save supplier</button>
-        ${s ? '<button type="button" class="btn btn-dark btn-sm" id="sup-cancel-edit">Cancel</button>' : ""}
-      </div>
-    `;
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const fd = new FormData(form);
-      const payload = Object.fromEntries(fd.entries());
-      payload.paymentTermsDays = Number(payload.paymentTermsDays) || 30;
-      payload.creditLimit = Number(payload.creditLimit) || 0;
-      const emailCheck = validateEmail(payload.email);
-      if (!emailCheck.ok) {
-        showToast(emailCheck.message, "error");
-        return;
-      }
-      try {
-        if (s?.id) {
-          await updateSupplier(s.id, payload);
-          state.editMode = false;
-          showToast("Supplier updated");
-        } else {
-          const id = await createSupplier(payload);
-          state.selectedSupplierId = id;
-          state.editMode = false;
-          state.activeTab = "overview";
-          bindSupplierSubcollections();
-          showToast("Supplier created");
-        }
-        render();
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    };
-    form.querySelector("#sup-cancel-edit")?.addEventListener("click", () => {
-      state.editMode = false;
-      renderDetail();
-    });
-    return form;
   }
 
-  function buildBillFormPanel(s) {
-    const panel = document.createElement("div");
-    panel.className = "sup-bill-panel card card-pad";
-    panel.innerHTML = `<h4 class="sup-section-title">Create bill</h4>`;
-    const form = document.createElement("form");
-    form.className = "form-grid proj-form-inline sup-bill-form";
-    form.innerHTML = `
-      <select name="projectId"><option value="">Project</option>${state.projects.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("")}</select>
-      <input name="billNo" placeholder="Bill no" />
-      <input name="billDate" type="date" value="${todayISO()}" />
-      <input name="amount" type="number" step="0.01" placeholder="Amount *" required />
-      <input name="narration" placeholder="Description" />
-      <button type="submit" class="btn btn-primary btn-sm">Save draft</button>
-      <button type="button" class="btn btn-ghost btn-sm" id="sup-bill-cancel">Cancel</button>
+  function supplierProfileFormSections() {
+    return [
+      {
+        title: "Identity & contact",
+        fields: [
+          { name: "name", label: "Supplier name *", required: true },
+          { name: "code", label: "Code" },
+          {
+            name: "type",
+            label: "Type",
+            type: "select",
+            options: SUPPLIER_TYPES.map((t) => ({ value: t.id, label: t.label })),
+          },
+          {
+            name: "status",
+            label: "Status",
+            type: "select",
+            options: [
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+            ],
+          },
+          { name: "phone", label: "Phone" },
+          { name: "email", label: "Email", type: "email" },
+          { name: "contactPerson", label: "Contact person" },
+          { name: "city", label: "City" },
+          { name: "address", label: "Address", fullWidth: true },
+        ],
+      },
+      {
+        title: "Banking & terms",
+        fields: [
+          { name: "tin", label: "TIN / Tax ID" },
+          { name: "binVat", label: "BIN / VAT" },
+          { name: "bankName", label: "Bank name" },
+          { name: "accountNo", label: "Account no" },
+          { name: "branch", label: "Branch" },
+          {
+            name: "paymentMethod",
+            label: "Preferred payment",
+            type: "select",
+            options: PAYMENT_METHODS.map((m) => ({ value: m.id, label: m.label })),
+          },
+          { name: "paymentTermsDays", label: "Payment terms (days)", type: "number" },
+          { name: "creditLimit", label: "Credit limit", type: "number", step: "0.01" },
+          { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true, rows: 3 },
+        ],
+      },
+    ];
+  }
+
+  function normalizeSupplierProfilePayload(vals) {
+    const payload = { ...vals };
+    payload.paymentTermsDays = Number(payload.paymentTermsDays) || 30;
+    payload.creditLimit = Number(payload.creditLimit) || 0;
+    return payload;
+  }
+
+  async function saveSupplierFromProfileForm(s, payload) {
+    if (s?.id) {
+      await updateSupplier(s.id, payload);
+      showToast("Supplier updated");
+      return;
+    }
+    const id = await createSupplier(payload);
+    state.selectedSupplierId = id;
+    state.activeTab = "overview";
+    bindSupplierSubcollections();
+    showToast("Supplier created");
+  }
+
+  function openSupplierProfileDialog(s) {
+    const defaults = defaultSupplierProfileValues();
+    const values = s?.id ? { ...defaults, ...s } : defaults;
+    openCustFormDialog({
+      title: s?.id ? "Edit profile" : "New supplier",
+      subtitle: s?.name || "",
+      sections: supplierProfileFormSections(),
+      values,
+      submitLabel: "Save supplier",
+      onSave: async (vals) => {
+        const payload = normalizeSupplierProfilePayload(vals);
+        const emailCheck = validateEmail(payload.email);
+        if (!emailCheck.ok) {
+          showToast(emailCheck.message, "error");
+          throw new Error(emailCheck.message);
+        }
+        await saveSupplierFromProfileForm(s, payload);
+        render();
+      },
+    });
+  }
+
+  function supplierTableWidget(title, subtitle, tableWrapEl, { actionsHtml = "", rootClass = "" } = {}) {
+    const section = document.createElement("section");
+    section.className = `dash-widget dash-widget--projects card sup-report-block${rootClass ? ` ${rootClass}` : ""}`;
+    section.innerHTML = `
+      <div class="dash-widget-head${actionsHtml ? " dash-widget-head--split" : ""}">
+        <div>
+          <h3 class="dash-widget-title">${escapeHtml(title)}</h3>
+          ${subtitle ? `<p class="dash-widget-sub">${escapeHtml(subtitle)}</p>` : ""}
+        </div>
+        ${actionsHtml}
+      </div>
+      <div class="dash-widget-body"></div>
     `;
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const fd = new FormData(form);
-      try {
+    section.querySelector(".dash-widget-body").appendChild(tableWrapEl);
+    return section;
+  }
+
+  function openSupplierProductDialog(s) {
+    openCustFormDialog({
+      title: "Add product",
+      subtitle: s.name,
+      sections: [
+        {
+          title: "Product details",
+          fields: [
+            { name: "name", label: "Name *", required: true },
+            { name: "code", label: "SKU / Code" },
+            { name: "unit", label: "Unit" },
+            { name: "rate", label: "Rate", type: "number", step: "0.01" },
+            { name: "category", label: "Category" },
+            {
+              name: "status",
+              label: "Status",
+              type: "select",
+              options: [
+                { value: "active", label: "Active" },
+                { value: "inactive", label: "Inactive" },
+              ],
+            },
+          ],
+        },
+      ],
+      values: { unit: "pcs", status: "active" },
+      submitLabel: "Save",
+      onSave: async (vals) => {
+        await createSupplierProduct(s.id, vals);
+        showToast("Product added");
+        renderDetail();
+      },
+    });
+  }
+
+  function openSupplierDocumentDialog(s) {
+    openCustFormDialog({
+      title: "Add document",
+      subtitle: s.name,
+      sections: [
+        {
+          title: "Document",
+          fields: [
+            { name: "title", label: "Title *", required: true },
+            {
+              name: "docType",
+              label: "Type",
+              type: "select",
+              options: [
+                { value: "license", label: "Trade license" },
+                { value: "contract", label: "Contract" },
+                { value: "invoice", label: "Invoice" },
+                { value: "other", label: "Other" },
+              ],
+            },
+            { name: "revision", label: "Revision" },
+            { name: "fileUrl", label: "File URL", fullWidth: true },
+          ],
+        },
+      ],
+      values: { docType: "license", revision: "Rev 1" },
+      submitLabel: "Add document",
+      onSave: async (vals) => {
+        const fileUrl = String(vals.fileUrl || "").trim();
+        const urlCheck = validateUrl(fileUrl);
+        if (!urlCheck.ok) {
+          showToast(urlCheck.message, "error");
+          throw new Error(urlCheck.message);
+        }
+        await createSupplierDocument(s.id, {
+          title: vals.title,
+          docType: vals.docType,
+          revision: vals.revision,
+          fileUrl,
+        });
+        showToast("Document added");
+        renderDetail();
+      },
+    });
+  }
+
+  function openSupplierNoteDialog(s) {
+    openCustFormDialog({
+      title: "Add note",
+      subtitle: s.name,
+      sections: [
+        {
+          title: "Note",
+          fields: [{ name: "body", label: "Note *", type: "textarea", required: true, fullWidth: true, rows: 4 }],
+        },
+      ],
+      values: {},
+      submitLabel: "Add note",
+      onSave: async (vals) => {
+        const body = String(vals.body || "").trim();
+        if (!body) {
+          showToast("Note is required", "error");
+          throw new Error("empty");
+        }
+        await createSupplierNote(s.id, body);
+        showToast("Note added");
+        renderDetail();
+      },
+    });
+  }
+
+  function openSupplierBillDialog(s) {
+    openCustFormDialog({
+      title: "Create bill",
+      subtitle: s.name,
+      sections: [
+        {
+          title: "Bill details",
+          fields: [
+            {
+              name: "projectId",
+              label: "Project",
+              type: "select",
+              options: [
+                { value: "", label: "—" },
+                ...state.projects.map((p) => ({ value: p.id, label: p.name })),
+              ],
+            },
+            { name: "billNo", label: "Bill no" },
+            { name: "billDate", label: "Bill date", type: "date", required: true },
+            { name: "amount", label: "Amount *", type: "number", step: "0.01", required: true },
+            { name: "narration", label: "Description", type: "textarea", fullWidth: true },
+          ],
+        },
+      ],
+      values: { billDate: todayISO() },
+      submitLabel: "Save draft",
+      onSave: async (vals) => {
         await createSupplierBill(
           {
             supplierId: s.id,
             supplierName: s.name,
-            projectId: fd.get("projectId"),
-            billNo: fd.get("billNo"),
-            billDate: fd.get("billDate"),
-            amount: fd.get("amount"),
-            narration: fd.get("narration"),
+            projectId: vals.projectId,
+            billNo: vals.billNo,
+            billDate: vals.billDate,
+            amount: vals.amount,
+            narration: vals.narration,
             paymentTermsDays: s.paymentTermsDays,
             costCategory: s.defaultCostCategory || "material",
             sourceType: "manual",
           },
           { billCount: state.bills.length }
         );
-        state.showBillForm = false;
         showToast("Bill saved as draft");
+        renderDetail();
+      },
+    });
+  }
+
+  function openSupplierPaymentDialog(s) {
+    const open = openBillsForSupplier(s.id, state.bills);
+    let payMode = open.length ? state.paymentMode || "allocated" : "advance";
+
+    const overlay = document.createElement("div");
+    overlay.className = "cust-detail-overlay";
+    overlay.setAttribute("role", "presentation");
+    const modal = document.createElement("div");
+    modal.className = "cust-detail-modal cust-detail-modal--payment card";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.innerHTML = `
+      <div class="cust-detail-head">
+        <div class="cust-detail-title">
+          <strong>Record payment</strong>
+          <span class="text-muted">${escapeHtml(s.name)}</span>
+        </div>
+        <button type="button" class="icon-btn icon-btn--sm cust-detail-close" data-close aria-label="Close">${icon("x", { size: 16 })}</button>
+      </div>
+    `;
+    const form = document.createElement("form");
+    form.className = "cust-form cust-form--compact";
+    form.innerHTML = `
+      <div class="cust-form-shell">
+        <div class="cust-form-row">
+          <div class="cust-form-section">
+            <div class="cust-form-section-body">
+              <fieldset class="sup-pay-mode">
+                <legend class="sup-pay-mode-legend">Payment type</legend>
+                <div class="sup-pay-mode-options">
+                  <label class="sup-pay-mode-option">
+                    <input type="radio" name="payMode" value="allocated" ${payMode === "allocated" ? "checked" : ""} ${open.length ? "" : "disabled"} />
+                    <span class="sup-pay-mode-option-label">Allocate to open bills (FIFO)</span>
+                  </label>
+                  <label class="sup-pay-mode-option">
+                    <input type="radio" name="payMode" value="advance" ${payMode === "advance" ? "checked" : ""} />
+                    <span class="sup-pay-mode-option-label">Advance / on-account payment</span>
+                  </label>
+                </div>
+              </fieldset>
+              ${!open.length ? '<p class="sup-pay-hint sup-pay-hint--mode">No open bills — payment will be recorded as advance.</p>' : ""}
+              <div class="cust-form-grid cust-form-grid--2">
+                <label class="cust-form-field"><span class="cust-form-label">Payment date</span><input name="paymentDate" type="date" class="cust-form-input" value="${todayISO()}" required /></label>
+                <label class="cust-form-field"><span class="cust-form-label">Amount *</span><input name="amount" type="number" step="0.01" class="cust-form-input" required /></label>
+                <label class="cust-form-field"><span class="cust-form-label">Method</span><select name="method" class="cust-form-input">${PAYMENT_METHODS.map((m) => `<option value="${m.id}">${escapeHtml(m.label)}</option>`).join("")}</select></label>
+                <label class="cust-form-field"><span class="cust-form-label">Reference</span><input name="reference" class="cust-form-input" placeholder="Txn id" /></label>
+                <label class="cust-form-field"><span class="cust-form-label">Cheque no</span><input name="chequeNo" class="cust-form-input" /></label>
+              </div>
+              <label class="cust-form-field cust-form-field--full"><span class="cust-form-label">Narration</span><textarea name="narration" class="cust-form-input cust-form-textarea" rows="2"></textarea></label>
+              <div class="sup-fifo-list cust-form-field cust-form-field--full" id="sup-fifo-block" ${payMode === "advance" ? 'hidden' : ""}>
+                ${open.length ? `<span class="cust-form-label">Open bills (FIFO)</span><ul class="sup-open-bills">${open.map((b) => `<li>${escapeHtml(b.billNo)} — ${formatBDT(b.balance)}</li>`).join("")}</ul>` : ""}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cust-form-footer">
+        <div class="form-actions cust-form-actions">
+          <button type="submit" class="btn btn-primary">Post payment</button>
+          <button type="button" class="btn btn-ghost" data-cancel>Cancel</button>
+        </div>
+      </div>
+    `;
+    modal.appendChild(form);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    document.body.classList.add("cust-detail-open");
+
+    const close = () => {
+      overlay.remove();
+      document.body.classList.remove("cust-detail-open");
+    };
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close();
+    });
+    modal.querySelector("[data-close]")?.addEventListener("click", close);
+    form.querySelector("[data-cancel]")?.addEventListener("click", close);
+
+    form.querySelectorAll('input[name="payMode"]').forEach((r) => {
+      r.onchange = () => {
+        payMode = r.value;
+        state.paymentMode = payMode;
+        const block = form.querySelector("#sup-fifo-block");
+        if (block) block.hidden = payMode === "advance";
+      };
+    });
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const amount = Number(fd.get("amount"));
+      const mode = fd.get("payMode") || "advance";
+      let allocations = [];
+      let paymentType = "advance";
+      if (mode === "allocated" && open.length) {
+        const fifo = allocatePaymentFifo(amount, open);
+        allocations = fifo.allocations;
+        if (!allocations.length) {
+          showToast("No open bills to allocate", "error");
+          return;
+        }
+        if (fifo.unallocated > 0.01) {
+          showToast(`Only ${formatBDT(amount - fifo.unallocated)} can be allocated`, "error");
+          return;
+        }
+        paymentType = "allocated";
+      }
+      try {
+        await recordSupplierPayment({
+          supplierId: s.id,
+          supplierName: s.name,
+          amount,
+          method: fd.get("method"),
+          paymentDate: fd.get("paymentDate"),
+          reference: fd.get("reference"),
+          chequeNo: fd.get("chequeNo"),
+          narration: fd.get("narration"),
+          allocations,
+          paymentType,
+        });
+        state.paymentMode = "allocated";
+        showToast(paymentType === "advance" ? "Advance payment recorded" : "Payment recorded");
+        close();
         renderDetail();
       } catch (err) {
         showToast(err.message, "error");
       }
     };
-    form.querySelector("#sup-bill-cancel").onclick = () => {
-      state.showBillForm = false;
-      renderDetail();
-    };
-    panel.appendChild(form);
-    return panel;
   }
 
-  function renderTransactionsTable(s, limit) {
+  function renderTransactionsTable(s, limit, { viewAllLabel = "", onViewAll = null } = {}) {
     const rows = buildRecentTransactions(s.id, state.bills, state.payments, state.projects, limit);
-    const wrap = document.createElement("div");
-    wrap.className = "table-wrap";
-    wrap.innerHTML = `
-      <table class="dash-table sup-txn-table">
-        <thead><tr><th>Date</th><th>Type</th><th>Ref No.</th><th>Project</th><th class="text-right">Amount</th><th>Status</th></tr></thead>
-        <tbody>
-          ${rows.length
-            ? rows
-                .map(
-                  (r) => `<tr>
-              <td>${escapeHtml(r.date)}</td>
-              <td>${escapeHtml(r.type)}</td>
-              <td>${r.entityType === "bill" ? `<button type="button" class="sup-txn-ref" data-bill-id="${escapeHtml(r.refId)}">${escapeHtml(r.ref)}</button>` : `<span class="sup-txn-ref">${escapeHtml(r.ref)}</span>`}</td>
-              <td>${escapeHtml(r.projectName)}</td>
-              <td class="text-right">${formatBDT(r.amount)}</td>
-              <td>${statusChip(r.status)}</td>
-            </tr>`
-                )
-                .join("")
-            : ""}
-        </tbody>
-      </table>
+    const section = document.createElement("section");
+    section.className = "dash-widget dash-widget--projects card sup-txn-widget sup-report-block";
+    const viewAllBtn = viewAllLabel
+      ? `<button type="button" class="sup-text-link" id="sup-view-all-txn">${escapeHtml(viewAllLabel)}</button>`
+      : "";
+    section.innerHTML = `
+      <div class="dash-widget-head dash-widget-head--split">
+        <div>
+          <h3 class="dash-widget-title">Recent transactions</h3>
+          <p class="dash-widget-sub">Bills and payments</p>
+        </div>
+        ${viewAllBtn}
+      </div>
+      <div class="dash-widget-body">
+        <div class="table-wrap projects-table-wrap">
+          <table class="dash-table projects-table sup-txn-table">
+            <thead><tr><th>Date</th><th>Type</th><th>Ref No.</th><th>Project</th><th class="text-right">Amount</th><th class="cust-col-center">Status</th></tr></thead>
+            <tbody>
+              ${rows.length
+                ? rows
+                    .map(
+                      (r) => `<tr>
+                <td>${escapeHtml(r.date)}</td>
+                <td>${escapeHtml(r.type)}</td>
+                <td>${r.entityType === "bill" ? `<button type="button" class="sup-txn-ref" data-bill-id="${escapeHtml(r.refId)}">${escapeHtml(r.ref)}</button>` : `<span class="sup-txn-ref">${escapeHtml(r.ref)}</span>`}</td>
+                <td>${escapeHtml(r.projectName)}</td>
+                <td class="text-right">${formatBDT(r.amount)}</td>
+                <td class="cust-col-center">${statusChip(r.status)}</td>
+              </tr>`
+                    )
+                    .join("")
+                : '<tr class="empty-row"><td colspan="6">No transactions yet</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
     `;
-    wrap.querySelectorAll(".sup-txn-ref[data-bill-id]").forEach((el) => {
+    section.querySelector("#sup-view-all-txn")?.addEventListener("click", () => onViewAll?.());
+    section.querySelectorAll(".sup-txn-ref[data-bill-id]").forEach((el) => {
       el.onclick = (e) => {
         e.preventDefault();
         state.activeTab = "payments";
@@ -573,12 +874,12 @@ export function mountSuppliers(container) {
         renderDetail();
       };
     });
-    return wrap;
+    return section;
   }
 
   function buildOverviewTab(s) {
     const wrap = document.createElement("div");
-    wrap.className = "sup-tab-panel sup-overview";
+    wrap.className = "sup-tab-content sup-overview";
     const stats = aggregateSupplierStats(s.id, state.bills);
     const lastPay = lastPaymentForSupplier(s.id, state.payments);
     const creditLimit = Number(s.creditLimit || 0);
@@ -592,17 +893,19 @@ export function mountSuppliers(container) {
       stats.outstanding <= 0 ? '<p class="sup-pay-hint">No outstanding balance</p>' : "";
 
     const contact = sectionCard("Contact Information");
+    contact.classList.add("sup-overview-card", "sup-overview-card--contact");
     contact.querySelector(".sup-section-card-body").innerHTML = `
-      <dl class="sup-contact-dl">
-        <dt>Phone</dt><dd>${formatContactValue(s.phone, "phone")}</dd>
-        <dt>Email</dt><dd>${formatContactValue(s.email, "email")}</dd>
-        <dt>Contact Person</dt><dd>${formatContactValue(s.contactPerson)}</dd>
-        <dt>Address</dt><dd>${formatContactValue(s.address)}</dd>
-        <dt>Tax ID / BIN</dt><dd>${formatContactValue(s.tin || s.binVat)}</dd>
-      </dl>
+      <div class="sup-contact-rows">
+        <div class="sup-pay-row"><span class="sup-field-label">Phone</span><span class="sup-field-value">${formatContactValue(s.phone, "phone")}</span></div>
+        <div class="sup-pay-row"><span class="sup-field-label">Email</span><span class="sup-field-value">${formatContactValue(s.email, "email")}</span></div>
+        <div class="sup-pay-row"><span class="sup-field-label">Contact Person</span><span class="sup-field-value">${formatContactValue(s.contactPerson)}</span></div>
+        <div class="sup-pay-row"><span class="sup-field-label">Address</span><span class="sup-field-value">${formatContactValue(s.address)}</span></div>
+        <div class="sup-pay-row"><span class="sup-field-label">Tax ID / BIN</span><span class="sup-field-value">${formatContactValue(s.tin || s.binVat)}</span></div>
+      </div>
     `;
 
     const payment = sectionCard("Payment Summary");
+    payment.classList.add("sup-overview-card", "sup-overview-card--payment");
     payment.querySelector(".sup-section-card-body").innerHTML = `
       <div class="sup-payment-summary">
         ${outstandingHint}
@@ -620,67 +923,63 @@ export function mountSuppliers(container) {
     grid.append(contact, payment);
     wrap.appendChild(grid);
 
-    const txnHead = document.createElement("div");
-    txnHead.className = "sup-txn-head";
-    txnHead.innerHTML = `
-      <h4 class="sup-section-title">Recent Transactions</h4>
-      <button type="button" class="sup-text-link" id="sup-view-all-txn">${state.showFullLedger ? "Show less" : "View all"}</button>
-    `;
-    txnHead.querySelector("#sup-view-all-txn").onclick = () => {
-      state.showFullLedger = !state.showFullLedger;
-      renderDetail();
-    };
-    wrap.appendChild(txnHead);
-    const txnTable = renderTransactionsTable(s, state.showFullLedger ? 50 : 8);
-    wrap.appendChild(txnTable);
+    wrap.appendChild(
+      renderTransactionsTable(s, state.showFullLedger ? 50 : 8, {
+        viewAllLabel: state.showFullLedger ? "Show less" : "View all",
+        onViewAll: () => {
+          state.showFullLedger = !state.showFullLedger;
+          renderDetail();
+        },
+      })
+    );
     if (!buildRecentTransactions(s.id, state.bills, state.payments, state.projects, 1).length) {
       const empty = document.createElement("p");
       empty.className = "sup-empty-cta";
       const perms = getSupplierPermissions();
       if (perms.canBill) {
         empty.innerHTML = `No transactions yet. <button type="button" class="sup-text-link" id="sup-first-bill">Create first bill</button>`;
-        empty.querySelector("#sup-first-bill").onclick = () => {
-          state.showBillForm = true;
-          renderDetail();
-        };
+        empty.querySelector("#sup-first-bill").onclick = () => openSupplierBillDialog(s);
       } else empty.textContent = "No transactions yet.";
       wrap.appendChild(empty);
     }
 
-    if (state.showBillForm) wrap.prepend(buildBillFormPanel(s));
     return wrap;
   }
 
   function buildProfileTab(s) {
     const wrap = document.createElement("div");
-    wrap.className = "sup-tab-panel sup-profile-panel";
-    if (state.selectedSupplierId === "__new__" || state.editMode) {
-      wrap.appendChild(buildProfileForm(s));
+    wrap.className = "sup-tab-content sup-profile-panel";
+
+    if (state.selectedSupplierId === "__new__") {
+      const card = sectionCard("New supplier", "Complete the form to add this payee");
+      card.querySelector(".sup-section-card-body").innerHTML = `
+        <p class="proj-empty sup-new-supplier-hint">Use the form to enter identity, contact, and banking details.</p>
+        <button type="button" class="btn btn-primary btn-sm" id="sup-new-supplier-open">Add supplier details</button>
+      `;
+      card.querySelector("#sup-new-supplier-open")?.addEventListener("click", () => openSupplierProfileDialog(null));
+      wrap.appendChild(card);
       return wrap;
     }
 
     const perms = getSupplierPermissions();
-    const head = document.createElement("div");
-    head.className = "sup-profile-head";
-    head.innerHTML = `<h4 class="sup-section-title">Profile</h4>`;
-    if (perms.canEdit) {
-      const editBtn = document.createElement("button");
-      editBtn.type = "button";
-      editBtn.className = "btn btn-primary btn-sm";
-      editBtn.textContent = "Edit profile";
-      editBtn.onclick = () => {
-        state.editMode = true;
-        renderDetail();
-      };
-      head.appendChild(editBtn);
-    }
-    wrap.appendChild(head);
 
     const bankStr = [s.bankName, s.accountNo, s.branch].filter(Boolean).join(" · ");
     const grid = document.createElement("div");
     grid.className = "sup-profile-grid";
 
     const identityCard = sectionCard("Identity & contact");
+    identityCard.classList.add("sup-overview-card", "sup-overview-card--profile-identity");
+    const identityHead = identityCard.querySelector(".dash-widget-head");
+    if (identityHead && perms.canEdit) {
+      identityHead.className = "dash-widget-head dash-widget-head--split";
+      identityHead.innerHTML = `
+        <div>
+          <h3 class="dash-widget-title sup-section-card-title">Identity & contact</h3>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="sup-profile-edit">Edit profile</button>
+      `;
+      identityCard.querySelector("#sup-profile-edit")?.addEventListener("click", () => openSupplierProfileDialog(s));
+    }
     identityCard.querySelector(".sup-section-card-body").appendChild(
       renderProfileDefinitionList([
         { label: "Type", value: supplierTypeLabel(s.type) },
@@ -695,6 +994,7 @@ export function mountSuppliers(container) {
     );
 
     const bankingCard = sectionCard("Banking & terms");
+    bankingCard.classList.add("sup-overview-card", "sup-overview-card--profile-banking");
     bankingCard.querySelector(".sup-section-card-body").appendChild(
       renderProfileDefinitionList([
         { label: "Bank", valueHtml: bankStr ? escapeHtml(bankStr) : formatContactValue("") },
@@ -723,30 +1023,26 @@ export function mountSuppliers(container) {
 
   function buildProductsTab(s) {
     const wrap = document.createElement("div");
-    wrap.className = "sup-tab-panel";
-    wrap.appendChild(
-      renderTabToolbar("Products & Services", `<button type="button" class="btn btn-primary btn-sm" id="sup-add-product">+ Add</button>`)
-    );
+    wrap.className = "sup-tab-content";
 
-    const form = document.createElement("form");
-    form.className = "form-grid proj-form-inline sup-product-form";
-    form.hidden = true;
-    form.id = "sup-product-form";
-    form.innerHTML = `
-      <input name="name" placeholder="Name *" required />
-      <input name="code" placeholder="SKU / Code" />
-      <input name="unit" placeholder="Unit" value="pcs" />
-      <input name="rate" type="number" step="0.01" placeholder="Rate" />
-      <input name="category" placeholder="Category" />
-      <select name="status"><option value="active">Active</option><option value="inactive">Inactive</option></select>
-      <button type="submit" class="btn btn-primary btn-sm">Save</button>
+    const section = document.createElement("section");
+    section.className = "dash-widget dash-widget--projects card sup-report-block";
+    section.innerHTML = `
+      <div class="dash-widget-head dash-widget-head--split">
+        <div>
+          <h3 class="dash-widget-title">Products & Services</h3>
+          <p class="dash-widget-sub">Catalog items this supplier provides</p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="sup-add-product">+ Add</button>
+      </div>
+      <div class="dash-widget-body sup-products-body"></div>
     `;
-    wrap.appendChild(form);
+    const body = section.querySelector(".sup-products-body");
 
     const table = document.createElement("div");
-    table.className = "table-wrap";
+    table.className = "table-wrap projects-table-wrap";
     table.innerHTML = `
-      <table class="dash-table">
+      <table class="dash-table projects-table">
         <thead><tr><th>Name</th><th>Code</th><th>Unit</th><th class="text-right">Rate</th><th>Category</th><th>Status</th><th></th></tr></thead>
         <tbody>
           ${state.products.length
@@ -770,23 +1066,11 @@ export function mountSuppliers(container) {
         </tbody>
       </table>
     `;
-    wrap.appendChild(table);
+    body.appendChild(table);
+    wrap.appendChild(section);
 
-    wrap.querySelector("#sup-add-product").onclick = () => {
-      form.hidden = !form.hidden;
-    };
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const fd = new FormData(form);
-      try {
-        await createSupplierProduct(s.id, Object.fromEntries(fd.entries()));
-        form.reset();
-        form.hidden = true;
-        showToast("Product added");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    };
+    section.querySelector("#sup-add-product").onclick = () => openSupplierProductDialog(s);
+
     wrap.querySelectorAll(".sup-edit-product").forEach((btn) => {
       const p = state.products.find((x) => x.id === btn.dataset.id);
       if (!p) return;
@@ -842,11 +1126,10 @@ export function mountSuppliers(container) {
     const wrap = document.createElement("div");
     wrap.className = "sup-bills-ledger";
     wrap.id = "sup-bills-ledger";
-    wrap.innerHTML = `<h4 class="sup-section-title">Bills ledger</h4>`;
     const table = document.createElement("div");
-    table.className = "table-wrap";
+    table.className = "table-wrap projects-table-wrap";
     table.innerHTML = `
-      <table class="dash-table">
+      <table class="dash-table projects-table">
         <thead><tr><th>Bill</th><th>Project</th><th>Due</th><th class="text-right">Amount</th><th class="text-right">Paid</th><th class="text-right">Balance</th><th>Status</th><th></th></tr></thead>
         <tbody>
           ${mine.length
@@ -888,25 +1171,10 @@ export function mountSuppliers(container) {
 
   function buildPaymentsTab(s) {
     const wrap = document.createElement("div");
-    wrap.className = "sup-tab-panel";
+    wrap.className = "sup-tab-content";
     const perms = getSupplierPermissions();
     const mine = state.payments.filter((p) => p.supplierId === s.id);
-    const open = openBillsForSupplier(s.id, state.bills);
     const draftBills = state.bills.filter((b) => b.supplierId === s.id && b.status === "draft");
-
-    wrap.appendChild(
-      renderTabToolbar(
-        "Payments",
-        [
-          perms.canPay ? `<button type="button" class="btn btn-primary btn-sm" id="sup-add-payment">+ Payment</button>` : "",
-          perms.canApprove && draftBills.length
-            ? `<span class="text-muted">${draftBills.length} draft bill(s)</span>`
-            : "",
-        ]
-          .filter(Boolean)
-          .join(" ")
-      )
-    );
 
     if (draftBills.length) {
       const drafts = document.createElement("div");
@@ -939,89 +1207,10 @@ export function mountSuppliers(container) {
       wrap.appendChild(drafts);
     }
 
-    if (state.showPaymentForm && perms.canPay) {
-      const defaultMode = open.length ? state.paymentMode : "advance";
-      const form = document.createElement("form");
-      form.className = "form-grid proj-form sup-payment-form card card-pad";
-      form.innerHTML = `
-        <div class="form-field form-field--full sup-pay-mode">
-          <label><input type="radio" name="payMode" value="allocated" ${defaultMode === "allocated" ? "checked" : ""} ${open.length ? "" : "disabled"} /> Allocate to open bills (FIFO)</label>
-          <label><input type="radio" name="payMode" value="advance" ${defaultMode === "advance" ? "checked" : ""} /> Advance / on-account payment</label>
-        </div>
-        ${!open.length ? '<p class="sup-pay-hint form-field--full">No open bills — payment will be recorded as advance.</p>' : ""}
-        <input name="paymentDate" type="date" value="${todayISO()}" />
-        <input name="amount" type="number" step="0.01" placeholder="Payment amount *" required />
-        <select name="method">${PAYMENT_METHODS.map((m) => `<option value="${m.id}">${m.label}</option>`).join("")}</select>
-        <input name="reference" placeholder="Reference / txn id" />
-        <input name="chequeNo" placeholder="Cheque no" />
-        <textarea name="narration" placeholder="Narration" rows="2" class="form-field--full"></textarea>
-        <div class="form-field form-field--full sup-fifo-list" id="sup-fifo-block" ${defaultMode === "advance" ? 'style="display:none"' : ""}>
-          ${open.length ? `<span class="form-field-label">Open bills (FIFO)</span><ul class="sup-open-bills">${open.map((b) => `<li>${escapeHtml(b.billNo)} — ${formatBDT(b.balance)}</li>`).join("")}</ul>` : ""}
-        </div>
-        <button type="submit" class="btn btn-primary btn-sm">Post payment</button>
-        <button type="button" class="btn btn-ghost btn-sm" id="sup-pay-cancel">Cancel</button>
-      `;
-      form.querySelectorAll('input[name="payMode"]').forEach((r) => {
-        r.onchange = () => {
-          state.paymentMode = r.value;
-          const block = form.querySelector("#sup-fifo-block");
-          if (block) block.style.display = r.value === "allocated" ? "" : "none";
-        };
-      });
-      form.onsubmit = async (e) => {
-        e.preventDefault();
-        const fd = new FormData(form);
-        const amount = Number(fd.get("amount"));
-        const mode = fd.get("payMode") || "advance";
-        let allocations = [];
-        let paymentType = "advance";
-        if (mode === "allocated" && open.length) {
-          const fifo = allocatePaymentFifo(amount, open);
-          allocations = fifo.allocations;
-          if (!allocations.length) {
-            showToast("No open bills to allocate", "error");
-            return;
-          }
-          if (fifo.unallocated > 0.01) {
-            showToast(`Only ${formatBDT(amount - fifo.unallocated)} can be allocated`, "error");
-            return;
-          }
-          paymentType = "allocated";
-        }
-        try {
-          await recordSupplierPayment({
-            supplierId: s.id,
-            supplierName: s.name,
-            amount,
-            method: fd.get("method"),
-            paymentDate: fd.get("paymentDate"),
-            reference: fd.get("reference"),
-            chequeNo: fd.get("chequeNo"),
-            narration: fd.get("narration"),
-            allocations,
-            paymentType,
-          });
-          state.showPaymentForm = false;
-          state.paymentMode = "allocated";
-          showToast(paymentType === "advance" ? "Advance payment recorded" : "Payment recorded");
-          renderDetail();
-        } catch (err) {
-          showToast(err.message, "error");
-        }
-      };
-      form.querySelector("#sup-pay-cancel").onclick = () => {
-        state.showPaymentForm = false;
-        renderDetail();
-      };
-      wrap.appendChild(form);
-    }
-
-    wrap.appendChild(buildBillsLedgerTable(s));
-
-    const payHistory = document.createElement("div");
-    payHistory.className = "table-wrap";
-    payHistory.innerHTML = `
-      <table class="dash-table">
+    const payTableWrap = document.createElement("div");
+    payTableWrap.className = "table-wrap projects-table-wrap";
+    payTableWrap.innerHTML = `
+      <table class="dash-table projects-table">
         <thead><tr><th>Date</th><th class="text-right">Amount</th><th>Method</th><th>Type</th><th>Reference</th></tr></thead>
         <tbody>
           ${mine.length
@@ -1040,13 +1229,29 @@ export function mountSuppliers(container) {
         </tbody>
       </table>
     `;
-    payHistory.innerHTML = `<h4 class="sup-section-title">Payment history</h4>` + payHistory.innerHTML;
-    wrap.appendChild(payHistory);
-    wrap.querySelector("#sup-add-payment")?.addEventListener("click", () => {
-      state.showPaymentForm = true;
+
+    const payWidget = supplierTableWidget(
+      "Payment history",
+      "Recorded payments for this supplier",
+      payTableWrap,
+      {
+        actionsHtml: perms.canPay
+          ? `<button type="button" class="btn btn-primary btn-sm" id="sup-add-payment">+ Payment</button>`
+          : "",
+      }
+    );
+    wrap.appendChild(payWidget);
+
+    const ledgerInner = buildBillsLedgerTable(s);
+    wrap.appendChild(
+      supplierTableWidget("Bills ledger", "All bills and balances", ledgerInner, { rootClass: "sup-bills-ledger-widget" })
+    );
+
+    payWidget.querySelector("#sup-add-payment")?.addEventListener("click", () => {
       state.paymentMode = openBillsForSupplier(s.id, state.bills).length ? "allocated" : "advance";
-      renderDetail();
+      openSupplierPaymentDialog(s);
     });
+
     if (state.focusBillsLedger) {
       requestAnimationFrame(() => {
         wrap.querySelector("#sup-bills-ledger")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1058,12 +1263,12 @@ export function mountSuppliers(container) {
 
   function buildProjectsTab(s) {
     const wrap = document.createElement("div");
-    wrap.className = "sup-tab-panel";
+    wrap.className = "sup-tab-content";
     const rows = aggregateByProject(state.bills.filter((b) => b.supplierId === s.id), state.projects);
     const table = document.createElement("div");
-    table.className = "table-wrap";
+    table.className = "table-wrap projects-table-wrap";
     table.innerHTML = `
-      <table class="dash-table">
+      <table class="dash-table projects-table">
         <thead><tr><th>Project</th><th class="text-right">Billed</th><th class="text-right">Paid</th><th class="text-right">Outstanding</th></tr></thead>
         <tbody>
           ${rows.length
@@ -1092,45 +1297,56 @@ export function mountSuppliers(container) {
 
   function buildReportsTab(s) {
     const wrap = document.createElement("div");
-    wrap.className = "sup-tab-panel";
+    wrap.className = "sup-tab-content";
     const mine = state.bills.filter((b) => b.supplierId === s.id);
     const buckets = agingBuckets(mine);
-    wrap.innerHTML = `
-      <div class="sup-reports-head">
-        <h4 class="sup-section-title">Aging (outstanding)</h4>
+    const card = sectionCard("Aging (outstanding)", "Open bills by due-date bucket");
+    const head = card.querySelector(".dash-widget-head");
+    if (head) {
+      head.className = "dash-widget-head dash-widget-head--split";
+      head.innerHTML = `
+        <div>
+          <h3 class="dash-widget-title">Aging (outstanding)</h3>
+          <p class="dash-widget-sub">Open bills by due-date bucket</p>
+        </div>
         <button type="button" class="sup-text-link" id="sup-export-statement">Download statement CSV</button>
-      </div>
-      <div class="sup-aging-grid">
-        ${Object.values(buckets)
+      `;
+    }
+    const body = card.querySelector(".sup-section-card-body");
+    body.innerHTML = `<div class="sup-aging-grid">
+        ${Object.entries(buckets)
           .map(
-            (b) => `<div class="sup-aging-card"><span>${b.label}</span><strong>${formatBDT(b.amount)}</strong><small>${b.count} bill(s)</small></div>`
+            ([key, b]) =>
+              `<div class="sup-aging-card sup-aging-card--${key}">
+                <div class="sup-aging-card-head">
+                  <span class="sup-aging-card-label">${escapeHtml(b.label)}</span>
+                  ${supplierAgingIcon(key)}
+                </div>
+                <strong>${formatBDT(b.amount)}</strong>
+                <small>${b.count} bill(s)</small>
+              </div>`
           )
           .join("")}
-      </div>
-    `;
-    wrap.querySelector("#sup-export-statement").onclick = () => exportSupplierStatement(s);
+      </div>`;
+    card.querySelector("#sup-export-statement")?.addEventListener("click", () => exportSupplierStatement(s));
+    wrap.appendChild(card);
     return wrap;
   }
 
   function buildDocumentsTab(s) {
     const wrap = document.createElement("div");
-    wrap.className = "sup-tab-panel";
+    wrap.className = "sup-tab-content";
     const card = sectionCard("Documents", "Trade licenses, contracts, and files");
-    const body = card.querySelector(".sup-section-card-body");
-    const form = document.createElement("form");
-    form.className = "form-grid proj-form";
-    form.innerHTML = `
-      <input name="title" placeholder="Document title *" required />
-      <select name="docType">
-        <option value="license">Trade license</option>
-        <option value="contract">Contract</option>
-        <option value="invoice">Invoice</option>
-        <option value="other">Other</option>
-      </select>
-      <input name="revision" placeholder="Revision" value="Rev 1" />
-      <input name="fileUrl" placeholder="File URL" />
-      <button type="submit" class="btn btn-primary btn-sm">Add document</button>
+    const head = card.querySelector(".dash-widget-head");
+    head.className = "dash-widget-head dash-widget-head--split";
+    head.innerHTML = `
+      <div>
+        <h3 class="dash-widget-title sup-section-card-title">Documents</h3>
+        <p class="dash-widget-sub sup-section-card-sub">Trade licenses, contracts, and files</p>
+      </div>
+      <button type="button" class="btn btn-primary btn-sm" id="sup-add-document">+ Add document</button>
     `;
+    const body = card.querySelector(".sup-section-card-body");
     const list = document.createElement("div");
     list.className = "proj-doc-list";
     if (!state.documents.length) list.innerHTML = `<p class="proj-empty">No documents — add trade licenses, contracts, or file links.</p>`;
@@ -1149,54 +1365,26 @@ export function mountSuppliers(container) {
         )
         .join("");
     }
-    body.append(form, list);
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const fileUrl = form.fileUrl.value.trim();
-      const urlCheck = validateUrl(fileUrl);
-      if (!urlCheck.ok) {
-        showToast(urlCheck.message, "error");
-        return;
-      }
-      try {
-        await createSupplierDocument(s.id, {
-          title: form.title.value.trim(),
-          docType: form.docType.value,
-          revision: form.revision.value.trim(),
-          fileUrl,
-        });
-        form.reset();
-        showToast("Document added");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    };
+    body.appendChild(list);
+    card.querySelector("#sup-add-document").onclick = () => openSupplierDocumentDialog(s);
     wrap.appendChild(card);
     return wrap;
   }
 
   function buildNotesTab(s) {
     const wrap = document.createElement("div");
-    wrap.className = "sup-tab-panel";
-    const form = document.createElement("form");
-    form.className = "sup-note-form";
-    form.innerHTML = `
-      <textarea name="body" rows="3" placeholder="Add a note..." required></textarea>
-      <button type="submit" class="btn btn-primary btn-sm">Add note</button>
+    wrap.className = "sup-tab-content";
+    const card = sectionCard("Notes", "Internal remarks about this supplier");
+    const head = card.querySelector(".dash-widget-head");
+    head.className = "dash-widget-head dash-widget-head--split";
+    head.innerHTML = `
+      <div>
+        <h3 class="dash-widget-title sup-section-card-title">Notes</h3>
+        <p class="dash-widget-sub sup-section-card-sub">Internal remarks about this supplier</p>
+      </div>
+      <button type="button" class="btn btn-primary btn-sm" id="sup-add-note">+ Add note</button>
     `;
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const body = form.body.value.trim();
-      if (!body) return;
-      try {
-        await createSupplierNote(s.id, body);
-        form.reset();
-        showToast("Note added");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    };
-    wrap.appendChild(form);
+    const body = card.querySelector(".sup-section-card-body");
     const list = document.createElement("div");
     list.className = "sup-notes-list";
     if (!state.notes.length) list.innerHTML = `<p class="proj-empty">No notes yet — add internal remarks about this supplier.</p>`;
@@ -1211,13 +1399,22 @@ export function mountSuppliers(container) {
         )
         .join("");
     }
-    wrap.appendChild(list);
+    body.appendChild(list);
+    card.querySelector("#sup-add-note").onclick = () => openSupplierNoteDialog(s);
+    wrap.appendChild(card);
     return wrap;
+  }
+
+  function activityActionClassKey(action) {
+    const key = String(action || "update")
+      .toLowerCase()
+      .replace(/[^a-z0-9_]+/g, "");
+    return key || "update";
   }
 
   function buildActivityTab(s) {
     const wrap = document.createElement("div");
-    wrap.className = "sup-tab-panel";
+    wrap.className = "sup-tab-content";
     const sid = s.id;
     const logs = state.auditLogs
       .filter((l) => {
@@ -1231,22 +1428,32 @@ export function mountSuppliers(container) {
       .sort((a, b) => (b.timestamp || b.createdAt || 0) - (a.timestamp || a.createdAt || 0))
       .slice(0, 40);
 
+    const card = sectionCard("Activity", "Bills, payments, and profile changes");
+    const body = card.querySelector(".sup-section-card-body");
     const list = document.createElement("div");
     list.className = "sup-activity-list";
-    if (!logs.length) list.innerHTML = `<p class="proj-empty">No activity yet</p>`;
-    else {
+    if (!logs.length) {
+      list.innerHTML = `<p class="proj-empty">No activity yet</p>`;
+    } else {
       list.innerHTML = logs
-        .map(
-          (l) => `
-        <div class="sup-activity-item">
-          <strong>${escapeHtml(ACTIVITY_ACTION_LABELS[l.action] || l.action || "update")}</strong>
-          <span>${escapeHtml(l.diffSummary || "")}</span>
-          <time class="text-muted">${l.timestamp || l.createdAt ? new Date(l.timestamp || l.createdAt).toLocaleString() : ""}</time>
-        </div>`
-        )
+        .map((l) => {
+          const actionKey = activityActionClassKey(l.action);
+          const actionLabel = ACTIVITY_ACTION_LABELS[l.action] || l.action || "update";
+          const summary = l.diffSummary || "";
+          const when = l.timestamp || l.createdAt ? new Date(l.timestamp || l.createdAt).toLocaleString() : "";
+          return `
+        <article class="sup-activity-card sup-activity-card--${escapeHtml(actionKey)}">
+          <header class="sup-activity-card-head">
+            <span class="sup-activity-card-action">${escapeHtml(actionLabel)}</span>
+            <time class="sup-activity-card-time">${escapeHtml(when)}</time>
+          </header>
+          ${summary ? `<p class="sup-activity-card-summary">${escapeHtml(summary)}</p>` : ""}
+        </article>`;
+        })
         .join("");
     }
-    wrap.appendChild(list);
+    body.appendChild(list);
+    wrap.appendChild(card);
     return wrap;
   }
 
@@ -1255,9 +1462,21 @@ export function mountSuppliers(container) {
     detailHost.innerHTML = "";
 
     if (state.selectedSupplierId === "__new__") {
+      detailHost.appendChild(
+        renderSupplierTabBar(state.activeTab, (tab) => {
+          state.activeTab = tab;
+          renderDetail();
+        })
+      );
       const panel = document.createElement("div");
-      panel.className = "sup-detail-panel card card-pad";
-      panel.appendChild(buildProfileForm(null));
+      panel.className = "sup-detail-tab-shell";
+      if (state.activeTab === "profile") panel.appendChild(buildProfileTab(null));
+      else {
+        const hint = document.createElement("p");
+        hint.className = "proj-empty card card-pad";
+        hint.textContent = "Save the new supplier from Profile to access other tabs.";
+        panel.appendChild(hint);
+      }
       detailHost.appendChild(panel);
       return;
     }
@@ -1276,21 +1495,28 @@ export function mountSuppliers(container) {
       {
         onEdit: () => {
           closeHeaderMenu();
-          state.editMode = true;
           state.activeTab = "profile";
           renderDetail();
+          openSupplierProfileDialog(s);
         },
         onMoreAction: async (action) => {
           closeHeaderMenu();
           if (action === "payment") {
             state.activeTab = "payments";
-            state.showPaymentForm = true;
             state.paymentMode = openBillsForSupplier(s.id, state.bills).length ? "allocated" : "advance";
             renderDetail();
+            openSupplierPaymentDialog(s);
           } else if (action === "inactive") {
             const next = s.status === "inactive" ? "active" : "inactive";
             const label = next === "inactive" ? "mark inactive" : "mark active";
-            if (!window.confirm(`Are you sure you want to ${label} this supplier?`)) return;
+            const ok = await confirmAction({
+              title: next === "inactive" ? "Mark supplier inactive?" : "Mark supplier active?",
+              message: `Are you sure you want to ${label} this supplier?`,
+              confirmLabel: next === "inactive" ? "Mark inactive" : "Mark active",
+              cancelLabel: "Cancel",
+              variant: next === "inactive" ? "danger" : "default",
+            });
+            if (!ok) return;
             try {
               await updateSupplier(s.id, { status: next });
               showToast(`Supplier marked ${next}`);
@@ -1302,9 +1528,7 @@ export function mountSuppliers(container) {
         onCreateBill: () => {
           if (!perms.canBill) return;
           closeHeaderMenu();
-          state.showBillForm = true;
-          state.activeTab = "overview";
-          renderDetail();
+          openSupplierBillDialog(s);
         },
         onViewBills: () => {
           closeHeaderMenu();
@@ -1330,7 +1554,7 @@ export function mountSuppliers(container) {
     );
 
     const panel = document.createElement("div");
-    panel.className = "sup-detail-panel card card-pad";
+    panel.className = "sup-detail-tab-shell";
     if (state.activeTab === "overview") panel.appendChild(buildOverviewTab(s));
     else if (state.activeTab === "profile") panel.appendChild(buildProfileTab(s));
     else if (state.activeTab === "products") panel.appendChild(buildProductsTab(s));
@@ -1349,27 +1573,19 @@ export function mountSuppliers(container) {
 
   function ensureLayout() {
     root.innerHTML = `
-      <div class="sup-kpi-host"></div>
-      <div class="suppliers-layout">
-        <aside class="sup-sidebar card">
-          <div class="card-pad sup-sidebar-head">
-            <div class="sup-sidebar-title-row">
-              <span class="sup-sidebar-title">Suppliers</span>
-              <span class="sup-sidebar-count" id="sup-sidebar-count">0</span>
-            </div>
-            <button type="button" class="btn btn-sm btn-primary sup-sidebar-new" id="sup-new-btn">+ New Supplier</button>
-          </div>
-          <div id="sup-list-host"></div>
-          <div id="sup-pagination-host"></div>
-        </aside>
-        <main class="sup-main" id="sup-detail-host"></main>
+      <div class="sup-layout sup-mockup-layout">
+        <div id="sup-kpi-host" class="dash-kpi-row sup-kpi-host"></div>
+        <div class="sup-split sup-mockup-split">
+          <aside class="dash-widget dash-widget--projects card sup-list-panel" id="sup-list-panel"></aside>
+          <main class="sup-detail-panel" id="sup-detail-host">
+            <p class="proj-empty">Select a supplier or create a new one</p>
+          </main>
+        </div>
       </div>
     `;
-    kpiHost = root.querySelector(".sup-kpi-host");
-    listHost = root.querySelector("#sup-list-host");
-    paginationHost = root.querySelector("#sup-pagination-host");
+    kpiHost = root.querySelector("#sup-kpi-host");
+    listPanel = root.querySelector("#sup-list-panel");
     detailHost = root.querySelector("#sup-detail-host");
-    root.querySelector("#sup-new-btn")?.addEventListener("click", openNewSupplier);
   }
 
   ensureLayout();

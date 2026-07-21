@@ -6,6 +6,7 @@ import { getCurrentUserId } from "./svc_auth.js";
 import { workflowButtonsHtml, wireWorkflowButtons } from "./svc_governance.js";
 import { formatBDT } from "./util_format.js";
 import { showToast } from "./cmp_toast.js";
+import { confirmAction } from "./cmp_confirm.js";
 import { sectionCard, statusChip } from "./cmp_ui.js";
 import { GOV_PATHS, CERT_STAGES, BG_TYPES } from "./util_govProject.js";
 import {
@@ -707,7 +708,7 @@ export function buildMeasurementTab(state, opts = {}) {
   finalBtn.className = "btn btn-primary btn-sm";
   finalBtn.textContent = "Generate final bill";
   finalBtn.onclick = async () => {
-    if (!confirm("Generate final bill for project close-out?")) return;
+    if (!(await confirmAction({ title: "Generate final bill?", message: "Generate final bill for project close-out?", confirmLabel: "Generate" }))) return;
     try {
       await createIpcBill(state, project, { billType: "final" });
       showToast("Final bill generated");
@@ -889,7 +890,11 @@ export function buildRetentionTab(state) {
       showToast(`Release amount cannot exceed balance (${formatBDT(balance)})`, "error");
       return;
     }
-    if (!confirm(`Release ${formatBDT(amount)} from retention balance ${formatBDT(balance)}?`)) return;
+    if (!(await confirmAction({
+      title: "Record retention release?",
+      message: `Release ${formatBDT(amount)} from retention balance ${formatBDT(balance)}?`,
+      confirmLabel: "Release",
+    }))) return;
     const now = Date.now();
     try {
       await create(`${GOV_PATHS.retentionLedger}/${state.selectedProjectId}`, {

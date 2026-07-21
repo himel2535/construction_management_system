@@ -1,7 +1,5 @@
-import { renderTable } from "./cmp_table.js";
 import { create, listenList, listenProjectSub, updatePath } from "./svc_data.js";
 import { readRef } from "./svc_tenant.js";
-
 import { getCurrentUserId } from "./svc_auth.js";
 import { checkBudgetForApproval } from "./svc_projectCost.js";
 import { writeAuditLog } from "./svc_workflow.js";
@@ -10,7 +8,8 @@ import { formatBDT, todayISO } from "./util_format.js";
 import { showToast } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
-import { sectionCard, statusChip } from "./cmp_ui.js";
+import { statusChip } from "./cmp_ui.js";
+import { openCustFormDialog, escapeHtml } from "./cmp_projectTab.js";
 import { buildProductCatalog, summarizePoItems } from "./util_procurement.js";
 import { renderPurchaseOrderComposer, renderGrnReceiveForm } from "./cmp_procurement.js";
 import { deliveryStatusLabel, deliveryChipClass } from "./util_materialRequest.js";
@@ -21,45 +20,52 @@ import {
   syncMrDeliveryFromGrn,
 } from "./svc_materialRequest.js";
 import { postGrnToCentralStock } from "./svc_centralStock.js";
-
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+import { canPerformAction } from "./svc_governance.js";
+import {
+  computeProcurementStats,
+  renderProcurementKpiStripHtml,
+  renderProcurementTabBar,
+  purSection,
+} from "./cmp_procurementHub.js";
 
 export function mountPurchases(container) {
   setActiveNav();
   setPageChrome({
-    title: "Purchase",
-    subtitle: "Material requests, purchase orders, and goods receipt (Release 2).",
+    title: "Procurement",
+    subtitle: "Material requests, purchase orders, and goods receipt.",
     showDateRange: false,
     quickActionLabel: "",
     onQuickAction: null,
   });
 
   const root = document.createElement("div");
-  root.className = "page-content purchases-page";
-
-  const toolbar = document.createElement("div");
-  toolbar.className = "card card-pad";
-  toolbar.innerHTML = `
-    <label>Project <select id="pur-project" class="toolbar-select"><option value="">Select project</option></select></label>
+  root.className = "purchases-page dashboard-page dashboard-mockup";
+  root.innerHTML = `
+    <div id="pur-kpi-host" class="dash-kpi-row"></div>
+    <div class="toolbar-row projects-toolbar pur-context-bar" id="pur-context-bar">
+      <label class="pur-project-label">Project
+        <select id="pur-project" class="cust-form-input pur-project-select"><option value="">Select project</option></select>
+      </label>
+      <div class="cust-toolbar-btn-group pur-context-actions">
+        <button type="button" class="btn btn-ghost btn-sm" id="pur-add-supplier">+ Add supplier</button>
+      </div>
+    </div>
+    <div id="pur-tab-host"></div>
+    <div id="pur-content-host" class="pur-content-host"></div>
   `;
-
-  const grid = document.createElement("div");
-  grid.className = "grid-2";
-  grid.id = "pur-grid";
-  root.append(toolbar, grid);
   container.appendChild(root);
+
+  const kpiHost = root.querySelector("#pur-kpi-host");
+  const tabHost = root.querySelector("#pur-tab-host");
+  const contentHost = root.querySelector("#pur-content-host");
+  const projectSel = root.querySelector("#pur-project");
 
   let projects = [];
   let vendors = [];
   let suppliers = [];
   let supplierBillCount = 0;
   let selectedProject = "";
+  let activeTab = "requests";
   let mrs = [];
   let pos = [];
   let grns = [];
@@ -68,8 +74,9 @@ export function mountPurchases(container) {
   let productCatalog = [];
   const poDraftLines = [];
   let productUnsubs = [];
-
-  const projectSel = toolbar.querySelector("#pur-project");
+  let poComposerExpanded = false;
+  let composerMounted = false;
+  let grnPoIdPersist = "";
 
   function rebuildCatalog() {
     productCatalog = buildProductCatalog(suppliers, productsBySupplierId);
@@ -92,91 +99,52 @@ export function mountPurchases(container) {
     rebuildCatalog();
   }
 
-  function render() {
-    if (!selectedProject) {
-      grid.innerHTML = `<p class="proj-empty card card-pad">Select a project to manage procurement</p>`;
-      return;
+  function renderChrome() {
+    const stats = computeProcurementStats(mrs, pos, grns, { hasProject: Boolean(selectedProject) });
+    kpiHost.innerHTML = renderProcurementKpiStripHtml(stats);
+    tabHost.innerHTML = "";
+    tabHost.appendChild(
+      renderProcurementTabBar(activeTab, (tab) => {
+        if (tab !== "orders") {
+          poComposerExpanded = false;
+          composerMounted = false;
+        }
+        activeTab = tab;
+        render({ full: true });
+      })
+    );
+  }
+
+  function poDraftActionsCell(p) {
+    if (p.status !== "draft") return "—";
+    if (canPerformAction("approve")) {
+      return `<button type="button" class="btn btn-ghost btn-sm po-approve" data-id="${p.id}">Approve</button>`;
     }
+    return `<span class="section-sub pur-po-approval-hint">Needs PM/Owner approval</span>`;
+  }
 
-    const mrCard = sectionCard("Material Requests", "Site requisition");
-    const mrBody = mrCard.querySelector(".section-card-body");
-    const mrForm = document.createElement("form");
-    mrForm.className = "form-grid proj-form-inline";
-    const boqOpts = boqItems.map((b) => `<option value="${b.id}">${escapeHtml(b.item)}</option>`).join("");
-    mrForm.innerHTML = `
-      <input name="title" placeholder="MR title *" required />
-      <select name="boqId"><option value="">BOQ line</option>${boqOpts}</select>
-      <input name="qty" type="number" placeholder="Qty" />
-      <input name="amount" type="number" placeholder="Est. amount *" required />
-      <button type="submit" class="btn btn-primary btn-sm">Create MR</button>
-    `;
-    mrBody.append(mrForm);
-    const mrTableWrap = document.createElement("div");
-    mrTableWrap.className = "table-wrap";
-    mrTableWrap.innerHTML = `
-      <table class="dash-table" id="mr">
-        <thead><tr><th>Title</th><th class="text-right">Amount</th><th>Status</th><th>Delivery</th><th>Actions</th></tr></thead>
-        <tbody>
-          ${mrs.length
-            ? mrs
-                .map((m) => {
-                  const dClass = deliveryChipClass(m.deliveryStatus || "requested");
-                  let actions = "";
-                  if (m.status === "draft") {
-                    actions += `<button type="button" class="btn btn-ghost btn-sm mr-submit" data-id="${m.id}">Submit</button>`;
-                  }
-                  if (m.status === "submitted") {
-                    actions += `<button type="button" class="btn btn-primary btn-sm mr-approve" data-id="${m.id}">Approve</button>`;
-                  }
-                  const typeLabel =
-                    m.requestType === "central"
-                      ? '<span class="chip">Central issue</span>'
-                      : "";
-                  return `<tr>
-                    <td>${escapeHtml(m.title)} ${typeLabel}</td>
-                    <td class="text-right">${formatBDT(m.amount)}</td>
-                    <td>${statusChip(m.status)}</td>
-                    <td><span class="mr-delivery-chip mr-delivery-chip--${dClass}">${escapeHtml(deliveryStatusLabel(m.deliveryStatus || "requested"))}</span></td>
-                    <td>${actions || "?"}</td>
-                  </tr>`;
-                })
-                .join("")
-            : '<tr class="empty-row"><td colspan="5">No material requests</td></tr>'}
-        </tbody>
-      </table>
-    `;
-    mrBody.appendChild(mrTableWrap);
-    mrBody.querySelectorAll(".mr-submit").forEach((btn) => {
-      btn.onclick = async () => {
-        try {
-          await submitMaterialRequest(selectedProject, btn.dataset.id);
-          showToast("MR submitted");
-        } catch (err) {
-          showToast(err.message, "error");
-        }
-      };
-    });
-    mrBody.querySelectorAll(".mr-approve").forEach((btn) => {
-      btn.onclick = async () => {
-        const { canPerformAction } = await import("./svc_governance.js");
-        if (!canPerformAction("approve")) {
-          showToast("Permission denied", "error");
-          return;
-        }
-        try {
-          await approveMaterialRequest(selectedProject, btn.dataset.id);
-          showToast("MR approved");
-        } catch (err) {
-          showToast(err.message, "error");
-        }
-      };
-    });
+  function buildPoTableRowsHtml() {
+    return pos.length
+      ? pos
+          .map(
+            (p) => `
+            <tr>
+              <td>${escapeHtml(p.vendorName || "—")}</td>
+              <td class="pur-po-items-cell">${escapeHtml(summarizePoItems(p))}</td>
+              <td class="cust-col-center">${formatBDT(p.amount)}</td>
+              <td class="cust-col-center">${statusChip(p.status)}</td>
+              <td class="cust-col-center proj-row-actions-cell">${poDraftActionsCell(p)}</td>
+            </tr>`
+          )
+          .join("")
+      : '<tr class="empty-row"><td colspan="5">No POs</td></tr>';
+  }
 
-    const poCard = sectionCard("Purchase Orders", "Product ? supplier ? qty; one supplier per PO");
-    const poBody = poCard.querySelector(".section-card-body");
-
+  function mountPoComposer(composerHost) {
+    composerHost.innerHTML = "";
     const poComposer = renderPurchaseOrderComposer({
-      catalog: productCatalog,
+      getCatalog: () => productCatalog,
+      getSuppliers: () => suppliers,
       mrs,
       draftLines: poDraftLines,
       onCreatePo: async ({ lines, mrId, vendorId, vendorName, amount }) => {
@@ -197,116 +165,335 @@ export function mountPurchases(container) {
             createdBy: getCurrentUserId(),
           });
           showToast("PO created (draft)");
+          poComposerExpanded = false;
+          composerMounted = false;
+          render({ full: true });
         } catch (err) {
           showToast(err.message, "error");
         }
       },
     });
-    poBody.appendChild(poComposer);
+    composerHost.appendChild(poComposer);
+    composerMounted = true;
+  }
 
-    const poTableWrap = document.createElement("div");
-    poTableWrap.id = "po-table-wrap";
-    poTableWrap.className = "table-wrap";
-    poTableWrap.innerHTML = `
-      <table class="dash-table">
-        <thead><tr><th>Vendor</th><th>Items</th><th class="text-right">Amount</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>
-          ${pos.length
-            ? pos
-                .map(
-                  (p) => `
-            <tr>
-              <td>${escapeHtml(p.vendorName || "?")}</td>
-              <td class="pur-po-items-cell">${escapeHtml(summarizePoItems(p))}</td>
-              <td class="text-right">${formatBDT(p.amount)}</td>
-              <td>${statusChip(p.status)}</td>
-              <td>${p.status === "draft" ? `<button type="button" class="btn btn-ghost btn-sm po-approve" data-id="${p.id}">Approve</button>` : "?"}</td>
-            </tr>`
-                )
-                .join("")
-            : '<tr class="empty-row"><td colspan="5">No POs</td></tr>'}
-        </tbody>
-      </table>
-    `;
-    poBody.appendChild(poTableWrap);
-    poTableWrap.querySelectorAll(".po-approve").forEach((btn) => {
+  function refreshOrdersTable() {
+    const panel = contentHost.querySelector("#pur-orders-panel");
+    const tbody = contentHost.querySelector("#pur-po-table-tbody");
+    if (!panel || !tbody) {
+      render({ full: true });
+      return;
+    }
+    tbody.innerHTML = buildPoTableRowsHtml();
+  }
+
+  function openCreateMrDialog() {
+    const boqOpts = boqItems.map((b) => ({ value: b.id, label: b.item }));
+    openCustFormDialog({
+      title: "Create material request",
+      subtitle: "Supplier-side requisition for this project",
+      modalClass: "pur-mr-modal",
+      submitLabel: "Create",
+      values: { title: "", boqId: "", qty: "", amount: "" },
+      sections: [
+        {
+          title: "Request",
+          fields: [
+            { name: "title", label: "MR title", type: "text", required: true },
+            {
+              name: "boqId",
+              label: "BOQ line",
+              type: "select",
+              options: [{ value: "", label: "Optional BOQ line" }, ...boqOpts],
+            },
+            { name: "qty", label: "Quantity", type: "number" },
+            { name: "amount", label: "Estimated amount (BDT)", type: "number", required: true },
+          ],
+        },
+      ],
+      onSave: async (data) => {
+        await create(`materialRequests/${selectedProject}`, {
+          title: String(data.title || "").trim(),
+          boqId: data.boqId || "",
+          qty: Number(data.qty) || 0,
+          amount: Number(data.amount),
+          status: "draft",
+          requestType: "supplier",
+          deliveryStatus: "requested",
+          costCategory: "material",
+          projectId: selectedProject,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          createdBy: getCurrentUserId(),
+        });
+        showToast("MR created");
+        render();
+      },
+    });
+  }
+
+  function openAddSupplierDialog() {
+    openCustFormDialog({
+      title: "Add supplier",
+      modalClass: "pur-mr-modal",
+      submitLabel: "Add",
+      values: { vendorName: "" },
+      sections: [
+        {
+          title: "Supplier",
+          fields: [{ name: "vendorName", label: "Supplier name", type: "text", required: true }],
+        },
+      ],
+      onSave: async (data) => {
+        await createSupplier({
+          name: String(data.vendorName || "").trim(),
+          type: "material",
+          phone: "",
+          address: "",
+        });
+        showToast("Supplier added");
+      },
+    });
+  }
+
+  function bindMrActions(host) {
+    host.querySelectorAll(".mr-submit").forEach((btn) => {
+      btn.onclick = async () => {
+        try {
+          await submitMaterialRequest(selectedProject, btn.dataset.id);
+          showToast("MR submitted");
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      };
+    });
+    host.querySelectorAll(".mr-approve").forEach((btn) => {
       btn.onclick = async () => {
         const { canPerformAction } = await import("./svc_governance.js");
         if (!canPerformAction("approve")) {
-          showToast("Permission denied: cannot approve PO", "error");
+          showToast("Permission denied", "error");
           return;
         }
-        const po = pos.find((x) => x.id === btn.dataset.id);
-        if (!po) return;
-        const check = checkBudgetForApproval(selectedProject, po.amount);
-        if (!check.ok) {
-          showToast(check.message, "error");
-          return;
+        try {
+          await approveMaterialRequest(selectedProject, btn.dataset.id);
+          showToast("MR approved");
+        } catch (err) {
+          showToast(err.message, "error");
         }
-        const cur = readRef(`purchaseOrders/${selectedProject}/${po.id}`);
-        await updatePath(`purchaseOrders/${selectedProject}/${po.id}`, {
-          ...cur,
-          status: "approved",
-          updatedAt: Date.now(),
-        });
-        if (po.mrId) {
-          await syncMrOnPoApprove(selectedProject, po.id, po.mrId);
-        }
-        await writeAuditLog({
-          entityType: "purchaseOrder",
-          entityId: po.id,
-          action: "approve",
-          diffSummary: `PO approved ${formatBDT(po.amount)}`,
-        });
-        showToast("PO approved");
       };
     });
+  }
 
-    const grnCard = sectionCard("Goods Receipt (GRN)", "Receive and post to accounts");
-    const grnBody = grnCard.querySelector(".section-card-body");
+  function renderRequestsTab() {
+    const wrap = document.createElement("div");
+    wrap.className = "pur-tab-panel";
+    const tableHtml = `
+      <div class="table-wrap projects-table-wrap">
+        <table class="dash-table projects-table pur-mr-table" id="mr">
+          <thead><tr><th>Title</th><th class="cust-col-center">Amount</th><th class="cust-col-center">Status</th><th class="cust-col-center">Delivery</th><th class="cust-col-center">Actions</th></tr></thead>
+          <tbody>
+            ${mrs.length
+              ? mrs
+                  .map((m) => {
+                    const dClass = deliveryChipClass(m.deliveryStatus || "requested");
+                    let actions = "";
+                    if (m.status === "draft") {
+                      actions += `<button type="button" class="btn btn-ghost btn-sm mr-submit" data-id="${m.id}">Submit</button>`;
+                    }
+                    if (m.status === "submitted") {
+                      actions += `<button type="button" class="btn btn-primary btn-sm mr-approve" data-id="${m.id}">Approve</button>`;
+                    }
+                    const typeLabel =
+                      m.requestType === "central" ? '<span class="chip">Central issue</span>' : "";
+                    return `<tr>
+                    <td>${escapeHtml(m.title)} ${typeLabel}</td>
+                    <td class="cust-col-center">${formatBDT(m.amount)}</td>
+                    <td class="cust-col-center">${statusChip(m.status)}</td>
+                    <td class="cust-col-center"><span class="mr-delivery-chip mr-delivery-chip--${dClass}">${escapeHtml(deliveryStatusLabel(m.deliveryStatus || "requested"))}</span></td>
+                    <td class="cust-col-center proj-row-actions-cell">${actions || "—"}</td>
+                  </tr>`;
+                  })
+                  .join("")
+              : '<tr class="empty-row"><td colspan="5">No material requests</td></tr>'}
+          </tbody>
+        </table>
+      </div>`;
+    const section = purSection(
+      "Material requests",
+      "Site requisition and approval",
+      `<button type="button" class="btn btn-primary btn-sm" id="pur-create-mr">+ Create request</button>`,
+      tableHtml
+    );
+    wrap.appendChild(section);
+    section.querySelector("#pur-create-mr")?.addEventListener("click", () => openCreateMrDialog());
+    bindMrActions(section);
+    return wrap;
+  }
+
+  async function handlePoApprove(btn) {
+    if (btn.disabled) return;
+    if (!canPerformAction("approve")) {
+      showToast(
+        "You cannot approve POs with your role. Switch to Owner/PM/Procurement in Settings.",
+        "error"
+      );
+      return;
+    }
+    const po = pos.find((x) => x.id === btn.dataset.id);
+    if (!po) {
+      showToast("PO not found — refresh the page and try again.", "error");
+      return;
+    }
+    const check = checkBudgetForApproval(selectedProject, po.amount);
+    if (!check.ok) {
+      showToast(check.message, "error");
+      return;
+    }
+    showToast(
+      `Approving PO for ${po.vendorName || "vendor"} (${formatBDT(po.amount)})…`,
+      "info"
+    );
+    btn.disabled = true;
+    btn.classList.add("is-loading");
+    try {
+      const cur = readRef(`purchaseOrders/${selectedProject}/${po.id}`) || {};
+      await updatePath(`purchaseOrders/${selectedProject}/${po.id}`, {
+        ...cur,
+        status: "approved",
+        updatedAt: Date.now(),
+      });
+      if (po.mrId) {
+        await syncMrOnPoApprove(selectedProject, po.id, po.mrId);
+      }
+      await writeAuditLog({
+        entityType: "purchaseOrder",
+        entityId: po.id,
+        action: "approve",
+        diffSummary: `PO approved ${formatBDT(po.amount)}`,
+      });
+      showToast("PO approved — you can receive goods on the Goods receipt tab.");
+    } catch (err) {
+      showToast(err.message || "Could not approve PO", "error");
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove("is-loading");
+    }
+  }
+
+  function ensurePoApproveDelegation(host) {
+    if (host.dataset.poApproveDelegated === "1") return;
+    host.dataset.poApproveDelegated = "1";
+    host.addEventListener("click", (e) => {
+      const btn = e.target.closest(".po-approve");
+      if (!btn || !host.contains(btn)) return;
+      void handlePoApprove(btn);
+    });
+  }
+
+  function renderOrdersTab() {
+    const wrap = document.createElement("div");
+    wrap.className = "pur-tab-panel pur-orders-panel";
+    wrap.id = "pur-orders-panel";
+
+    const section = purSection(
+      "Purchase orders",
+      "Product → supplier → qty; one supplier per PO",
+      `<button type="button" class="btn btn-primary btn-sm" id="pur-toggle-composer">${poComposerExpanded ? "Hide builder" : "+ Build PO"}</button>`,
+      ""
+    );
+    const body = section.querySelector(".pur-section-body");
+
+    const composerHost = document.createElement("div");
+    composerHost.id = "pur-composer-slot";
+    composerHost.className = "pur-composer-host";
+    composerHost.hidden = !poComposerExpanded;
+    body.appendChild(composerHost);
+
+    if (poComposerExpanded) {
+      mountPoComposer(composerHost);
+    } else {
+      composerMounted = false;
+    }
+
+    const poTableWrap = document.createElement("div");
+    poTableWrap.id = "pur-po-table-wrap";
+    poTableWrap.className = "table-wrap projects-table-wrap";
+    poTableWrap.innerHTML = `
+      <table class="dash-table projects-table">
+        <thead><tr><th>Vendor</th><th>Items</th><th class="cust-col-center">Amount</th><th class="cust-col-center">Status</th><th class="cust-col-center">Actions</th></tr></thead>
+        <tbody id="pur-po-table-tbody">${buildPoTableRowsHtml()}</tbody>
+      </table>`;
+    body.appendChild(poTableWrap);
+
+    section.querySelector("#pur-toggle-composer")?.addEventListener("click", () => {
+      poComposerExpanded = !poComposerExpanded;
+      if (!poComposerExpanded) composerMounted = false;
+      render({ full: true });
+    });
+    wrap.appendChild(section);
+    ensurePoApproveDelegation(wrap);
+    return wrap;
+  }
+
+  function renderGrnTab() {
+    const wrap = document.createElement("div");
+    wrap.className = "pur-tab-panel";
     const approvedPos = pos.filter((p) => p.status === "approved");
+
+    const section = purSection("Goods receipt (GRN)", "Receive and post to accounts", "", "");
+    const body = section.querySelector(".pur-section-body");
+
     const grnPoWrap = document.createElement("div");
     grnPoWrap.className = "pur-grn-po-select";
     grnPoWrap.innerHTML = `
-      <label>Approved PO
-        <select id="pur-grn-po" class="toolbar-select">
+      <label class="cust-form-field">Approved PO
+        <select id="pur-grn-po" class="cust-form-input">
           <option value="">Select PO</option>
-          ${approvedPos.map((p) => `<option value="${p.id}">${escapeHtml(p.vendorName || "?")} ? ${escapeHtml(summarizePoItems(p))} ? ${formatBDT(p.amount)}</option>`).join("")}
+          ${approvedPos
+            .map(
+              (p) =>
+                `<option value="${p.id}" ${grnPoIdPersist === p.id ? "selected" : ""}>${escapeHtml(p.vendorName || "—")} · ${escapeHtml(summarizePoItems(p))} · ${formatBDT(p.amount)}</option>`
+            )
+            .join("")}
         </select>
-      </label>
-    `;
+      </label>`;
     const grnFormHost = document.createElement("div");
     grnFormHost.className = "pur-grn-form-host";
-    grnBody.append(grnPoWrap, grnFormHost);
+    body.append(grnPoWrap, grnFormHost);
+
     const grnTableWrap = document.createElement("div");
-    grnTableWrap.className = "table-wrap";
+    grnTableWrap.className = "table-wrap projects-table-wrap";
     grnTableWrap.innerHTML = `
-          <table class="dash-table" id="grn">
-            <thead><tr><th>PO</th><th>Items</th><th class="text-right">Amount</th><th>Date</th><th>Status</th><th>Central stock</th></tr></thead>
-            <tbody>
-              ${grns.length
-                ? grns
-                    .map((g) => {
-                      const po = pos.find((p) => p.id === g.poId);
-                      const centralBadge = g.centralStockPosted
-                        ? '<span class="central-grn-badge">Posted</span>'
-                        : "?";
-                      return `<tr>
-                        <td>${escapeHtml(po?.vendorName || g.poId)}</td>
-                        <td>${g.receiveLines?.length ? g.receiveLines.map((l) => `${escapeHtml(l.productName)} ?${l.qty}`).join(", ") : "?"}</td>
-                        <td class="text-right">${formatBDT(g.amount)}</td>
-                        <td>${escapeHtml(g.receiptDate || "")}</td>
-                        <td>${statusChip(g.status)}</td>
-                        <td>${centralBadge}</td>
-                      </tr>`;
-                    })
-                    .join("")
-                : '<tr class="empty-row"><td colspan="6">No GRNs</td></tr>'}
-            </tbody>
-          </table>`;
-    grnBody.appendChild(grnTableWrap);
+      <table class="dash-table projects-table" id="grn">
+        <thead><tr><th>PO</th><th>Items</th><th class="cust-col-center">Amount</th><th>Date</th><th class="cust-col-center">Status</th><th class="cust-col-center">Central stock</th></tr></thead>
+        <tbody>
+          ${grns.length
+            ? grns
+                .map((g) => {
+                  const po = pos.find((p) => p.id === g.poId);
+                  const centralBadge = g.centralStockPosted
+                    ? '<span class="central-grn-badge">Posted</span>'
+                    : "—";
+                  const items = g.receiveLines?.length
+                    ? g.receiveLines.map((l) => `${escapeHtml(l.productName)} ×${l.qty}`).join(", ")
+                    : "—";
+                  return `<tr>
+                    <td>${escapeHtml(po?.vendorName || g.poId)}</td>
+                    <td>${items}</td>
+                    <td class="cust-col-center">${formatBDT(g.amount)}</td>
+                    <td>${escapeHtml(g.receiptDate || "")}</td>
+                    <td class="cust-col-center">${statusChip(g.status)}</td>
+                    <td class="cust-col-center">${centralBadge}</td>
+                  </tr>`;
+                })
+                .join("")
+            : '<tr class="empty-row"><td colspan="6">No GRNs</td></tr>'}
+        </tbody>
+      </table>`;
+    body.appendChild(grnTableWrap);
 
     function mountGrnFormForPo(poId) {
+      grnPoIdPersist = poId || "";
       grnFormHost.innerHTML = "";
       if (!poId) return;
       const po = pos.find((p) => p.id === poId);
@@ -369,14 +556,14 @@ export function mountPurchases(container) {
             });
             showToast(
               posted.length
-                ? `GRN received ? AP posted; ${posted.length} line(s) added to central stock`
-                : "GRN received ? supplier bill posted to AP"
+                ? `GRN received · AP posted; ${posted.length} line(s) added to central stock`
+                : "GRN received · supplier bill posted to AP"
             );
           } catch (stockErr) {
             showToast(`GRN saved but central stock failed: ${stockErr.message}`, "error");
           }
-          grnPoWrap.querySelector("#pur-grn-po").value = "";
-          mountGrnFormForPo("");
+          grnPoIdPersist = "";
+          render();
         } catch (err) {
           showToast(err.message, "error");
         }
@@ -386,34 +573,43 @@ export function mountPurchases(container) {
 
     const grnPoSel = grnPoWrap.querySelector("#pur-grn-po");
     grnPoSel.onchange = () => mountGrnFormForPo(grnPoSel.value);
-    if (grnPoSel.value) mountGrnFormForPo(grnPoSel.value);
+    if (grnPoIdPersist) mountGrnFormForPo(grnPoIdPersist);
 
-    grid.innerHTML = "";
-    grid.append(mrCard, poCard, grnCard);
+    wrap.appendChild(section);
+    return wrap;
+  }
 
-    mrForm.onsubmit = async (e) => {
-      e.preventDefault();
-      try {
-        await create(`materialRequests/${selectedProject}`, {
-          title: mrForm.title.value.trim(),
-          boqId: mrForm.boqId.value,
-          qty: Number(mrForm.qty.value) || 0,
-          amount: Number(mrForm.amount.value),
-          status: "draft",
-          requestType: "supplier",
-          deliveryStatus: "requested",
-          costCategory: "material",
-          projectId: selectedProject,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          createdBy: getCurrentUserId(),
-        });
-        mrForm.reset();
-        showToast("MR created");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    };
+  function renderContentFull() {
+    contentHost.innerHTML = "";
+    if (!selectedProject) {
+      contentHost.innerHTML = `<p class="proj-empty card pur-empty-hint">Select a project to manage procurement</p>`;
+      composerMounted = false;
+      return;
+    }
+    if (activeTab === "requests") contentHost.appendChild(renderRequestsTab());
+    else if (activeTab === "orders") contentHost.appendChild(renderOrdersTab());
+    else if (activeTab === "grn") contentHost.appendChild(renderGrnTab());
+  }
+
+  function render(opts = {}) {
+    const full = opts.full === true;
+    renderChrome();
+    if (!selectedProject) {
+      contentHost.innerHTML = `<p class="proj-empty card pur-empty-hint">Select a project to manage procurement</p>`;
+      composerMounted = false;
+      return;
+    }
+    if (
+      !full &&
+      activeTab === "orders" &&
+      poComposerExpanded &&
+      composerMounted &&
+      contentHost.querySelector("#pur-orders-panel")
+    ) {
+      refreshOrdersTable();
+      return;
+    }
+    renderContentFull();
   }
 
   let unsubMr = () => {};
@@ -458,7 +654,9 @@ export function mountPurchases(container) {
       selectedProject = list[0].id;
       projectSel.value = selectedProject;
       bindProject();
-      render();
+      render({ full: true });
+    } else {
+      renderChrome();
     }
   });
 
@@ -479,39 +677,20 @@ export function mountPurchases(container) {
     supplierBillCount = list.length;
   });
 
-  const vendorForm = document.createElement("form");
-  vendorForm.className = "card card-pad form-grid";
-  vendorForm.style.marginTop = "1rem";
-  vendorForm.innerHTML = `
-    <input name="vendorName" placeholder="Supplier name" required />
-    <button type="submit" class="btn btn-dark btn-sm">Add supplier</button>
-  `;
-  vendorForm.onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await createSupplier({
-        name: vendorForm.vendorName.value.trim(),
-        type: "material",
-        phone: "",
-        address: "",
-      });
-      vendorForm.reset();
-      showToast("Supplier added");
-    } catch (err) {
-      showToast(err.message, "error");
-    }
-  };
-  root.appendChild(vendorForm);
-
   projectSel.onchange = () => {
     selectedProject = projectSel.value;
     poDraftLines.length = 0;
+    poComposerExpanded = false;
+    composerMounted = false;
+    grnPoIdPersist = "";
     bindProject();
-    render();
+    render({ full: true });
   };
 
+  root.querySelector("#pur-add-supplier")?.addEventListener("click", () => openAddSupplierDialog());
+
   bindSupplierProducts();
-  render();
+  render({ full: true });
 
   return {
     unmount: () => {

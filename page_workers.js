@@ -5,7 +5,7 @@ import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
 import { showToast } from "./cmp_toast.js";
 import { formatBDT } from "./util_format.js";
-import { openEditDialog, renderDataTable, escapeHtml } from "./cmp_projectTab.js";
+import { openEditDialog, openCustFormDialog, renderDataTable, escapeHtml, escAttr } from "./cmp_projectTab.js";
 import { icon } from "./cmp_icons.js";
 import { kpiIcon } from "./cmp_dashboardIcons.js";
 import { formatCompactBDT } from "./util_dashboard.js";
@@ -154,6 +154,19 @@ function workerFormFields(projects) {
   ];
 }
 
+function workerFormSections(projects) {
+  const fields = workerFormFields(projects);
+  const pick = (...names) =>
+    fields
+      .filter((f) => names.includes(f.name))
+      .map((f) => (f.name === "address" ? { ...f, fullWidth: true } : f));
+  return [
+    { title: "Personal details", fields: pick("name", "phone", "nid", "address") },
+    { title: "Employment & pay", fields: pick("designation", "employmentType", "wageRate", "status", "joiningDate") },
+    { title: "Site assignment", fields: pick("assignedProjectId", "photoUrl") },
+  ];
+}
+
 function defaultWorkerValues() {
   return {
     name: "",
@@ -256,6 +269,8 @@ export function mountWorkers(container) {
   let kpiHost = null;
   let tabHost = null;
   let contentHost = null;
+  let workerDetailOverlay = null;
+  let openWorkerDetailId = null;
   let unsubTransfers = () => {};
   let unsubDocuments = () => {};
 
@@ -367,26 +382,145 @@ export function mountWorkers(container) {
     });
   }
 
+  function onWorkerDetailEscape(e) {
+    if (e.key === "Escape") closeWorkerDetail();
+  }
+
+  function closeWorkerDetail() {
+    openWorkerDetailId = null;
+    document.removeEventListener("keydown", onWorkerDetailEscape);
+    document.body.classList.remove("cust-detail-open");
+    workerDetailOverlay?.remove();
+    workerDetailOverlay = null;
+    root.querySelectorAll(".wrk-list-row.row-selected").forEach((tr) => tr.classList.remove("row-selected"));
+  }
+
+  function syncWorkerDetailRowHighlight() {
+    if (!openWorkerDetailId) return;
+    root.querySelectorAll(".wrk-list-row").forEach((tr) => {
+      tr.classList.toggle("row-selected", tr.dataset.workerId === openWorkerDetailId);
+    });
+  }
+
+  function buildWorkerDetailHtml(worker) {
+    const detailField = (label, valueHtml, extraClass = "") =>
+      `<div class="cust-detail-field${extraClass ? ` ${extraClass}` : ""}"><span class="cust-detail-label">${escapeHtml(label)}</span><div class="cust-detail-value">${valueHtml}</div></div>`;
+
+    const site = projectName(worker.assignedProjectId);
+    const subParts = [worker.workerCode, designationLabel(worker.designation), site !== "?" ? site : ""].filter(Boolean);
+    const subline = subParts.map((s) => escapeHtml(s)).join(" ? ") || "?";
+    const phoneHtml = worker.phone
+      ? `<a href="tel:${escAttr(worker.phone)}">${escapeHtml(worker.phone)}</a>`
+      : "?";
+    const addr = worker.address || "";
+    const addrSnippet = addr
+      ? escapeHtml(addr.length > 220 ? `${addr.slice(0, 217)}?` : addr)
+      : "?";
+    const presentDays = presentDaysForWorkerMonth(state.attendance, worker.id, state.salaryMonth);
+
+    return `
+      <div class="cust-detail-head">
+        <div class="cust-detail-title">
+          ${renderWorkerAvatar(worker, "md")}
+          <div>
+            <strong id="wrk-detail-modal-title">${escapeHtml(worker.name)}</strong>
+            <span class="cust-detail-sub">${subline}</span>
+          </div>
+        </div>
+        <button type="button" class="icon-btn icon-btn--sm cust-detail-close" id="wrk-detail-close" aria-label="Close details">${icon("x", { size: 16 })}</button>
+      </div>
+      <div class="cust-detail-grid">
+        ${detailField("Designation", escapeHtml(designationLabel(worker.designation)))}
+        ${detailField("Status", renderWorkerStatusBadge(workerListStatus(worker)))}
+        ${detailField("Employment", escapeHtml(employmentTypeLabel(worker.employmentType)))}
+        ${detailField("Site", escapeHtml(site))}
+        ${detailField("Wage rate", formatBDT(worker.wageRate ?? worker.dailyWage))}
+        ${detailField("Phone", phoneHtml)}
+        ${detailField("Joining date", escapeHtml(worker.joiningDate || "?"))}
+        ${detailField("Worker code", escapeHtml(worker.workerCode || "?"))}
+        ${detailField("NID", escapeHtml(worker.nid || "?"))}
+      </div>
+      <div class="cust-detail-duo-row">
+        ${detailField("Address", addrSnippet)}
+        ${detailField("Present this month", `${presentDays} day${presentDays === 1 ? "" : "s"}`)}
+      </div>
+      <div class="cust-detail-actions">
+        <button type="button" class="btn btn-primary btn-sm" id="wrk-detail-edit">${icon("pencil", { size: 16 })} Edit</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="wrk-detail-profile">Worker profile</button>
+      </div>
+    `;
+  }
+
+  function wireWorkerDetailModal(modal, worker) {
+    modal.querySelector("#wrk-detail-close").onclick = () => closeWorkerDetail();
+    modal.querySelector("#wrk-detail-edit").onclick = () => {
+      closeWorkerDetail();
+      openWorkerDialog(worker);
+    };
+    modal.querySelector("#wrk-detail-profile").onclick = () => {
+      closeWorkerDetail();
+      openProfile(worker.id, "overview");
+    };
+    if (!modal.hasAttribute("tabindex")) modal.setAttribute("tabindex", "-1");
+    modal.focus({ preventScroll: true });
+  }
+
+  function openWorkerDetailModal(workerId) {
+    const worker = getWorker(workerId);
+    if (!worker) return;
+    closeWorkerDetail();
+    openWorkerDetailId = worker.id;
+
+    const overlay = document.createElement("div");
+    overlay.className = "cust-detail-overlay";
+    overlay.setAttribute("role", "presentation");
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeWorkerDetail();
+    });
+
+    const modal = document.createElement("div");
+    modal.className = "cust-detail-modal card";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "wrk-detail-modal-title");
+    modal.innerHTML = buildWorkerDetailHtml(worker);
+    modal.addEventListener("click", (e) => e.stopPropagation());
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    workerDetailOverlay = overlay;
+
+    document.body.classList.add("cust-detail-open");
+    document.addEventListener("keydown", onWorkerDetailEscape);
+    wireWorkerDetailModal(modal, worker);
+    syncWorkerDetailRowHighlight();
+  }
+
   function openWorkerDialog(worker = null) {
     const isEdit = Boolean(worker?.id);
-    openEditDialog(
-      isEdit ? "Edit worker" : "Add worker",
-      workerFormFields(state.projects),
-      isEdit
+    openCustFormDialog({
+      title: isEdit ? "Edit worker" : "Add worker",
+      subtitle: isEdit
+        ? "Update profile, pay rate, and site assignment."
+        : "Register a worker for attendance, salary, and site assignment.",
+      sections: workerFormSections(state.projects),
+      values: isEdit
         ? {
             ...defaultWorkerValues(),
             ...worker,
             wageRate: worker.wageRate ?? worker.dailyWage ?? "",
           }
         : defaultWorkerValues(),
-      async (vals) => {
+      submitLabel: isEdit ? "Save changes" : "Save worker",
+      modalClass: "wrk-worker-modal",
+      onSave: async (vals) => {
         const payload = { ...vals, wageRate: Number(vals.wageRate) || 0 };
         try {
           if (isEdit) {
             await updateWorker(worker.id, payload);
             showToast("Worker updated");
           } else {
-            const id = await createWorker(payload);
+            await createWorker(payload);
             showToast("Worker added");
           }
           render();
@@ -394,8 +528,8 @@ export function mountWorkers(container) {
           showToast(err.message, "error");
           throw err;
         }
-      }
-    );
+      },
+    });
   }
 
   function openAdvanceModal() {
@@ -828,7 +962,9 @@ export function mountWorkers(container) {
           <tbody>
             ${page.items
               .map(
-                (w) => `<tr data-worker-id="${escapeHtml(w.id)}" class="wrk-list-row">
+                (w) => {
+                  const selected = w.id === openWorkerDetailId;
+                  return `<tr data-worker-id="${escapeHtml(w.id)}" class="cust-row wrk-list-row${selected ? " row-selected" : ""}">
               <td>${renderWorkerListNameCell(w)}</td>
               <td>${escapeHtml(designationLabel(w.designation))}</td>
               <td>${escapeHtml(projectName(w.assignedProjectId))}</td>
@@ -836,7 +972,8 @@ export function mountWorkers(container) {
               <td class="cust-col-center wrk-list-action-cell">
                 ${renderListDetailsBtn(w.id)}
               </td>
-            </tr>`
+            </tr>`;
+                }
               )
               .join("")}
           </tbody>
@@ -909,15 +1046,17 @@ export function mountWorkers(container) {
     wrap.querySelectorAll(".wrk-list-row, .wrk-mobile-card").forEach((row) => {
       row.onclick = (e) => {
         if (e.target.closest(".wrk-list-action-cell, .wrk-list-details-btn, .wrk-mobile-details-badge, .wrk-view-btn")) return;
-        openProfile(row.dataset.workerId);
+        openWorkerDetailModal(row.dataset.workerId);
       };
     });
     wrap.querySelectorAll(".wrk-view-btn").forEach((btn) => {
       btn.onclick = (e) => {
         e.stopPropagation();
-        openProfile(btn.dataset.id);
+        openWorkerDetailModal(btn.dataset.id);
       };
     });
+
+    syncWorkerDetailRowHighlight();
 
     return wrap;
   }
@@ -1653,6 +1792,7 @@ export function mountWorkers(container) {
       unsubStockOut();
       unsubTransfers();
       unsubDocuments();
+      closeWorkerDetail();
       root.querySelector(".wrk-profile-overlay")?.remove();
     },
   };

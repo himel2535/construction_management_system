@@ -7,6 +7,7 @@ export const DASH_ICONS = {
     receivable: "kpi-receivable",
     collection: "kpi-collection",
     expense: "kpi-expense",
+    taka: "kpi-taka",
   },
   clientKpi: {
     total: "cust-kpi-total-clients",
@@ -46,6 +47,18 @@ export const DASH_ICONS = {
     gear: "milestone-gear",
     bag: "milestone-bag",
   },
+  supplierKpi: {
+    suppliers: "sup-kpi-suppliers",
+    outstanding: "kpi-receivable",
+    overdue: "attention-warning",
+    paidMonth: "kpi-collection",
+  },
+  supplierAging: {
+    current: "sup-aging-current",
+    d31_60: "sup-aging-d31",
+    d61_90: "sup-aging-d61",
+    d90plus: "sup-aging-d90",
+  },
 };
 
 export function dashboardIcon(name, className = "dash-color-icon") {
@@ -54,6 +67,23 @@ export function dashboardIcon(name, className = "dash-color-icon") {
 
 export function kpiIcon(type) {
   return dashboardIcon(DASH_ICONS.kpi[type] || DASH_ICONS.kpi.projects);
+}
+
+/** Taka (BDT) icon for money KPIs and report cards. */
+export function takaIcon(className = "dash-color-icon") {
+  return dashboardIcon(DASH_ICONS.kpi.taka, className);
+}
+
+/** Suppliers page KPI strip — distinct icon per card. */
+export function supplierKpiIcon(type, className = "dash-color-icon cust-kpi-flat-icon") {
+  const file = DASH_ICONS.supplierKpi[type] || DASH_ICONS.supplierKpi.suppliers;
+  return `<img class="${className}" src="${ICON_PATH}/${file}.svg" width="38" height="38" alt="" decoding="async" />`;
+}
+
+/** Suppliers Reports aging bucket icons. */
+export function supplierAgingIcon(bucketKey, className = "sup-aging-card-icon") {
+  const file = DASH_ICONS.supplierAging[bucketKey] || DASH_ICONS.supplierAging.current;
+  return dashboardIcon(file, className);
 }
 
 /** Flat colorful icons for Clients directory KPI cards (no pastel box). */

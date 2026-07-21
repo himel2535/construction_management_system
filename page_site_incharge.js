@@ -1,5 +1,6 @@
 import { listenList, listenProjectSub, create } from "./svc_data.js";
 import { showToast } from "./cmp_toast.js";
+import { confirmAction } from "./cmp_confirm.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
 import { getRoutePath, getRouteQuery } from "./util_route.js";
@@ -55,8 +56,9 @@ import { submitMaterialRequest } from "./svc_materialRequest.js";
 import { canPerformAction } from "./svc_governance.js";
 import { getCurrentUserId } from "./svc_auth.js";
 import { rollupSiteLedger, issuedVsUsedVariance, mapProductToInventoryMaterial } from "./util_stockLedger.js";
+import { openCustFormDialog } from "./cmp_projectTab.js";
 import {
-  renderSiteInchargeKpiRow,
+  renderSiteInchargeKpiStripHtml,
   renderSiteInchargeListItem,
   renderSiteInchargeHeader,
   renderSiteInchargeTabBar,
@@ -94,7 +96,7 @@ function updateHashParams(patch) {
 export function mountSiteIncharge(container) {
   setActiveNav();
   setPageChrome({
-    title: "Site In-charge",
+    title: "Site Management",
     subtitle: "Field project managers — material usage, workers, and monthly settlement",
     showDateRange: false,
     quickActionLabel: "",
@@ -102,7 +104,7 @@ export function mountSiteIncharge(container) {
   });
 
   const root = document.createElement("div");
-  root.className = "site-incharge-page suppliers-page dashboard-page";
+  root.className = "site-incharge-page dashboard-page dashboard-mockup";
   container.appendChild(root);
 
   const hashParams = parseHashParams();
@@ -148,11 +150,11 @@ export function mountSiteIncharge(container) {
   };
 
   root.innerHTML = `
-    <div class="sup-layout">
-      <div id="sic-kpi-host" class="sup-kpi-host"></div>
-      <div class="sup-split">
-        <aside class="sup-list-panel card" id="sic-list-panel"></aside>
-        <main class="sup-detail-panel" id="sic-detail-panel">
+    <div class="sup-layout sic-mockup-layout">
+      <div id="sic-kpi-host" class="dash-kpi-row sic-kpi-host"></div>
+      <div class="sup-split sic-split">
+        <aside class="dash-widget dash-widget--projects card sup-list-panel sic-list-panel" id="sic-list-panel"></aside>
+        <main class="sup-detail-panel sic-detail-panel" id="sic-detail-panel">
           <p class="proj-empty">Select a site in-charge or create a new one</p>
         </main>
       </div>
@@ -317,37 +319,32 @@ export function mountSiteIncharge(container) {
   }
 
   function renderKpi() {
-    kpiHost.innerHTML = "";
-    kpiHost.appendChild(
-      renderSiteInchargeKpiRow(pageStats(), {
-        onNew: () => {
-          state.selectedId = "__new__";
-          state.wizardStep = 1;
-          state.activeTab = "overview";
-          renderDetail();
-        },
-      })
-    );
+    kpiHost.innerHTML = renderSiteInchargeKpiStripHtml(pageStats());
   }
 
   function renderList() {
     const list = filteredList();
     listPanel.innerHTML = `
-      <div class="sup-list-toolbar">
-        <div class="sup-search-row">
-          <span class="sup-search-wrap">
-            ${icon("search", { size: 14, className: "icon sup-search-icon" })}
-            <input type="search" class="toolbar-input sup-search-input" id="sic-search" placeholder="Search in-charges..." value="${escapeHtml(state.filterQuery)}" />
-          </span>
-        </div>
-        <select class="toolbar-select" id="sic-status-filter">
-          <option value="all">Status: All</option>
-          <option value="active" ${state.filterStatus === "active" ? "selected" : ""}>Active</option>
-          <option value="inactive" ${state.filterStatus === "inactive" ? "selected" : ""}>Inactive</option>
-        </select>
+      <div class="dash-widget-head">
+        <h3 class="dash-widget-title">Site in-charges</h3>
       </div>
-      <div class="sup-list-items" id="sic-list-items"></div>
+      <div class="dash-widget-body sic-list-body">
+        <div class="toolbar-row projects-toolbar sic-list-toolbar">
+          <div class="cust-toolbar-search toolbar-search">
+            ${icon("search", { size: 16, className: "icon cust-toolbar-search-icon" })}
+            <input type="search" class="cust-toolbar-search-input" id="sic-search" placeholder="Search in-charges..." autocomplete="off" value="${escapeHtml(state.filterQuery)}" />
+          </div>
+          <select class="cust-form-input toolbar-select sic-status-filter" id="sic-status-filter">
+            <option value="all">Status: All</option>
+            <option value="active" ${state.filterStatus === "active" ? "selected" : ""}>Active</option>
+            <option value="inactive" ${state.filterStatus === "inactive" ? "selected" : ""}>Inactive</option>
+          </select>
+          <button type="button" class="btn btn-primary btn-sm" id="sic-new-btn">+ New site in-charge</button>
+        </div>
+        <div class="sup-list-items sic-list-items" id="sic-list-items"></div>
+      </div>
     `;
+    listPanel.querySelector("#sic-new-btn")?.addEventListener("click", () => openCreateSiteInChargeDialog());
     const itemsEl = listPanel.querySelector("#sic-list-items");
     if (!list.length) {
       itemsEl.innerHTML = `<p class="proj-empty">No site in-charges yet</p>`;
@@ -373,94 +370,97 @@ export function mountSiteIncharge(container) {
     });
   }
 
+  function activeProjectOptions() {
+    return state.projects
+      .filter((p) => p.status !== "completed" && p.status !== "cancelled")
+      .map((p) => ({ value: p.id, label: p.name }));
+  }
+
   function openAssignDialog(sic) {
-    const dlg = document.createElement("dialog");
-    dlg.className = "modal-dialog";
-    const activeProjects = state.projects.filter((p) => p.status !== "completed" && p.status !== "cancelled");
-    dlg.innerHTML = `
-      <form method="dialog" class="modal-form">
-        <h3>Assign project</h3>
-        <label>Project<select name="projectId" required>
-          <option value="">Select project</option>
-          ${activeProjects.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("")}
-        </select></label>
-        <label>Start date<input type="date" name="startDate" value="${todayISO()}" /></label>
-        <p class="form-hint">One active site in-charge per project. Previous assignment on that project will end.</p>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" data-cancel>Cancel</button>
-          <button type="submit" class="btn btn-primary">Assign</button>
-        </div>
-      </form>
-    `;
-    document.body.appendChild(dlg);
-    dlg.showModal();
-    dlg.querySelector("[data-cancel]")?.addEventListener("click", () => dlg.close());
-    dlg.querySelector("form")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const projectId = fd.get("projectId");
-      const project = state.projects.find((p) => p.id === projectId);
-      if (!project) {
-        showToast("Select a project", "error");
-        return;
-      }
-      try {
+    openCustFormDialog({
+      title: "Assign project",
+      subtitle: "One active site in-charge per project. Previous assignment on that project will end.",
+      modalClass: "sic-profile-modal",
+      submitLabel: "Assign",
+      values: { startDate: todayISO() },
+      sections: [
+        {
+          title: "Project",
+          fields: [
+            { name: "projectId", label: "Project", type: "select", required: true, options: [{ value: "", label: "Select project" }, ...activeProjectOptions()] },
+            { name: "startDate", label: "Start date", type: "date", required: true },
+          ],
+        },
+      ],
+      onSave: async (data) => {
+        const project = state.projects.find((p) => p.id === data.projectId);
+        if (!project) {
+          showToast("Select a project", "error");
+          return false;
+        }
         await assignSiteInChargeToProject({
           siteInChargeId: sic.id,
-          projectId,
+          projectId: data.projectId,
           projectName: project.name,
-          startDate: fd.get("startDate") || todayISO(),
+          startDate: data.startDate || todayISO(),
         });
-        state.contextProjectId = projectId;
-        bindProjectSubs(projectId);
+        state.contextProjectId = data.projectId;
+        bindProjectSubs(data.projectId);
         showToast("Project assigned — previous in-charge on this project was ended");
-        dlg.close();
         render();
-      } catch (err) {
-        showToast(err.message, "error");
-      }
+      },
     });
-    dlg.addEventListener("close", () => dlg.remove());
   }
 
   function openEditDialog(sic) {
-    const dlg = document.createElement("dialog");
-    dlg.className = "modal-dialog";
-    dlg.innerHTML = `
-      <form method="dialog" class="modal-form">
-        <h3>Edit site in-charge</h3>
-        <label>Name<input name="name" required value="${escapeHtml(sic.name)}" /></label>
-        <label>Phone<input name="phone" value="${escapeHtml(sic.phone || "")}" /></label>
-        <label>NID<input name="nid" value="${escapeHtml(sic.nid || "")}" /></label>
-        <label>Monthly rate (BDT)<input type="number" name="monthlyRate" min="0" value="${sic.monthlyRate || ""}" /></label>
-        <label>Status<select name="status">
-          <option value="active" ${sic.status !== "inactive" ? "selected" : ""}>Active</option>
-          <option value="inactive" ${sic.status === "inactive" ? "selected" : ""}>Inactive</option>
-        </select></label>
-        <label>Address<textarea name="address" rows="2">${escapeHtml(sic.address || "")}</textarea></label>
-        <label>Notes<textarea name="notes" rows="2">${escapeHtml(sic.notes || "")}</textarea></label>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" data-cancel>Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
-        </div>
-      </form>
-    `;
-    document.body.appendChild(dlg);
-    dlg.showModal();
-    dlg.querySelector("[data-cancel]")?.addEventListener("click", () => dlg.close());
-    dlg.querySelector("form")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      try {
-        const newStatus = fd.get("status");
+    openCustFormDialog({
+      title: "Edit site in-charge",
+      modalClass: "sic-profile-modal",
+      submitLabel: "Save",
+      values: {
+        name: sic.name,
+        phone: sic.phone || "",
+        nid: sic.nid || "",
+        monthlyRate: sic.monthlyRate || "",
+        status: sic.status !== "inactive" ? "active" : "inactive",
+        address: sic.address || "",
+        notes: sic.notes || "",
+      },
+      sections: [
+        {
+          title: "Profile",
+          fields: [
+            { name: "name", label: "Name", type: "text", required: true },
+            { name: "phone", label: "Phone", type: "text" },
+            { name: "nid", label: "NID", type: "text" },
+            { name: "monthlyRate", label: "Monthly rate (BDT)", type: "number" },
+            {
+              name: "status",
+              label: "Status",
+              type: "select",
+              options: [
+                { value: "active", label: "Active" },
+                { value: "inactive", label: "Inactive" },
+              ],
+            },
+            { name: "address", label: "Address", type: "textarea", fullWidth: true },
+          ],
+        },
+        {
+          title: "Notes",
+          fields: [{ name: "notes", label: "Notes", type: "textarea", fullWidth: true }],
+        },
+      ],
+      onSave: async (data) => {
+        const newStatus = data.status;
         await updateSiteInCharge(sic.id, {
-          name: fd.get("name"),
-          phone: fd.get("phone"),
-          nid: fd.get("nid"),
-          monthlyRate: Number(fd.get("monthlyRate")) || 0,
+          name: data.name,
+          phone: data.phone,
+          nid: data.nid,
+          monthlyRate: Number(data.monthlyRate) || 0,
           status: newStatus,
-          address: fd.get("address"),
-          notes: fd.get("notes"),
+          address: data.address,
+          notes: data.notes,
         });
         if (newStatus === "inactive") {
           const active = activeAssignmentsForInCharge(state.assignments, sic.id);
@@ -471,206 +471,219 @@ export function mountSiteIncharge(container) {
           bindProjectSubs(null);
         }
         showToast("Saved");
-        dlg.close();
         render();
-      } catch (err) {
-        showToast(err.message, "error");
-      }
+      },
     });
-    dlg.addEventListener("close", () => dlg.remove());
+  }
+
+  function openCreateSiteInChargeDialog() {
+    openCustFormDialog({
+      title: "Create site in-charge",
+      subtitle: "Field PM — material, labor, and site accountability",
+      modalClass: "sic-profile-modal",
+      submitLabel: "Create",
+      values: { startDate: todayISO(), projectId: "" },
+      sections: [
+        {
+          title: "Profile",
+          fields: [
+            { name: "name", label: "Name", type: "text", required: true },
+            { name: "phone", label: "Phone", type: "text" },
+            { name: "nid", label: "NID", type: "text" },
+            { name: "monthlyRate", label: "Monthly rate (optional)", type: "number" },
+            { name: "address", label: "Address", type: "textarea", fullWidth: true },
+          ],
+        },
+        {
+          title: "Project (optional)",
+          fields: [
+            {
+              name: "projectId",
+              label: "Assign to project",
+              type: "select",
+              options: [{ value: "", label: "None — assign later" }, ...activeProjectOptions()],
+            },
+            { name: "startDate", label: "Start date", type: "date" },
+          ],
+        },
+      ],
+      onSave: async (data) => {
+        const proj = state.projects.find((p) => p.id === data.projectId);
+        const id = await createSiteInChargeWithProject(
+          {
+            name: data.name,
+            phone: data.phone,
+            address: data.address,
+            nid: data.nid,
+            monthlyRate: Number(data.monthlyRate) || 0,
+            startDate: data.startDate || todayISO(),
+          },
+          data.projectId || "",
+          proj?.name || ""
+        );
+        state.selectedId = id;
+        state.contextProjectId = data.projectId || "";
+        state.activeTab = "overview";
+        updateHashParams({ id, projectId: state.contextProjectId, tab: state.activeTab });
+        if (data.projectId) bindProjectSubs(data.projectId);
+        showToast("Site in-charge created");
+        render();
+      },
+    });
+  }
+
+  function materialUsageGridHtml(itemsByKey = {}) {
+    const head = `<div class="sic-mat-row sic-mat-row--head" aria-hidden="true">
+      <span>Material</span><span>Used</span><span>Wasted</span><span>Reason</span><span>Used for</span><span>Unit</span>
+    </div>`;
+    const rows = MATERIAL_PRESETS.map((p) => {
+      const item = itemsByKey[p.materialKey];
+      const used = item?.usedQty ?? item?.qty ?? "";
+      const wasted = item?.wastedQty ?? "";
+      return `<div class="sic-mat-row sic-mat-row--usage">
+        <label class="sic-mat-label">${escapeHtml(p.label)}</label>
+        <input type="number" min="0" step="any" class="cust-form-input sic-mat-used" data-key="${p.materialKey}" data-unit="${p.unit}" value="${used}" placeholder="Used" />
+        <input type="number" min="0" step="any" class="cust-form-input sic-mat-wasted" data-key="${p.materialKey}" value="${wasted}" placeholder="Wasted" />
+        <input type="text" class="cust-form-input sic-mat-waste-reason" data-key="${p.materialKey}" value="${escapeHtml(item?.wasteReason || "")}" placeholder="Waste reason" />
+        <input type="text" class="cust-form-input sic-mat-used-for" data-key="${p.materialKey}" value="${escapeHtml(item?.usedFor || "")}" placeholder="Used for" />
+        <span class="sic-mat-unit">${escapeHtml(p.unit)}</span>
+      </div>`;
+    }).join("");
+    return `<div class="sic-mat-grid">${head}${rows}</div>`;
+  }
+
+  function collectMatItemsFromRoot(root) {
+    const items = [];
+    root.querySelectorAll(".sic-mat-row--usage").forEach((row) => {
+      const materialKey = row.querySelector(".sic-mat-used")?.dataset.key;
+      const preset = MATERIAL_PRESETS.find((p) => p.materialKey === materialKey);
+      const usedQty = Number(row.querySelector(".sic-mat-used")?.value) || 0;
+      const wastedQty = Number(row.querySelector(".sic-mat-wasted")?.value) || 0;
+      if (!usedQty && !wastedQty) return;
+      items.push({
+        materialKey,
+        inventoryMaterialId: presetInventoryId(preset || { materialKey, label: materialKey }),
+        label: preset?.label || materialKey,
+        unit: preset?.unit || "unit",
+        usedQty,
+        wastedQty,
+        wasteReason: String(row.querySelector(".sic-mat-waste-reason")?.value || "").trim(),
+        usedFor: String(row.querySelector(".sic-mat-used-for")?.value || "").trim(),
+        qty: usedQty + wastedQty,
+      });
+    });
+    return items;
+  }
+
+  function openMaterialLogDialog(sic, proj, { log = null } = {}) {
+    const isEdit = Boolean(log);
+    const lastLog = !isEdit ? findLastMaterialLog(state.materialLogs, sic.id) : null;
+    const itemsByKey = {};
+    if (log?.items) {
+      for (const i of log.items) itemsByKey[i.materialKey] = i;
+    }
+    let matModalEl = null;
+    openCustFormDialog({
+      title: isEdit ? "Edit material log" : "Log material usage",
+      modalClass: "sic-material-modal",
+      submitLabel: isEdit ? "Save" : "Save usage log",
+      values: { logDate: log?.logDate || todayISO(), remarks: log?.remarks || "" },
+      sections: [
+        {
+          title: "Log",
+          fields: [
+            { name: "logDate", label: "Date", type: "date", required: true },
+            { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true },
+          ],
+        },
+      ],
+      onReady: ({ modal }) => {
+        matModalEl = modal;
+        const form = modal.querySelector("form");
+        const shell = form?.querySelector(".cust-form-shell");
+        if (!shell) return;
+        const row = document.createElement("div");
+        row.className = "cust-form-row sic-mat-modal-row";
+        row.innerHTML = `
+          <div class="cust-form-section cust-form-section--full">
+            <div class="cust-form-section-head">
+              <h4 class="cust-form-section-title">Materials</h4>
+              <button type="button" class="btn btn-ghost btn-sm" id="sic-copy-last-log" ${lastLog ? "" : "disabled"}>Copy last log</button>
+            </div>
+            <div class="cust-form-section-body">${materialUsageGridHtml(itemsByKey)}</div>
+          </div>`;
+        shell.appendChild(row);
+        row.querySelector("#sic-copy-last-log")?.addEventListener("click", () => {
+          if (!lastLog?.items?.length) return;
+          const byKey = {};
+          for (const item of lastLog.items) byKey[item.materialKey] = item;
+          const body = row.querySelector(".cust-form-section-body");
+          if (body) body.innerHTML = materialUsageGridHtml(byKey);
+          showToast("Copied from last log");
+        });
+      },
+      onSave: async (data) => {
+        const logDate = data.logDate;
+        if (
+          hasDuplicateMaterialLog(state.materialLogs, {
+            siteInChargeId: sic.id,
+            logDate,
+            excludeId: log?.id,
+          })
+        ) {
+          showToast(isEdit ? "Another log exists for this date" : "A log already exists for this date", "error");
+          throw new Error("duplicate");
+        }
+        const gridRoot = matModalEl || document.body;
+        const items = collectMatItemsFromRoot(gridRoot);
+        if (!items.length) {
+          showToast("Enter at least one quantity", "error");
+          throw new Error("empty");
+        }
+        if (isEdit) {
+          await updateMaterialLog(proj.id, log.id, {
+            logDate,
+            items,
+            remarks: data.remarks,
+          });
+          showToast("Log updated");
+        } else {
+          await createMaterialLog(proj.id, {
+            siteInChargeId: sic.id,
+            logDate,
+            items,
+            remarks: data.remarks,
+            status: "submitted",
+          });
+          showToast("Material log saved");
+        }
+        renderDetail();
+      },
+    });
   }
 
   function openMaterialEditDialog(sic, proj, log) {
-    const dlg = document.createElement("dialog");
-    dlg.className = "modal-dialog modal-dialog--wide";
-    const presetRows = MATERIAL_PRESETS.map((p) => {
-      const item = (log.items || []).find((i) => i.materialKey === p.materialKey);
-      return `
-        <div class="sic-mat-row sic-mat-row--usage">
-          <label class="sic-mat-label">${escapeHtml(p.label)}</label>
-          <input type="number" min="0" step="any" class="toolbar-input sic-mat-used" data-key="${p.materialKey}" data-unit="${p.unit}" value="${item?.usedQty ?? item?.qty ?? ""}" placeholder="Used" />
-          <input type="number" min="0" step="any" class="toolbar-input sic-mat-wasted" data-key="${p.materialKey}" value="${item?.wastedQty || ""}" placeholder="Wasted" />
-          <input type="text" class="toolbar-input sic-mat-waste-reason" data-key="${p.materialKey}" value="${escapeHtml(item?.wasteReason || "")}" placeholder="Waste reason" />
-          <input type="text" class="toolbar-input sic-mat-used-for" data-key="${p.materialKey}" value="${escapeHtml(item?.usedFor || "")}" placeholder="Used for" />
-          <span class="sic-mat-unit">${escapeHtml(p.unit)}</span>
-        </div>`;
-    }).join("");
-    dlg.innerHTML = `
-      <form method="dialog" class="modal-form">
-        <h3>Edit material log</h3>
-        <label>Date<input type="date" name="logDate" value="${escapeHtml(log.logDate)}" required /></label>
-        <div class="sic-mat-grid">${presetRows}</div>
-        <label>Remarks<textarea name="remarks" rows="2">${escapeHtml(log.remarks || "")}</textarea></label>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" data-cancel>Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
-        </div>
-      </form>
-    `;
-    document.body.appendChild(dlg);
-    dlg.showModal();
-    dlg.querySelector("[data-cancel]")?.addEventListener("click", () => dlg.close());
-    dlg.querySelector("form")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const logDate = fd.get("logDate");
-      if (
-        hasDuplicateMaterialLog(state.materialLogs, {
-          siteInChargeId: sic.id,
-          logDate,
-          excludeId: log.id,
-        })
-      ) {
-        showToast("Another log exists for this date", "error");
-        return;
-      }
-      const items = [];
-      dlg.querySelectorAll(".sic-mat-row").forEach((row) => {
-        const materialKey = row.querySelector(".sic-mat-used")?.dataset.key;
-        const preset = MATERIAL_PRESETS.find((p) => p.materialKey === materialKey);
-        const usedQty = Number(row.querySelector(".sic-mat-used")?.value) || 0;
-        const wastedQty = Number(row.querySelector(".sic-mat-wasted")?.value) || 0;
-        if (!usedQty && !wastedQty) return;
-        items.push({
-          materialKey,
-          inventoryMaterialId: presetInventoryId(preset || { materialKey, label: materialKey }),
-          label: preset?.label || materialKey,
-          unit: preset?.unit || "unit",
-          usedQty,
-          wastedQty,
-          wasteReason: String(row.querySelector(".sic-mat-waste-reason")?.value || "").trim(),
-          usedFor: String(row.querySelector(".sic-mat-used-for")?.value || "").trim(),
-          qty: usedQty + wastedQty,
-        });
-      });
-      if (!items.length) {
-        showToast("Enter at least one quantity", "error");
-        return;
-      }
-      try {
-        await updateMaterialLog(proj.id, log.id, {
-          logDate,
-          items,
-          remarks: fd.get("remarks"),
-        });
-        showToast("Log updated");
-        dlg.close();
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    });
-    dlg.addEventListener("close", () => dlg.remove());
+    openMaterialLogDialog(sic, proj, { log });
   }
 
-  function renderWizard() {
-    const step = state.wizardStep;
-    detailPanel.innerHTML = `
-      <div class="card sic-wizard">
-        <h2 class="sic-wizard-title">New Site In-charge</h2>
-        <p class="sic-wizard-sub">Field PM — material, labor, and site accountability</p>
-        <div class="sic-wizard-steps">
-          <span class="${step >= 1 ? "is-active" : ""}">1. Profile</span>
-          <span class="${step >= 2 ? "is-active" : ""}">2. Project</span>
-          <span class="${step >= 3 ? "is-active" : ""}">3. Confirm</span>
-        </div>
-        <form id="sic-wizard-form" class="sic-wizard-form"></form>
+  function sectionWithToolbar(title, toolbarHtml, bodyEl) {
+    const section = document.createElement("section");
+    section.className = "dash-widget dash-widget--projects card sic-report-block";
+    section.innerHTML = `
+      <div class="dash-widget-head dash-widget-head--split">
+        <h3 class="dash-widget-title">${escapeHtml(title)}</h3>
+        <div class="cust-toolbar-btn-group">${toolbarHtml}</div>
       </div>
+      <div class="dash-widget-body sic-section-body"></div>
     `;
-    const form = detailPanel.querySelector("#sic-wizard-form");
-    const draft = state._wizardDraft || {};
-    const activeProjects = state.projects.filter((p) => p.status !== "completed" && p.status !== "cancelled");
+    const body = section.querySelector(".sic-section-body");
+    if (typeof bodyEl === "string") body.innerHTML = bodyEl;
+    else body.appendChild(bodyEl);
+    return section;
+  }
 
-    if (step === 1) {
-      form.innerHTML = `
-        <label>Name<input name="name" required value="${escapeHtml(draft.name || "")}" /></label>
-        <label>Phone<input name="phone" value="${escapeHtml(draft.phone || "")}" /></label>
-        <label>NID<input name="nid" value="${escapeHtml(draft.nid || "")}" /></label>
-        <label>Address<textarea name="address" rows="2">${escapeHtml(draft.address || "")}</textarea></label>
-        <label>Monthly rate (optional)<input type="number" name="monthlyRate" min="0" value="${draft.monthlyRate || ""}" /></label>
-        <button type="submit" class="btn btn-primary">Next: Assign project</button>
-      `;
-      form.onsubmit = (e) => {
-        e.preventDefault();
-        const fd = new FormData(form);
-        state._wizardDraft = {
-          ...draft,
-          name: fd.get("name"),
-          phone: fd.get("phone"),
-          nid: fd.get("nid"),
-          address: fd.get("address"),
-          monthlyRate: fd.get("monthlyRate"),
-        };
-        state.wizardStep = 2;
-        renderWizard();
-      };
-    } else if (step === 2) {
-      form.innerHTML = `
-        <label>Assign to project<select name="projectId">
-          <option value="">— None (assign later) —</option>
-          ${activeProjects.map((p) => `<option value="${p.id}" ${draft.projectId === p.id ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
-        </select></label>
-        <label>Start date<input type="date" name="startDate" value="${draft.startDate || todayISO()}" /></label>
-        <div class="sic-wizard-nav">
-          <button type="button" class="btn btn-ghost" id="sic-wiz-back">Back</button>
-          <button type="submit" class="btn btn-primary">Next: Confirm</button>
-        </div>
-      `;
-      form.querySelector("#sic-wiz-back")?.addEventListener("click", () => {
-        state.wizardStep = 1;
-        renderWizard();
-      });
-      form.onsubmit = (e) => {
-        e.preventDefault();
-        const fd = new FormData(form);
-        state._wizardDraft = { ...state._wizardDraft, projectId: fd.get("projectId"), startDate: fd.get("startDate") };
-        state.wizardStep = 3;
-        renderWizard();
-      };
-    } else {
-      const d = state._wizardDraft || {};
-      const proj = state.projects.find((p) => p.id === d.projectId);
-      form.innerHTML = `
-        <div class="sic-confirm-box">
-          <p><strong>${escapeHtml(d.name)}</strong> will be created as site in-charge.</p>
-          ${proj ? `<p>Project <strong>${escapeHtml(proj.name)}</strong> — material + labor accountability transfers to this person.</p>` : "<p>No project assigned yet. You can assign from Overview.</p>"}
-        </div>
-        <div class="sic-wizard-nav">
-          <button type="button" class="btn btn-ghost" id="sic-wiz-back">Back</button>
-          <button type="submit" class="btn btn-primary">Create Site In-charge</button>
-        </div>
-      `;
-      form.querySelector("#sic-wiz-back")?.addEventListener("click", () => {
-        state.wizardStep = 2;
-        renderWizard();
-      });
-      form.onsubmit = async (e) => {
-        e.preventDefault();
-        try {
-          const proj = state.projects.find((p) => p.id === d.projectId);
-          const id = await createSiteInChargeWithProject(
-            {
-              name: d.name,
-              phone: d.phone,
-              address: d.address,
-              nid: d.nid,
-              monthlyRate: Number(d.monthlyRate) || 0,
-              startDate: d.startDate,
-            },
-            d.projectId || "",
-            proj?.name || ""
-          );
-          state.selectedId = id;
-          state.contextProjectId = d.projectId || "";
-          state._wizardDraft = null;
-          state.wizardStep = 1;
-          if (d.projectId) bindProjectSubs(d.projectId);
-          showToast("Site in-charge created");
-          render();
-        } catch (err) {
-          showToast(err.message, "error");
-        }
-      };
-    }
+  function projectsTableHtml(tableInner) {
+    return `<div class="table-wrap projects-table-wrap">${tableInner.replace('<table class="data-table"', '<table class="dash-table projects-table"')}</div>`;
   }
 
   function getSettlementDraft(sic, proj) {
@@ -754,13 +767,18 @@ export function mountSiteIncharge(container) {
     const matHtml =
       mat.length === 0
         ? '<p class="proj-empty">No material logged this month</p>'
-        : `<table class="data-table"><thead><tr><th>Material</th><th>Qty</th><th>Unit</th></tr></thead><tbody>${mat
+        : `<table class="data-table"><thead><tr><th>Material</th><th class="cust-col-center">Qty</th><th>Unit</th></tr></thead><tbody>${mat
             .map(
               (m) =>
                 `<tr><td>${escapeHtml(m.label)}</td><td>${m.totalQty}</td><td>${escapeHtml(m.unit)}</td></tr>`
             )
             .join("")}</tbody></table>`;
-    host.appendChild(sectionCard(`Material summary — ${monthLabel(month)}`, matHtml));
+    host.appendChild(
+      sectionCard(
+        `Material summary — ${monthLabel(month)}`,
+        mat.length === 0 ? matHtml : projectsTableHtml(matHtml)
+      )
+    );
 
     if (proj) {
       const varianceRows = issuedVsUsedVariance(siteLedgerForProject(proj.id)).map((r) => ({
@@ -826,36 +844,11 @@ export function mountSiteIncharge(container) {
   function renderSiteBalanceStrip(projId) {
     const rows = siteLedgerForProject(projId).filter((r) => r.qtyIssued > 0 || r.qtyUsed > 0);
     if (!rows.length) return `<p class="site-balance-strip text-muted">No issued materials on site yet — request from central stock first.</p>`;
-    return `<div class="site-balance-strip"><strong>Site stock balance</strong><table class="data-table"><thead><tr><th>Material</th><th>Issued</th><th>Used</th><th>Wasted</th><th>Balance</th></tr></thead><tbody>${rows
+    return `<div class="site-balance-strip"><strong>Site stock balance</strong><div class="table-wrap projects-table-wrap"><table class="dash-table projects-table"><thead><tr><th>Material</th><th class="cust-col-center">Issued</th><th class="cust-col-center">Used</th><th class="cust-col-center">Wasted</th><th class="cust-col-center">Balance</th></tr></thead><tbody>${rows
       .map(
         (r) => `<tr><td>${escapeHtml(r.materialName)}</td><td>${r.qtyIssued}</td><td>${r.qtyUsed}</td><td>${r.qtyWasted}</td><td><strong>${r.balance}</strong></td></tr>`
       )
       .join("")}</tbody></table></div>`;
-  }
-
-  function collectMatItemsFromForm(host) {
-    const items = [];
-    host.querySelectorAll(".sic-mat-row").forEach((row) => {
-      const keyInp = row.querySelector(".sic-mat-used");
-      if (!keyInp) return;
-      const materialKey = keyInp.dataset.key;
-      const preset = MATERIAL_PRESETS.find((p) => p.materialKey === materialKey);
-      const usedQty = Number(row.querySelector(".sic-mat-used")?.value) || 0;
-      const wastedQty = Number(row.querySelector(".sic-mat-wasted")?.value) || 0;
-      if (!usedQty && !wastedQty) return;
-      items.push({
-        materialKey,
-        inventoryMaterialId: presetInventoryId(preset || { materialKey, label: materialKey }),
-        label: preset?.label || materialKey,
-        unit: preset?.unit || "unit",
-        usedQty,
-        wastedQty,
-        wasteReason: String(row.querySelector(".sic-mat-waste-reason")?.value || "").trim(),
-        usedFor: String(row.querySelector(".sic-mat-used-for")?.value || "").trim(),
-        qty: usedQty + wastedQty,
-      });
-    });
-    return items;
   }
 
   function renderMaterialTab(sic, proj) {
@@ -869,40 +862,12 @@ export function mountSiteIncharge(container) {
       .filter((l) => l.siteInChargeId === sic.id)
       .sort((a, b) => (b.logDate || "").localeCompare(a.logDate || ""));
 
-    const lastLog = findLastMaterialLog(state.materialLogs, sic.id);
-
-    const presetRows = MATERIAL_PRESETS.map(
-      (p) => `
-      <div class="sic-mat-row sic-mat-row--usage">
-        <label class="sic-mat-label">${escapeHtml(p.label)}</label>
-        <input type="number" min="0" step="any" class="toolbar-input sic-mat-used" data-key="${p.materialKey}" data-unit="${p.unit}" placeholder="Used" />
-        <input type="number" min="0" step="any" class="toolbar-input sic-mat-wasted" data-key="${p.materialKey}" placeholder="Wasted" />
-        <input type="text" class="toolbar-input sic-mat-waste-reason" data-key="${p.materialKey}" placeholder="Waste reason" />
-        <input type="text" class="toolbar-input sic-mat-used-for" data-key="${p.materialKey}" placeholder="Used for" />
-        <span class="sic-mat-unit">${escapeHtml(p.unit)}</span>
-      </div>`
-    ).join("");
-
     host.appendChild(sectionCard("Site stock balance", renderSiteBalanceStrip(proj.id)));
 
-    const formCard = sectionCard(
-      "Daily usage log",
-      `<form id="sic-mat-form" class="sic-mat-form">
-        <label>Date<input type="date" name="logDate" value="${todayISO()}" required /></label>
-        <div class="sic-mat-actions">
-          <button type="button" class="btn btn-ghost btn-sm" id="sic-copy-yesterday" ${lastLog ? "" : "disabled"}>Copy last log</button>
-        </div>
-        <div class="sic-mat-grid">${presetRows}</div>
-        <label>Remarks<textarea name="remarks" rows="2"></textarea></label>
-        <button type="submit" class="btn btn-primary">Save usage log</button>
-      </form>`
-    );
-    host.appendChild(formCard);
-
-    const history =
+    const historyInner =
       logs.length === 0
         ? `<p class="proj-empty">No logs yet</p>`
-        : `<table class="data-table"><thead><tr><th>Date</th><th>Items</th><th>Status</th><th></th></tr></thead><tbody>${logs
+        : `<table class="data-table"><thead><tr><th>Date</th><th>Items</th><th class="cust-col-center">Status</th><th class="cust-col-center">Actions</th></tr></thead><tbody>${logs
             .map((l) => {
               const items = (l.items || [])
                 .map(
@@ -914,8 +879,8 @@ export function mountSiteIncharge(container) {
               return `<tr data-log-id="${l.id}">
                 <td>${escapeHtml(l.logDate)}</td>
                 <td>${items || "—"}</td>
-                <td>${statusChip(l.status || "submitted")}</td>
-                <td class="sic-row-actions">
+                <td class="cust-col-center">${statusChip(l.status || "submitted")}</td>
+                <td class="cust-col-center sic-row-actions proj-row-actions-cell">
                   <button type="button" class="btn btn-ghost btn-sm" data-edit-log="${l.id}">Edit</button>
                   <button type="button" class="btn btn-ghost btn-sm" data-del-log="${l.id}">Delete</button>
                   ${canApprove ? `<button type="button" class="btn btn-primary btn-sm" data-approve-log="${l.id}">Approve</button>` : ""}
@@ -924,49 +889,14 @@ export function mountSiteIncharge(container) {
             })
             .join("")}</tbody></table>`;
 
-    host.appendChild(sectionCard("History", history));
+    const historySection = sectionWithToolbar(
+      "Usage history",
+      `<button type="button" class="btn btn-primary btn-sm" id="sic-open-mat-log">+ Log usage</button>`,
+      projectsTableHtml(historyInner)
+    );
+    host.appendChild(historySection);
 
-    host.querySelector("#sic-copy-yesterday")?.addEventListener("click", () => {
-      if (!lastLog?.items?.length) return;
-      for (const item of lastLog.items) {
-        const row = host.querySelector(`.sic-mat-used[data-key="${item.materialKey}"]`)?.closest(".sic-mat-row");
-        if (!row) continue;
-        row.querySelector(".sic-mat-used").value = item.usedQty ?? item.qty ?? "";
-        row.querySelector(".sic-mat-wasted").value = item.wastedQty || "";
-        row.querySelector(".sic-mat-waste-reason").value = item.wasteReason || "";
-        row.querySelector(".sic-mat-used-for").value = item.usedFor || "";
-      }
-      showToast("Copied from last log");
-    });
-
-    host.querySelector("#sic-mat-form")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const logDate = fd.get("logDate");
-      if (hasDuplicateMaterialLog(state.materialLogs, { siteInChargeId: sic.id, logDate })) {
-        showToast("A log already exists for this date", "error");
-        return;
-      }
-      const items = collectMatItemsFromForm(host);
-      if (!items.length) {
-        showToast("Enter at least one quantity", "error");
-        return;
-      }
-      try {
-        await createMaterialLog(proj.id, {
-          siteInChargeId: sic.id,
-          logDate,
-          items,
-          remarks: fd.get("remarks"),
-          status: "submitted",
-        });
-        e.target.reset();
-        host.querySelector('[name="logDate"]').value = todayISO();
-        showToast("Material log saved");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    });
+    historySection.querySelector("#sic-open-mat-log")?.addEventListener("click", () => openMaterialLogDialog(sic, proj));
 
     host.querySelectorAll("[data-edit-log]").forEach((btn) => {
       const log = logs.find((l) => l.id === btn.dataset.editLog);
@@ -974,7 +904,7 @@ export function mountSiteIncharge(container) {
     });
     host.querySelectorAll("[data-del-log]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        if (!confirm("Delete this material log?")) return;
+        if (!(await confirmAction({ title: "Delete material log?", message: "Delete this material log?", confirmLabel: "Delete", variant: "danger" }))) return;
         try {
           await deleteMaterialLog(proj.id, btn.dataset.delLog);
           showToast("Log deleted");
@@ -996,6 +926,81 @@ export function mountSiteIncharge(container) {
     return host;
   }
 
+  function openDiaryDialog(sic, proj) {
+    const defaultLabor = laborCountForDate(proj.id, todayISO(), {
+      roster: state.roster.filter((r) => r.siteInChargeId === sic.id),
+      attendance: state.workerAttendance,
+    });
+    let draftPhotos = [];
+    let gallery = null;
+    openCustFormDialog({
+      title: "Save diary",
+      modalClass: "sic-profile-modal",
+      submitLabel: "Save draft",
+      values: {
+        logDate: todayISO(),
+        weather: "",
+        laborCount: defaultLabor,
+        workSummary: "",
+      },
+      sections: [
+        {
+          title: "Daily diary",
+          fields: [
+            { name: "logDate", label: "Date", type: "date", required: true },
+            {
+              name: "weather",
+              label: "Weather",
+              type: "select",
+              options: [{ value: "", label: "—" }, ...WEATHER_OPTIONS.map((w) => ({ value: w, label: w }))],
+            },
+            { name: "laborCount", label: "Labor count", type: "number" },
+            { name: "workSummary", label: "Work summary", type: "textarea", required: true, fullWidth: true },
+          ],
+        },
+      ],
+      onReady: ({ form }) => {
+        const shell = form.querySelector(".cust-form-shell");
+        const row = document.createElement("div");
+        row.className = "cust-form-row";
+        row.innerHTML = `<div class="cust-form-section cust-form-section--full"><div class="cust-form-section-head"><h4 class="cust-form-section-title">Photos</h4></div><div class="cust-form-section-body" id="sic-diary-photo-host"></div></div>`;
+        shell?.appendChild(row);
+        gallery = renderPhotoGallery([], {
+          onChange: (photos) => {
+            draftPhotos = photos;
+          },
+        });
+        row.querySelector("#sic-diary-photo-host")?.appendChild(gallery);
+        const dateInp = form.querySelector('[name="logDate"]');
+        const laborInp = form.querySelector('[name="laborCount"]');
+        dateInp?.addEventListener("change", () => {
+          if (laborInp?.dataset.userEdited) return;
+          const count = laborCountForDate(proj.id, dateInp.value || todayISO(), {
+            roster: state.roster.filter((r) => r.siteInChargeId === sic.id),
+            attendance: state.workerAttendance,
+          });
+          if (laborInp) laborInp.value = count;
+        });
+        laborInp?.addEventListener("input", (e) => {
+          e.target.dataset.userEdited = "1";
+        });
+      },
+      onSave: async (data) => {
+        await createSiteDiary(proj.id, {
+          siteInChargeId: sic.id,
+          logDate: data.logDate,
+          weather: data.weather,
+          laborCount: Number(data.laborCount) || 0,
+          workSummary: String(data.workSummary || "").trim(),
+          photos: draftPhotos,
+          status: "draft",
+        });
+        showToast("Diary saved as draft");
+        renderDetail();
+      },
+    });
+  }
+
   function renderDiaryTab(sic, proj) {
     const host = document.createElement("div");
     host.className = "sic-tab-content";
@@ -1008,78 +1013,11 @@ export function mountSiteIncharge(container) {
       .filter((d) => d.siteInChargeId === sic.id)
       .sort((a, b) => (b.logDate || "").localeCompare(a.logDate || ""));
 
-    const weatherOpts = WEATHER_OPTIONS.map(
-      (w) => `<option value="${escapeHtml(w)}">${escapeHtml(w)}</option>`
-    ).join("");
-    const defaultLabor = laborCountForDate(proj.id, todayISO(), {
-      roster: state.roster.filter((r) => r.siteInChargeId === sic.id),
-      attendance: state.workerAttendance,
-    });
 
-    const formCard = sectionCard(
-      "Today's diary",
-      `<form id="sic-diary-form" class="sic-diary-form">
-        <label>Date<input type="date" name="logDate" value="${todayISO()}" required /></label>
-        <label>Weather<select name="weather"><option value="">—</option>${weatherOpts}</select></label>
-        <label>Labor count<input type="number" name="laborCount" min="0" value="${defaultLabor}" /></label>
-        <label>Work summary<textarea name="workSummary" rows="4" required placeholder="Activities completed today…"></textarea></label>
-        <div id="sic-diary-photos"></div>
-        <button type="submit" class="btn btn-primary">Save draft</button>
-      </form>`
-    );
-    host.appendChild(formCard);
-
-    let draftPhotos = [];
-    const gallery = renderPhotoGallery([], {
-      onChange: (photos) => {
-        draftPhotos = photos;
-      },
-    });
-    formCard.querySelector("#sic-diary-photos")?.appendChild(gallery);
-
-    const updateLaborHint = () => {
-      const dateVal = formCard.querySelector('[name="logDate"]')?.value || todayISO();
-      const count = laborCountForDate(proj.id, dateVal, {
-        roster: state.roster.filter((r) => r.siteInChargeId === sic.id),
-        attendance: state.workerAttendance,
-      });
-      const inp = formCard.querySelector('[name="laborCount"]');
-      if (inp && !inp.dataset.userEdited) inp.value = count;
-    };
-    formCard.querySelector('[name="logDate"]')?.addEventListener("change", updateLaborHint);
-    formCard.querySelector('[name="laborCount"]')?.addEventListener("input", (e) => {
-      e.target.dataset.userEdited = "1";
-    });
-
-    formCard.querySelector("#sic-diary-form")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      try {
-        await createSiteDiary(proj.id, {
-          siteInChargeId: sic.id,
-          logDate: fd.get("logDate"),
-          weather: fd.get("weather"),
-          laborCount: Number(fd.get("laborCount")) || 0,
-          workSummary: String(fd.get("workSummary") || "").trim(),
-          photos: draftPhotos,
-          status: "draft",
-        });
-        e.target.reset();
-        formCard.querySelector('[name="logDate"]').value = todayISO();
-        draftPhotos = [];
-        gallery.setPhotos([]);
-        delete formCard.querySelector('[name="laborCount"]')?.dataset.userEdited;
-        updateLaborHint();
-        showToast("Diary saved as draft");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    });
-
-    const history =
+    const historyInner =
       diaries.length === 0
         ? `<p class="proj-empty">No diaries yet</p>`
-        : `<table class="data-table"><thead><tr><th>Date</th><th>Weather</th><th>Labor</th><th>Summary</th><th>Status</th><th></th></tr></thead><tbody>${diaries
+        : `<table class="data-table"><thead><tr><th>Date</th><th>Weather</th><th class="cust-col-center">Labor</th><th>Summary</th><th class="cust-col-center">Status</th><th class="cust-col-center">Actions</th></tr></thead><tbody>${diaries
             .map((d) => {
               const summary = escapeHtml(String(d.workSummary || "").slice(0, 60));
               const canSubmit = d.status === "draft" && canPerformAction("submit_site_diary");
@@ -1087,17 +1025,25 @@ export function mountSiteIncharge(container) {
               return `<tr>
                 <td>${escapeHtml(d.logDate)}</td>
                 <td>${escapeHtml(d.weather || "—")}</td>
-                <td>${d.laborCount ?? "—"}</td>
+                <td class="cust-col-center">${d.laborCount ?? "—"}</td>
                 <td>${summary}${(d.workSummary || "").length > 60 ? "…" : ""}</td>
-                <td>${statusChip(d.status || "draft")}</td>
-                <td class="sic-row-actions">
+                <td class="cust-col-center">${statusChip(d.status || "draft")}</td>
+                <td class="cust-col-center sic-row-actions proj-row-actions-cell">
                   ${canSubmit ? `<button type="button" class="btn btn-primary btn-sm" data-submit-diary="${d.id}">Submit</button>` : ""}
                   ${canApprove ? `<button type="button" class="btn btn-primary btn-sm" data-approve-diary="${d.id}">Approve</button>` : ""}
                 </td>
               </tr>`;
             })
             .join("")}</tbody></table>`;
-    host.appendChild(sectionCard("Diary history", history));
+
+    host.appendChild(
+      sectionWithToolbar(
+        "Diary history",
+        `<button type="button" class="btn btn-primary btn-sm" id="sic-open-diary">+ Save diary</button>`,
+        projectsTableHtml(historyInner)
+      )
+    );
+    host.querySelector("#sic-open-diary")?.addEventListener("click", () => openDiaryDialog(sic, proj));
 
     host.querySelectorAll("[data-submit-diary]").forEach((btn) => {
       btn.addEventListener("click", async () => {
@@ -1122,6 +1068,40 @@ export function mountSiteIncharge(container) {
     return host;
   }
 
+  function openEquipmentLogDialog(sic, proj) {
+    openCustFormDialog({
+      title: "Log equipment",
+      modalClass: "sic-profile-modal",
+      submitLabel: "Log",
+      values: { logDate: todayISO(), hours: "", equipmentName: "" },
+      sections: [
+        {
+          title: "Equipment",
+          fields: [
+            { name: "equipmentName", label: "Equipment name", type: "text", required: true },
+            { name: "hours", label: "Hours", type: "number" },
+            { name: "logDate", label: "Date", type: "date", required: true },
+          ],
+        },
+      ],
+      onSave: async (data) => {
+        await create(`equipmentLogs/${proj.id}`, {
+          equipmentName: String(data.equipmentName || "").trim(),
+          hours: Number(data.hours) || 0,
+          logDate: data.logDate || todayISO(),
+          siteInChargeId: sic.id,
+          cost: 0,
+          projectId: proj.id,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          createdBy: getCurrentUserId?.() || "",
+        });
+        showToast("Equipment logged");
+        renderDetail();
+      },
+    });
+  }
+
   function renderEquipmentTab(sic, proj) {
     const host = document.createElement("div");
     host.className = "sic-tab-content";
@@ -1134,55 +1114,74 @@ export function mountSiteIncharge(container) {
       .filter((e) => e.siteInChargeId === sic.id)
       .sort((a, b) => (b.logDate || "").localeCompare(a.logDate || ""));
 
-    host.appendChild(
-      sectionCard(
-        "Log equipment",
-        `<form id="sic-equip-form" class="form-grid proj-form-inline">
-          <input name="equipmentName" placeholder="Equipment name *" required />
-          <input name="hours" type="number" min="0" step="0.5" placeholder="Hours" />
-          <input name="logDate" type="date" value="${todayISO()}" />
-          <button type="submit" class="btn btn-primary btn-sm">Log</button>
-        </form>`
-      )
-    );
-
-    host.querySelector("#sic-equip-form")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      try {
-        await create(`equipmentLogs/${proj.id}`, {
-          equipmentName: String(fd.get("equipmentName") || "").trim(),
-          hours: Number(fd.get("hours")) || 0,
-          logDate: fd.get("logDate") || todayISO(),
-          siteInChargeId: sic.id,
-          cost: 0,
-          projectId: proj.id,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          createdBy: getCurrentUserId?.() || "",
-        });
-        e.target.reset();
-        e.target.querySelector('[name="logDate"]').value = todayISO();
-        showToast("Equipment logged");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    });
-
-    const table =
+    const tableInner =
       logs.length === 0
         ? `<p class="proj-empty">No equipment logs</p>`
-        : `<table class="data-table"><thead><tr><th>Date</th><th>Equipment</th><th>Hours</th></tr></thead><tbody>${logs
+        : `<table class="data-table"><thead><tr><th>Date</th><th>Equipment</th><th class="cust-col-center">Hours</th></tr></thead><tbody>${logs
             .map(
               (e) => `<tr>
               <td>${escapeHtml(e.logDate || "—")}</td>
               <td>${escapeHtml(e.equipmentName)}</td>
-              <td>${e.hours ?? 0}</td>
+              <td class="cust-col-center">${e.hours ?? 0}</td>
             </tr>`
             )
             .join("")}</tbody></table>`;
-    host.appendChild(sectionCard("Recent logs", table));
+    host.appendChild(
+      sectionWithToolbar(
+        "Recent logs",
+        `<button type="button" class="btn btn-primary btn-sm" id="sic-open-equip">+ Log equipment</button>`,
+        projectsTableHtml(tableInner)
+      )
+    );
+    host.querySelector("#sic-open-equip")?.addEventListener("click", () => openEquipmentLogDialog(sic, proj));
     return host;
+  }
+
+  function openMaterialRequestDialog(sic, proj) {
+    const matOpts = state.inventoryMaterials.map((m) => ({ value: m.id, label: `${m.name} (${m.unit || ""})` }));
+    openCustFormDialog({
+      title: "Submit requisition",
+      modalClass: "sic-profile-modal",
+      submitLabel: "Submit to central store",
+      values: { qty: "", title: "", purpose: "", inventoryMaterialId: "" },
+      sections: [
+        {
+          title: "Requisition",
+          fields: [
+            { name: "title", label: "Title", type: "text", required: true },
+            {
+              name: "inventoryMaterialId",
+              label: "Stock item",
+              type: "select",
+              required: true,
+              options: [{ value: "", label: "Select item" }, ...matOpts],
+            },
+            { name: "qty", label: "Quantity", type: "number", required: true },
+            { name: "purpose", label: "Purpose / task", type: "text", fullWidth: true },
+          ],
+        },
+      ],
+      onSave: async (data) => {
+        const id = await create(`materialRequests/${proj.id}`, {
+          title: String(data.title || "").trim(),
+          requestType: "central",
+          inventoryMaterialId: data.inventoryMaterialId,
+          qty: Number(data.qty) || 0,
+          purpose: String(data.purpose || "").trim(),
+          amount: 0,
+          status: "draft",
+          deliveryStatus: "requested",
+          siteInChargeId: sic.id,
+          costCategory: "material",
+          projectId: proj.id,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        await submitMaterialRequest(proj.id, id);
+        showToast("Central requisition submitted");
+        renderDetail();
+      },
+    });
   }
 
   function renderRequestsTab(sic, proj) {
@@ -1194,72 +1193,86 @@ export function mountSiteIncharge(container) {
     }
 
     const mrs = state.materialRequests.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    const matOpts = state.inventoryMaterials
-      .map((m) => `<option value="${m.id}">${escapeHtml(m.name)} (${escapeHtml(m.unit || "")})</option>`)
-      .join("");
     const canSubmitMr = canPerformAction("submit_material_request");
 
-    host.appendChild(
-      sectionCard(
-        "Central stock requisition",
-        canSubmitMr
-          ? `<form id="sic-mr-form" class="form-grid proj-form-inline">
-          <input name="title" placeholder="Requisition title *" required />
-          <select name="inventoryMaterialId" required><option value="">Stock item *</option>${matOpts}</select>
-          <input name="qty" type="number" placeholder="Qty *" required min="1" />
-          <input name="purpose" placeholder="Purpose / task" />
-          <button type="submit" class="btn btn-primary btn-sm">Submit to central store</button>
-        </form>
-        <p class="text-muted sic-mr-hint">After approval, store manager issues voucher from <a href="/inventory">Inventory → Issue Vouchers</a>.</p>`
-          : `<p class="proj-empty">You do not have permission to submit material requests.</p>`
-      )
-    );
-
-    host.querySelector("#sic-mr-form")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      try {
-        const id = await create(`materialRequests/${proj.id}`, {
-          title: String(fd.get("title") || "").trim(),
-          requestType: "central",
-          inventoryMaterialId: fd.get("inventoryMaterialId"),
-          qty: Number(fd.get("qty")) || 0,
-          purpose: String(fd.get("purpose") || "").trim(),
-          amount: 0,
-          status: "draft",
-          deliveryStatus: "requested",
-          siteInChargeId: sic.id,
-          costCategory: "material",
-          projectId: proj.id,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-        await submitMaterialRequest(proj.id, id);
-        e.target.reset();
-        showToast("Central requisition submitted");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    });
-
-    const table =
+    const tableInner =
       mrs.length === 0
         ? `<p class="proj-empty">No material requests</p>`
-        : `<table class="data-table"><thead><tr><th>Title</th><th>Type</th><th>Qty</th><th>Status</th><th>Voucher</th></tr></thead><tbody>${mrs
+        : `<table class="data-table"><thead><tr><th>Title</th><th>Type</th><th class="cust-col-center">Qty</th><th class="cust-col-center">Status</th><th>Voucher</th></tr></thead><tbody>${mrs
             .map((m) => {
               const isCentral = m.requestType === "central";
               const voucher = isCentral && m.issueVoucherId ? state.issueVouchers.find((v) => v.id === m.issueVoucherId) : null;
               return `<tr>
               <td>${escapeHtml(m.title)}</td>
               <td>${isCentral ? "Central" : "Supplier"}</td>
-              <td>${m.qty || "—"}</td>
-              <td>${statusChip(m.status)}</td>
+              <td class="cust-col-center">${m.qty || "—"}</td>
+              <td class="cust-col-center">${statusChip(m.status)}</td>
               <td>${voucher ? escapeHtml(voucher.voucherNo) : isCentral ? "Pending issue" : `<a href="/purchases">Purchases</a>`}</td>
             </tr>`;
             })
             .join("")}</tbody></table>`;
-    host.appendChild(sectionCard("Requests", table));
+
+    const toolbar = canSubmitMr
+      ? `<button type="button" class="btn btn-primary btn-sm" id="sic-open-mr">+ Submit requisition</button>`
+      : "";
+    host.appendChild(sectionWithToolbar("Material requests", toolbar, projectsTableHtml(tableInner)));
+    if (canSubmitMr) {
+      host.querySelector("#sic-open-mr")?.addEventListener("click", () => openMaterialRequestDialog(sic, proj));
+      host.querySelector("#sic-open-mr")?.closest(".sic-report-block")?.querySelector(".sic-section-body")?.insertAdjacentHTML(
+        "beforeend",
+        `<p class="text-muted sic-mr-hint">After approval, store manager issues voucher from <a href="/inventory">Inventory → Issue Vouchers</a>.</p>`
+      );
+    }
     return host;
+  }
+
+  function openRosterAddDialog(sic, proj, activeWorkerIds) {
+    const workerOpts = state.workers
+      .filter((w) => w.status !== "inactive" && !activeWorkerIds.has(w.id))
+      .map((w) => ({ value: w.id, label: `${w.name} (${w.trade || ""})` }));
+    openCustFormDialog({
+      title: "Add worker",
+      modalClass: "sic-profile-modal",
+      submitLabel: "Add worker",
+      values: { workerId: "", workerName: "", trade: "", dailyWage: "" },
+      sections: [
+        {
+          title: "Roster",
+          fields: [
+            {
+              name: "workerId",
+              label: "Worker (master list)",
+              type: "select",
+              options: [{ value: "", label: "Quick name below" }, ...workerOpts],
+            },
+            { name: "workerName", label: "Or name", type: "text" },
+            { name: "trade", label: "Trade", type: "text" },
+            { name: "dailyWage", label: "Daily wage", type: "number" },
+          ],
+        },
+      ],
+      onSave: async (data) => {
+        const worker = state.workers.find((w) => w.id === data.workerId);
+        const workerName = worker?.name || String(data.workerName || "").trim();
+        if (!workerName) {
+          showToast("Worker name required", "error");
+          throw new Error("name");
+        }
+        if (data.workerId && activeWorkerIds.has(data.workerId)) {
+          showToast("Worker already on roster", "error");
+          throw new Error("dup");
+        }
+        await addRosterEntry(proj.id, {
+          workerId: data.workerId || "",
+          workerName,
+          siteInChargeId: sic.id,
+          trade: data.trade || worker?.trade || "",
+          dailyWage: Number(data.dailyWage) || worker?.dailyWage || 0,
+        });
+        showToast("Added to roster");
+        renderDetail();
+      },
+    });
   }
 
   function renderRosterTab(sic, proj) {
@@ -1273,44 +1286,33 @@ export function mountSiteIncharge(container) {
     const leftRoster = state.roster.filter((r) => r.siteInChargeId === sic.id && r.status === "left");
     const activeWorkerIds = new Set(activeRoster.map((r) => r.workerId).filter(Boolean));
 
-    const workerOpts = state.workers
-      .filter((w) => w.status !== "inactive" && !activeWorkerIds.has(w.id))
-      .map((w) => `<option value="${w.id}">${escapeHtml(w.name)} (${escapeHtml(w.trade || "")})</option>`)
-      .join("");
-
-    host.appendChild(
-      sectionCard(
-        "Add to roster",
-        `<form id="sic-roster-form" class="sic-roster-form">
-          <label>Worker<select name="workerId"><option value="">Quick name below</option>${workerOpts}</select></label>
-          <label>Or name<input name="workerName" placeholder="If not in master list" /></label>
-          <label>Trade<input name="trade" /></label>
-          <label>Daily wage<input type="number" name="dailyWage" min="0" /></label>
-          <button type="submit" class="btn btn-primary">Add worker</button>
-        </form>`
-      )
-    );
-
     const attDate = todayISO();
     const statusOpts = ATTENDANCE_STATUSES.filter((s) => s.id !== "leave")
       .map((s) => `<option value="${s.id}">${escapeHtml(s.label)}</option>`)
       .join("");
 
-    const activeTable =
+    const activeTableInner =
       activeRoster.length === 0
         ? `<p class="proj-empty">No workers on roster</p>`
-        : `<table class="data-table"><thead><tr><th>Name</th><th>Trade</th><th>Wage</th><th>Joined</th><th></th></tr></thead><tbody>${activeRoster
+        : `<table class="data-table"><thead><tr><th>Name</th><th>Trade</th><th class="cust-col-center">Wage</th><th>Joined</th><th class="cust-col-center">Actions</th></tr></thead><tbody>${activeRoster
             .map(
               (r) => `<tr>
               <td>${escapeHtml(r.workerName)}</td>
               <td>${escapeHtml(r.trade || "—")}</td>
-              <td>${formatBDT(r.dailyWage)}</td>
+              <td class="cust-col-center">${formatBDT(r.dailyWage)}</td>
               <td>${escapeHtml(r.joinedDate || "—")}</td>
-              <td><button type="button" class="btn btn-ghost btn-sm" data-leave="${r.id}">Mark left</button></td>
+              <td class="cust-col-center"><button type="button" class="btn btn-ghost btn-sm" data-leave="${r.id}">Mark left</button></td>
             </tr>`
             )
             .join("")}</tbody></table>`;
-    host.appendChild(sectionCard("Active roster", activeTable));
+    host.appendChild(
+      sectionWithToolbar(
+        "Active roster",
+        `<button type="button" class="btn btn-primary btn-sm" id="sic-open-roster">+ Add worker</button>`,
+        projectsTableHtml(activeTableInner)
+      )
+    );
+    host.querySelector("#sic-open-roster")?.addEventListener("click", () => openRosterAddDialog(sic, proj, activeWorkerIds));
 
     const attCards = activeRoster
       .map((r) => {
@@ -1375,37 +1377,8 @@ export function mountSiteIncharge(container) {
           </tr>`
         )
         .join("")}</tbody></table>`;
-      host.appendChild(sectionCard("Former roster", leftTable));
+      host.appendChild(sectionCard("Former roster", projectsTableHtml(leftTable)));
     }
-
-    host.querySelector("#sic-roster-form")?.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const workerId = fd.get("workerId");
-      const worker = state.workers.find((w) => w.id === workerId);
-      const workerName = worker?.name || String(fd.get("workerName") || "").trim();
-      if (!workerName) {
-        showToast("Worker name required", "error");
-        return;
-      }
-      if (workerId && activeWorkerIds.has(workerId)) {
-        showToast("Worker already on roster", "error");
-        return;
-      }
-      try {
-        await addRosterEntry(proj.id, {
-          workerId: workerId || "",
-          workerName,
-          siteInChargeId: sic.id,
-          trade: fd.get("trade") || worker?.trade || "",
-          dailyWage: Number(fd.get("dailyWage")) || worker?.dailyWage || 0,
-        });
-        e.target.reset();
-        showToast("Added to roster");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    });
 
     host.querySelectorAll("[data-leave]").forEach((btn) => {
       btn.addEventListener("click", async () => {
@@ -1482,29 +1455,26 @@ export function mountSiteIncharge(container) {
         return { roster: r, calc };
       });
 
-      const calcCard = document.createElement("div");
-      calcCard.className = "card card-pad sic-payroll-calc-card";
-      calcCard.innerHTML = `
-        <h4 class="section-title">Salary calculation (§2.13)</h4>
+      const calcCard = sectionCard("Salary calculation", "");
+      calcCard.querySelector(".sic-section-body").innerHTML = `
         <button type="button" class="btn btn-primary btn-sm" id="sic-calc-all">Calculate all roster workers</button>
-        <div class="table-wrap" style="margin-top:0.75rem">
-          <table class="dash-table">
-            <thead><tr><th>Worker</th><th>Days</th><th>Gross</th><th>Advance</th><th>Net</th><th>Status</th><th></th></tr></thead>
+        <div class="table-wrap projects-table-wrap" style="margin-top:0.75rem">
+          <table class="dash-table projects-table">
+            <thead><tr><th>Worker</th><th class="cust-col-center">Days</th><th class="cust-col-center">Gross</th><th class="cust-col-center">Advance</th><th class="cust-col-center">Net</th><th class="cust-col-center">Status</th><th class="cust-col-center">Actions</th></tr></thead>
             <tbody>
               ${calcRows.length ? calcRows.map(({ roster: r, calc }) => `
                 <tr>
                   <td>${escapeHtml(r.workerName)}</td>
-                  <td>${calc?.totalDays ?? "—"}</td>
-                  <td>${calc ? formatBDT(calc.grossAmount) : "—"}</td>
-                  <td>${calc ? formatBDT(calc.advanceDeducted) : "—"}</td>
-                  <td>${calc ? formatBDT(calc.netPayable) : "—"}</td>
-                  <td>${calc ? statusChip(calc.status === "paid" ? "on_time" : "pending") : "—"}</td>
-                  <td>${calc && calc.status !== "paid" ? `<button type="button" class="btn btn-ghost btn-sm sic-pay-worker" data-calc="${calc.id}" data-worker="${r.workerId}">Pay</button>` : ""}</td>
+                  <td class="cust-col-center">${calc?.totalDays ?? "—"}</td>
+                  <td class="cust-col-center">${calc ? formatBDT(calc.grossAmount) : "—"}</td>
+                  <td class="cust-col-center">${calc ? formatBDT(calc.advanceDeducted) : "—"}</td>
+                  <td class="cust-col-center">${calc ? formatBDT(calc.netPayable) : "—"}</td>
+                  <td class="cust-col-center">${calc ? statusChip(calc.status === "paid" ? "on_time" : "pending") : "—"}</td>
+                  <td class="cust-col-center proj-row-actions-cell">${calc && calc.status !== "paid" ? `<button type="button" class="btn btn-ghost btn-sm sic-pay-worker" data-calc="${calc.id}" data-worker="${r.workerId}">Pay</button>` : ""}</td>
                 </tr>`).join("") : `<tr class="empty-row"><td colspan="7">No linked workers on roster</td></tr>`}
             </tbody>
           </table>
-        </div>
-      `;
+        </div>`;
       host.appendChild(calcCard);
 
       calcCard.querySelector("#sic-calc-all")?.addEventListener("click", async () => {
@@ -1524,40 +1494,56 @@ export function mountSiteIncharge(container) {
       });
 
       calcCard.querySelectorAll(".sic-pay-worker").forEach((btn) => {
-        btn.addEventListener("click", async () => {
+        btn.addEventListener("click", () => {
           const calc = state.salaryCalculations.find((c) => c.id === btn.dataset.calc);
           if (!calc) return;
-          const mode = prompt("Payment mode: cash, bkash, or bank", "cash");
-          if (!mode) return;
-          try {
-            await confirmSalaryPayment({
-              workerId: btn.dataset.worker,
-              calcId: calc.id,
-              amount: calc.netPayable,
-              paymentMode: mode,
-              projectId: proj.id,
-              siteInChargeId: sic.id,
-              postExpense: true,
-            });
-            showToast("Payment confirmed");
-            renderDetail();
-          } catch (err) {
-            showToast(err.message, "error");
-          }
+          openCustFormDialog({
+            title: "Confirm payment",
+            modalClass: "sic-profile-modal",
+            submitLabel: "Pay",
+            values: { paymentMode: "cash" },
+            sections: [
+              {
+                title: "Disbursement",
+                fields: [
+                  {
+                    name: "paymentMode",
+                    label: "Payment mode",
+                    type: "select",
+                    required: true,
+                    options: PAYMENT_MODES.map((m) => ({ value: m.id, label: m.label })),
+                  },
+                ],
+              },
+            ],
+            onSave: async (data) => {
+              await confirmSalaryPayment({
+                workerId: btn.dataset.worker,
+                calcId: calc.id,
+                amount: calc.netPayable,
+                paymentMode: data.paymentMode,
+                projectId: proj.id,
+                siteInChargeId: sic.id,
+                postExpense: true,
+              });
+              showToast("Payment confirmed");
+              renderDetail();
+            },
+          });
         });
       });
 
       const payForm = document.createElement("form");
-      payForm.className = "sic-payroll-form form-grid";
+      payForm.className = "sic-payroll-form cust-form-grid cust-form-grid--2";
       const workerOpts = state.workers
         .filter((w) => w.status !== "inactive")
         .map((w) => `<option value="${w.id}">${escapeHtml(w.name)}</option>`)
         .join("");
       payForm.innerHTML = `
-        <label>Worker<select name="workerId" required><option value="">Select</option>${workerOpts}</select></label>
-        <label>Amount<input type="number" name="amount" min="0" required /></label>
-        <label>Mode<select name="paymentMode">${modeOpts}</select></label>
-        <button type="submit" class="btn btn-primary">Confirm payment</button>
+        <label class="cust-form-field">Worker<select class="cust-form-input" name="workerId" required><option value="">Select</option>${workerOpts}</select></label>
+        <label class="cust-form-field">Amount<input class="cust-form-input" type="number" name="amount" min="0" required /></label>
+        <label class="cust-form-field">Mode<select class="cust-form-input" name="paymentMode">${modeOpts}</select></label>
+        <button type="submit" class="btn btn-primary cust-form-field--full">Confirm payment</button>
       `;
       host.appendChild(sectionCard("Confirm disbursement", payForm));
       payForm.addEventListener("submit", async (e) => {
@@ -1666,7 +1652,7 @@ export function mountSiteIncharge(container) {
                 `<tr><td>${escapeHtml(e.date)}</td><td>${escapeHtml(e.workerName)}</td><td>${escapeHtml(e.type)}</td><td>${escapeHtml(e.settlementMonth || "—")}</td><td>${formatBDT(e.amount)}</td></tr>`
             )
             .join("")}</tbody></table>`;
-    host.appendChild(sectionCard("Payroll entries", table));
+    host.appendChild(sectionCard("Payroll entries", entries.length === 0 ? table : projectsTableHtml(table)));
     return host;
   }
 
@@ -1683,18 +1669,20 @@ export function mountSiteIncharge(container) {
     const readOnly = existing?.status === "paid";
 
     host.innerHTML = `
-      <div class="sic-month-bar">
-        <label>Month <input type="month" id="sic-settle-month" value="${month}" /></label>
+      <div class="sic-month-bar projects-toolbar">
+        <label class="cust-form-field">Month <input type="month" class="cust-form-input" id="sic-settle-month" value="${month}" /></label>
         <button type="button" class="btn btn-ghost btn-sm" id="sic-print-settlement">Print summary</button>
       </div>
-      <div class="card sic-settlement-card" id="sic-settlement-print">
-        <h3>Settlement — ${monthLabel(month)}</h3>
-        <p>Status: ${existing ? statusChip(existing.status) : "draft (not saved)"}</p>
-        <div id="sic-settle-form-host"></div>
-        <h4>Material (informational)</h4>
-        <ul class="sic-settle-list" id="sic-settle-mat-list"></ul>
-        <div class="sic-settle-actions" id="sic-settle-actions"></div>
-      </div>
+      <section class="dash-widget dash-widget--projects card sic-report-block" id="sic-settlement-print">
+        <div class="dash-widget-head"><h3 class="dash-widget-title">Settlement — ${escapeHtml(monthLabel(month))}</h3></div>
+        <div class="dash-widget-body">
+          <p>Status: ${existing ? statusChip(existing.status) : "draft (not saved)"}</p>
+          <div id="sic-settle-form-host"></div>
+          <h4 class="dash-widget-sub">Material (informational)</h4>
+          <ul class="sic-settle-list" id="sic-settle-mat-list"></ul>
+          <div class="sic-settle-actions cust-toolbar-btn-group" id="sic-settle-actions"></div>
+        </div>
+      </section>
     `;
 
     const formHost = host.querySelector("#sic-settle-form-host");
@@ -1764,42 +1752,32 @@ export function mountSiteIncharge(container) {
         showToast(err.message, "error");
       }
     });
-    host.querySelector("#sic-paid-settlement")?.addEventListener("click", async () => {
-      const dlg = document.createElement("dialog");
-      dlg.className = "modal-dialog";
+    host.querySelector("#sic-paid-settlement")?.addEventListener("click", () => {
       recalc();
-      dlg.innerHTML = `
-        <form method="dialog" class="modal-form">
-          <h3>Mark settlement paid</h3>
-          <p>Amount: <strong>${formatBDT(draft.netPayable)}</strong></p>
-          <label>Payment reference *<input name="paymentRef" required placeholder="Cheque / txn no." /></label>
-          <div class="modal-actions">
-            <button type="button" class="btn btn-ghost" data-cancel>Cancel</button>
-            <button type="submit" class="btn btn-primary">Confirm payment</button>
-          </div>
-        </form>
-      `;
-      document.body.appendChild(dlg);
-      dlg.showModal();
-      dlg.querySelector("[data-cancel]")?.addEventListener("click", () => dlg.close());
-      dlg.querySelector("form")?.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const ref = new FormData(e.target).get("paymentRef");
-        try {
+      openCustFormDialog({
+        title: "Mark settlement paid",
+        subtitle: `Amount: ${formatBDT(draft.netPayable)}`,
+        modalClass: "sic-profile-modal",
+        submitLabel: "Confirm payment",
+        values: { paymentRef: "" },
+        sections: [
+          {
+            title: "Payment",
+            fields: [{ name: "paymentRef", label: "Payment reference", type: "text", required: true, hint: "Cheque / txn no." }],
+          },
+        ],
+        onSave: async (data) => {
           recalc();
           const settleId = await upsertSettlement(proj.id, { ...draft, ...existing, status: "approved" });
           await postSettlementPayment(proj.id, settleId, {
             amount: draft.netPayable,
-            paymentRef: ref,
+            paymentRef: data.paymentRef,
             siteInChargeName: sic.name,
           });
           showToast("Settlement paid and posted to accounts");
-          dlg.close();
-        } catch (err) {
-          showToast(err.message, "error");
-        }
+          renderDetail();
+        },
       });
-      dlg.addEventListener("close", () => dlg.remove());
     });
     return host;
   }
@@ -1813,7 +1791,7 @@ export function mountSiteIncharge(container) {
     const html =
       rows.length === 0
         ? `<p class="proj-empty">No assignments</p>`
-        : `<table class="data-table"><thead><tr><th>Project</th><th>Start</th><th>End</th><th>Status</th><th>Logs</th><th></th></tr></thead><tbody>${rows
+        : projectsTableHtml(`<table class="data-table"><thead><tr><th>Project</th><th>Start</th><th>End</th><th class="cust-col-center">Status</th><th class="cust-col-center">Logs</th><th class="cust-col-center">Actions</th></tr></thead><tbody>${rows
             .map((a) => {
               const logCount =
                 a.status === "active" && a.projectId === state.contextProjectId
@@ -1836,11 +1814,11 @@ export function mountSiteIncharge(container) {
                 <td>${endBtn}</td>
               </tr>`;
             })
-            .join("")}</tbody></table>`;
+            .join("")}</tbody></table>`);
     host.appendChild(sectionCard("Assignment history", html));
     host.querySelectorAll("[data-end-asn]").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        if (!confirm("End this assignment? Project site in-charge will be cleared.")) return;
+        if (!(await confirmAction({ title: "End assignment?", message: "End this assignment? Project site in-charge will be cleared.", confirmLabel: "End assignment", variant: "danger" }))) return;
         try {
           await endAssignment(btn.dataset.endAsn);
           if (state.contextProjectId) {
@@ -1862,7 +1840,9 @@ export function mountSiteIncharge(container) {
 
   function renderDetail() {
     if (state.selectedId === "__new__") {
-      renderWizard();
+      state.selectedId = null;
+      openCreateSiteInChargeDialog();
+      detailPanel.innerHTML = `<p class="proj-empty">Select a site in-charge or create a new one</p>`;
       return;
     }
     const sic = selectedInCharge();

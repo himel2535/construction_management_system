@@ -15,6 +15,7 @@ import { COST_CATEGORIES } from "./util_projectCost.js";
 import { cumulativeMeasuredByBoq } from "./svc_govProject.js";
 import { formatBDT } from "./util_format.js";
 import { showToast } from "./cmp_toast.js";
+import { confirmAction } from "./cmp_confirm.js";
 import { sectionCard, statusChip, varianceChip } from "./cmp_ui.js";
 import { isGovProject } from "./util_govProject.js";
 import { parseBoqCsv } from "./svc_govProject.js";
@@ -326,7 +327,7 @@ export function buildBoqTab(state) {
 
   table.querySelectorAll(".boq-del-btn").forEach((btn) => {
     btn.onclick = async () => {
-      if (!confirm("Delete this BOQ line?")) return;
+      if (!(await confirmAction({ title: "Delete BOQ line?", message: "Delete this BOQ line?", confirmLabel: "Delete", variant: "danger" }))) return;
       try {
         await removePath(`boqItems/${state.selectedProjectId}/${btn.dataset.id}`);
         showToast("BOQ line removed");
@@ -513,7 +514,7 @@ export function buildProgressTab(state) {
 
   list.querySelectorAll(".prog-del-btn").forEach((btn) => {
     btn.onclick = async () => {
-      if (!confirm("Delete this progress entry?")) return;
+      if (!(await confirmAction({ title: "Delete progress entry?", message: "Delete this progress entry?", confirmLabel: "Delete", variant: "danger" }))) return;
       try {
         await removePath(`projectProgress/${state.selectedProjectId}/${btn.dataset.id}`);
         showToast("Progress entry removed");

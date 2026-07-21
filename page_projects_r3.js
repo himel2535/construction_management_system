@@ -15,6 +15,7 @@ import {
 } from "./svc_governance.js";
 import { formatBDT, formatDate } from "./util_format.js";
 import { showToast } from "./cmp_toast.js";
+import { confirmAction } from "./cmp_confirm.js";
 import { sectionCard, statusChip } from "./cmp_ui.js";
 import { isGovProject, GOV_PATHS } from "./util_govProject.js";
 import { computeLiquidatedDamages } from "./svc_govProject.js";
@@ -434,7 +435,7 @@ export function buildSafetyTab(state) {
   list.querySelectorAll(".safety-close-btn").forEach((btn) => {
     btn.onclick = async () => {
       const r = rows.find((x) => x.id === btn.dataset.id);
-      if (!r || !confirm("Mark this incident as closed?")) return;
+      if (!r || !(await confirmAction({ title: "Close incident?", message: "Mark this incident as closed?", confirmLabel: "Mark closed" }))) return;
       try {
         await updatePath(`${R3_PATHS.safetyIncidents}/${state.selectedProjectId}/${r.id}`, {
           ...r,

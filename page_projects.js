@@ -10,6 +10,7 @@ import {
 } from "./svc_workflow.js";
 import { formatBDT, formatDate, formatDateRange } from "./util_format.js";
 import { showToast } from "./cmp_toast.js";
+import { confirmAction } from "./cmp_confirm.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
 import { sectionCard, statusChip, varianceChip, progressBar } from "./cmp_ui.js";
@@ -1016,7 +1017,7 @@ export function mountProjects(container) {
     });
     list.querySelectorAll(".phase-del-btn").forEach((btn) => {
       btn.onclick = async () => {
-        if (!confirm("Delete this draft phase?")) return;
+        if (!(await confirmAction({ title: "Delete phase?", message: "Delete this draft phase?", confirmLabel: "Delete", variant: "danger" }))) return;
         try {
           await removePath(`projectPhases/${state.selectedProjectId}/${btn.dataset.id}`);
           showToast("Phase removed");

@@ -1,8 +1,8 @@
 /** Procurement UI — product picker, PO line composer, GRN receive lines */
 
 import {
-  searchProducts,
-  suppliersForProduct,
+  searchProductPickerEntries,
+  catalogEntryFor,
   calcLineAmount,
   normalizePoLine,
   sumPoLines,
@@ -25,35 +25,46 @@ function escapeHtml(s) {
  * @param {{ onSelect: (entry: import("./util_procurement.js").CatalogEntry) => void, placeholder?: string }} opts
  */
 export function renderProductPicker(catalog, opts = {}) {
-  const { onSelect, placeholder = "Product name…" } = opts;
+  const { onSelect, placeholder = "Select or type product…", getCatalog } = opts;
+  const cat = () => (typeof getCatalog === "function" ? getCatalog() : catalog);
   const wrap = document.createElement("div");
   wrap.className = "pur-product-picker";
 
   const input = document.createElement("input");
   input.type = "text";
-  input.className = "toolbar-input pur-product-input";
+  input.className = "cust-form-input pur-product-input";
   input.placeholder = placeholder;
   input.autocomplete = "off";
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-expanded", "false");
+  input.setAttribute("aria-haspopup", "listbox");
 
   const list = document.createElement("ul");
   list.className = "pur-product-suggestions";
   list.hidden = true;
+  list.setAttribute("role", "listbox");
 
   wrap.append(input, list);
 
   let activeIdx = -1;
   let suggestions = [];
 
+  function resolveSuggestions(query) {
+    return searchProductPickerEntries(cat(), query, 500);
+  }
+
   function hideList() {
     list.hidden = true;
     activeIdx = -1;
+    input.setAttribute("aria-expanded", "false");
   }
 
   function showSuggestions(items) {
     suggestions = items;
     if (!items.length) {
-      list.innerHTML = `<li class="pur-product-suggestion pur-product-suggestion--empty">No product found — add in Suppliers → Products & Services</li>`;
+      list.innerHTML = `<li class="pur-product-suggestion pur-product-suggestion--empty">No products — add under Suppliers → Products & Services</li>`;
       list.hidden = false;
+      input.setAttribute("aria-expanded", "true");
       return;
     }
     list.innerHTML = items
@@ -63,6 +74,7 @@ export function renderProductPicker(catalog, opts = {}) {
       )
       .join("");
     list.hidden = false;
+    input.setAttribute("aria-expanded", "true");
     list.querySelectorAll(".pur-product-suggestion[data-idx]").forEach((li) => {
       li.addEventListener("mousedown", (ev) => {
         ev.preventDefault();
@@ -72,6 +84,10 @@ export function renderProductPicker(catalog, opts = {}) {
     });
   }
 
+  function openSuggestionList() {
+    showSuggestions(resolveSuggestions(input.value));
+  }
+
   function pick(entry) {
     if (!entry) return;
     input.value = entry.name;
@@ -79,13 +95,16 @@ export function renderProductPicker(catalog, opts = {}) {
     onSelect?.(entry);
   }
 
+  input.addEventListener("focus", () => {
+    if (list.hidden) openSuggestionList();
+  });
+
+  input.addEventListener("click", () => {
+    if (list.hidden) openSuggestionList();
+  });
+
   input.addEventListener("input", () => {
-    const q = input.value.trim();
-    if (q.length < 1) {
-      hideList();
-      return;
-    }
-    showSuggestions(searchProducts(catalog, q, 15));
+    openSuggestionList();
   });
 
   input.addEventListener("keydown", (e) => {
@@ -121,45 +140,74 @@ export function renderProductPicker(catalog, opts = {}) {
 /**
  * Full PO create composer with line items.
  * @param {{
- *   catalog: import("./util_procurement.js").CatalogEntry[],
+ *   getCatalog?: () => import("./util_procurement.js").CatalogEntry[],
+ *   getSuppliers?: () => object[],
+ *   catalog?: import("./util_procurement.js").CatalogEntry[],
+ *   suppliers?: object[],
  *   mrs: object[],
  *   draftLines: object[],
  *   onCreatePo: (payload: { lines: object[], mrId: string, vendorId: string, vendorName: string, amount: number }) => void | Promise<void>,
  * }} opts
  */
 export function renderPurchaseOrderComposer(opts) {
-  const { catalog, mrs, draftLines, onCreatePo } = opts;
+  const {
+    catalog = [],
+    suppliers = [],
+    getCatalog,
+    getSuppliers,
+    mrs,
+    draftLines,
+    onCreatePo,
+  } = opts;
+  const cat = () => (typeof getCatalog === "function" ? getCatalog() : catalog);
+  const sups = () => (typeof getSuppliers === "function" ? getSuppliers() : suppliers);
 
   const wrap = document.createElement("div");
   wrap.className = "pur-po-composer";
 
   let selectedProductKey = "";
+  let selectedProductName = "";
   let selectedSupplierId = draftLines[0]?.supplierId || "";
 
   const mrOpts = mrs.map((m) => `<option value="${m.id}">${escapeHtml(m.title)}</option>`).join("");
 
   wrap.innerHTML = `
-    <div class="pur-po-composer-row pur-po-composer-row--picker">
-      <label class="pur-field-label">Product</label>
+    <label class="cust-form-field cust-form-field--full pur-po-product-field">
+      <span class="cust-form-label">Product</span>
       <div class="pur-product-picker-host"></div>
-    </div>
-    <div class="pur-po-composer-row pur-po-composer-grid">
-      <label class="pur-field-label">Supplier</label>
-      <select name="lineSupplier" class="toolbar-select" disabled><option value="">Select product first</option></select>
-      <label class="pur-field-label">Qty</label>
-      <input name="lineQty" type="number" min="0" step="any" class="toolbar-input" placeholder="Qty" disabled />
-      <label class="pur-field-label">Unit</label>
-      <input name="lineUnit" type="text" class="toolbar-input" readonly disabled />
-      <label class="pur-field-label">Rate</label>
-      <input name="lineRate" type="number" min="0" step="0.01" class="toolbar-input" placeholder="Rate" disabled />
-      <label class="pur-field-label">Line total</label>
-      <span class="pur-line-total-display">—</span>
-      <button type="button" class="btn btn-ghost btn-sm pur-add-line-btn" disabled>Add line</button>
+    </label>
+    <div class="pur-po-line-grid">
+      <label class="cust-form-field">
+        <span class="cust-form-label">Supplier</span>
+        <select name="lineSupplier" class="cust-form-input"><option value="">Select supplier</option></select>
+      </label>
+      <label class="cust-form-field">
+        <span class="cust-form-label">Qty</span>
+        <input name="lineQty" type="number" min="0" step="any" class="cust-form-input" placeholder="Qty" disabled />
+      </label>
+      <label class="cust-form-field">
+        <span class="cust-form-label">Unit</span>
+        <input name="lineUnit" type="text" class="cust-form-input" placeholder="Bag, pcs…" disabled />
+      </label>
+      <label class="cust-form-field">
+        <span class="cust-form-label">Rate</span>
+        <input name="lineRate" type="number" min="0" step="0.01" class="cust-form-input" placeholder="Rate" disabled />
+      </label>
+      <div class="cust-form-field pur-line-total-field">
+        <span class="cust-form-label">Line total</span>
+        <span class="pur-line-total-display">—</span>
+      </div>
+      <div class="cust-form-field pur-add-line-field">
+        <span class="cust-form-label pur-add-line-label-spacer" aria-hidden="true">&nbsp;</span>
+        <button type="button" class="btn btn-ghost btn-sm pur-add-line-btn" disabled>Add line</button>
+      </div>
     </div>
     <div class="pur-lines-table-host"></div>
     <div class="pur-po-footer">
-      <label class="pur-field-label">Link MR (optional)</label>
-      <select name="mrId" class="toolbar-select"><option value="">—</option>${mrOpts}</select>
+      <label class="cust-form-field pur-po-mr-field">
+        <span class="cust-form-label">Link MR (optional)</span>
+        <select name="mrId" class="cust-form-input"><option value="">—</option>${mrOpts}</select>
+      </label>
       <span class="pur-po-total-label">PO total: <strong class="pur-po-total-value">${formatBDT(sumPoLines(draftLines))}</strong></span>
       <button type="button" class="btn btn-primary btn-sm pur-create-po-btn">Create PO</button>
     </div>
@@ -177,74 +225,113 @@ export function renderPurchaseOrderComposer(opts) {
   const createBtn = wrap.querySelector(".pur-create-po-btn");
   const mrSel = wrap.querySelector('[name="mrId"]');
 
-  const picker = renderProductPicker(catalog, {
+  const picker = renderProductPicker(cat(), {
+    getCatalog: cat,
     onSelect: (entry) => {
       selectedProductKey = entry.productKey;
+      selectedProductName = entry.name || "";
       refreshSupplierOptions();
+      applyCatalogRowToLineFields();
     },
   });
   pickerHost.appendChild(picker.el);
 
-  function updateLineTotalPreview() {
-    const t = calcLineAmount(qtyIn.value, rateIn.value);
-    totalDisplay.textContent = formatBDT(t);
+  function activeSuppliersList() {
+    return (sups() || []).filter((s) => (s.status || "active") !== "inactive");
   }
 
-  function setLineFieldsEnabled(on) {
-    supplierSel.disabled = !on;
-    qtyIn.disabled = !on;
-    rateIn.disabled = !on;
-    addLineBtn.disabled = !on;
-    if (!on) unitIn.disabled = true;
+  function currentCatalogRow() {
+    if (!selectedProductKey || !selectedSupplierId) return null;
+    return catalogEntryFor(cat(), selectedSupplierId, selectedProductKey);
+  }
+
+  function lineInputsReady() {
+    return Boolean(selectedProductKey && selectedSupplierId);
+  }
+
+  function updateLineTotalPreview() {
+    const q = qtyIn.value;
+    const r = rateIn.value;
+    if (q === "" && r === "") {
+      totalDisplay.textContent = "—";
+      return;
+    }
+    totalDisplay.textContent = formatBDT(calcLineAmount(q, r));
+  }
+
+  function applyCatalogRowToLineFields() {
+    const row = currentCatalogRow();
+    if (row) {
+      unitIn.value = row.unit;
+      rateIn.value = row.rate;
+      unitIn.readOnly = true;
+    } else if (lineInputsReady()) {
+      unitIn.readOnly = false;
+    } else {
+      unitIn.value = "";
+      rateIn.value = "";
+      unitIn.readOnly = false;
+    }
+    refreshLineFieldsEnabled();
+    updateLineTotalPreview();
+  }
+
+  function refreshLineFieldsEnabled() {
+    const ready = lineInputsReady();
+    qtyIn.disabled = !ready;
+    rateIn.disabled = !ready;
+    addLineBtn.disabled = !ready;
+    unitIn.disabled = !ready;
+    if (ready) {
+      const row = currentCatalogRow();
+      unitIn.readOnly = Boolean(row);
+    }
   }
 
   function refreshSupplierOptions() {
-    const rows = suppliersForProduct(catalog, selectedProductKey);
-    if (!rows.length) {
-      supplierSel.innerHTML = '<option value="">No supplier for this product</option>';
+    if (draftLines.length) {
+      const lockedId = draftLines[0].supplierId;
+      const lockedName = draftLines[0].supplierName || lockedId;
+      supplierSel.innerHTML = `<option value="${escapeHtml(lockedId)}" selected>${escapeHtml(lockedName)}</option>`;
       supplierSel.disabled = true;
-      setLineFieldsEnabled(false);
+      selectedSupplierId = lockedId;
+      applyCatalogRowToLineFields();
       return;
     }
-    if (selectedSupplierId && !rows.some((r) => r.supplierId === selectedSupplierId)) {
+
+    const active = activeSuppliersList();
+    if (!active.length) {
+      supplierSel.innerHTML = '<option value="">No suppliers — add in Suppliers</option>';
+      supplierSel.disabled = true;
       selectedSupplierId = "";
+      refreshLineFieldsEnabled();
+      return;
     }
-    if (selectedSupplierId && draftLines.length) {
-      const mismatch = rows.every((r) => r.supplierId !== selectedSupplierId);
-      if (mismatch) {
-        supplierSel.innerHTML = `<option value="">PO locked to ${escapeHtml(draftLines[0].supplierName)} — pick their product or clear lines</option>`;
-        supplierSel.disabled = true;
-        setLineFieldsEnabled(false);
-        return;
-      }
-    }
+
     supplierSel.innerHTML =
       '<option value="">Select supplier</option>' +
-      rows
-        .map(
-          (r) =>
-            `<option value="${escapeHtml(r.supplierId)}" data-product-id="${escapeHtml(r.productId)}">${escapeHtml(r.supplierName)} — ${formatBDT(r.rate)}/${escapeHtml(r.unit)}</option>`
-        )
+      active
+        .map((s) => {
+          const row = selectedProductKey ? catalogEntryFor(cat(), s.id, selectedProductKey) : null;
+          const label = row
+            ? `${s.name || s.id} — ${formatBDT(row.rate)}/${row.unit}`
+            : s.name || s.id;
+          const pid = row?.productId || "";
+          return `<option value="${escapeHtml(s.id)}" data-product-id="${escapeHtml(pid)}">${escapeHtml(label)}</option>`;
+        })
         .join("");
     supplierSel.disabled = false;
-    if (selectedSupplierId) supplierSel.value = selectedSupplierId;
-    setLineFieldsEnabled(!!selectedProductKey);
+    if (selectedSupplierId && active.some((s) => s.id === selectedSupplierId)) {
+      supplierSel.value = selectedSupplierId;
+    } else {
+      selectedSupplierId = supplierSel.value || "";
+    }
+    applyCatalogRowToLineFields();
   }
 
   function onSupplierChange() {
     selectedSupplierId = supplierSel.value;
-    const opt = supplierSel.selectedOptions[0];
-    const productId = opt?.dataset?.productId || "";
-    const row = catalog.find((e) => e.supplierId === selectedSupplierId && e.productId === productId);
-    if (row) {
-      unitIn.value = row.unit;
-      rateIn.value = row.rate;
-      unitIn.disabled = false;
-    } else {
-      unitIn.value = "";
-      rateIn.value = "";
-    }
-    updateLineTotalPreview();
+    applyCatalogRowToLineFields();
   }
 
   supplierSel.addEventListener("change", onSupplierChange);
@@ -261,7 +348,8 @@ export function renderPurchaseOrderComposer(opts) {
     }
     selectedSupplierId = draftLines[0].supplierId;
     linesHost.innerHTML = `
-      <table class="dash-table pur-line-table">
+      <div class="table-wrap projects-table-wrap">
+      <table class="dash-table projects-table pur-line-table">
         <thead><tr><th>Product</th><th>Supplier</th><th class="text-right">Qty</th><th>Unit</th><th class="text-right">Rate</th><th class="text-right">Amount</th><th></th></tr></thead>
         <tbody>
           ${draftLines
@@ -280,6 +368,7 @@ export function renderPurchaseOrderComposer(opts) {
             .join("")}
         </tbody>
       </table>
+      </div>
     `;
     totalValue.textContent = formatBDT(sumPoLines(draftLines));
     linesHost.querySelectorAll(".pur-remove-line").forEach((btn) => {
@@ -293,11 +382,8 @@ export function renderPurchaseOrderComposer(opts) {
   }
 
   addLineBtn.onclick = () => {
-    const opt = supplierSel.selectedOptions[0];
-    const productId = opt?.dataset?.productId || "";
-    const row = catalog.find((e) => e.supplierId === supplierSel.value && e.productId === productId);
-    if (!row) {
-      showToast("Select a supplier for this product", "error");
+    if (!lineInputsReady()) {
+      showToast("Select product and supplier", "error");
       return;
     }
     const qty = Number(qtyIn.value);
@@ -305,31 +391,65 @@ export function renderPurchaseOrderComposer(opts) {
       showToast("Enter quantity", "error");
       return;
     }
-    if (draftLines.length && draftLines[0].supplierId !== row.supplierId) {
+    const row = currentCatalogRow();
+    const supplierRow = activeSuppliersList().find((s) => s.id === selectedSupplierId);
+    const supplierName = supplierRow?.name || supplierRow?.id || selectedSupplierId;
+
+    if (draftLines.length && draftLines[0].supplierId !== selectedSupplierId) {
       showToast("One PO = one supplier. Remove lines or use another PO.", "error");
       return;
     }
-    const line = normalizePoLine({
-      supplierProductId: row.productId,
-      productName: row.name,
-      productCode: row.code,
-      supplierId: row.supplierId,
-      supplierName: row.supplierName,
-      unit: row.unit,
-      qty,
-      rate: Number(rateIn.value) || row.rate,
-    });
+
+    let line;
+    if (row) {
+      line = normalizePoLine({
+        supplierProductId: row.productId,
+        productName: row.name,
+        productCode: row.code,
+        supplierId: row.supplierId,
+        supplierName: row.supplierName,
+        unit: row.unit,
+        qty,
+        rate: Number(rateIn.value) || row.rate,
+      });
+    } else {
+      const productName = (selectedProductName || picker.input.value || "").trim();
+      const unit = String(unitIn.value || "").trim();
+      const rate = Number(rateIn.value);
+      if (!productName) {
+        showToast("Select a product from the list", "error");
+        return;
+      }
+      if (!unit) {
+        showToast("Enter unit (e.g. Bag, pcs)", "error");
+        return;
+      }
+      if (!rate || rate <= 0) {
+        showToast("Enter rate", "error");
+        return;
+      }
+      line = normalizePoLine({
+        supplierProductId: "",
+        productName,
+        productCode: "",
+        supplierId: selectedSupplierId,
+        supplierName,
+        unit,
+        qty,
+        rate,
+      });
+    }
+
     draftLines.push(line);
     picker.reset();
     selectedProductKey = "";
+    selectedProductName = "";
     supplierSel.value = "";
     qtyIn.value = "";
     unitIn.value = "";
     rateIn.value = "";
     totalDisplay.textContent = "—";
-    setLineFieldsEnabled(false);
-    supplierSel.innerHTML = '<option value="">Select product first</option>';
-    supplierSel.disabled = true;
+    refreshSupplierOptions();
     renderLinesTable();
   };
 
