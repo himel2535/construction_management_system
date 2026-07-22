@@ -119,6 +119,11 @@ export const DASH_ICONS_REPORT_WIDGET = {
   financial: "kpi-receivable",
   governance: "milestone-gear",
   hse: "kpi-expense",
+  profile: "kpi-projects",
+  users: "approval-expense",
+  rbac: "milestone-gear",
+  audit: "approval-billing",
+  backup: "kpi-expense",
 };
 
 export function reportWidgetIcon(type, className = "reports-widget-head-icon") {

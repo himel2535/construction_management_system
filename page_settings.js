@@ -4,20 +4,26 @@ import { showToast } from "./cmp_toast.js";
 import { setActiveNav, refreshSidebarNav } from "./cmp_layout.js";
 import { setPageChrome, syncHeaderUser } from "./cmp_header.js";
 import { getCurrentUserId, setCurrentUser } from "./svc_auth.js";
-import { getCurrentRole } from "./svc_governance.js";
 import {
   invalidateRoleCache,
   listRoleUsers,
   guardAction,
   canPerformAction,
 } from "./svc_governance.js";
-import { ALL_ROLES, roleLabel, roleDescription, defaultRouteForRole } from "./util_roles.js";
-import { navigateTo } from "./util_route.js";
-import { PERMISSION_GROUPS, MATRIX_ROLES, roleHasPermission, matrixRoleLabel } from "./util_permissions.js";
+import { ALL_ROLES, roleLabel, roleDescription } from "./util_roles.js";
 import { createEmployee, deactivateUser, reactivateUser, removeEmployee } from "./svc_userManagement.js";
 import { switchDemoUser, DEMO_ROLE_USERS } from "./svc_demoSession.js";
 import { formatDate } from "./util_format.js";
 import { buildAuditDiff } from "./util_audit.js";
+import { reportsWidgetShell, renderReportsTabBar, wrapReportsTabPanel } from "./cmp_reports.js";
+import {
+  SETTINGS_SECTION_TABS,
+  SETTINGS_TAB_STORAGE_KEY,
+  renderSettingsKpiRow,
+  renderCompanyProfileViewHtml,
+  isCompanyProfileComplete,
+  renderPermissionMatrixHtml,
+} from "./cmp_settings.js";
 
 function escapeHtml(s) {
   return String(s)
@@ -27,30 +33,16 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
-function renderPermissionMatrix() {
-  const actionRows = PERMISSION_GROUPS.flatMap((g) =>
-    g.actions.map((action) => ({ group: g.label, action }))
-  );
-  return `
-    <div class="table-wrap settings-perm-matrix">
-      <table class="dash-table">
-        <thead><tr><th>Permission</th>${MATRIX_ROLES.map((r) => `<th>${escapeHtml(matrixRoleLabel(r))}</th>`).join("")}</tr></thead>
-        <tbody>
-          ${actionRows.map((row) => `
-            <tr>
-              <td><span class="text-muted">${escapeHtml(row.group)}</span> — ${escapeHtml(row.action)}</td>
-              ${MATRIX_ROLES.map((r) => `<td class="perm-cell">${roleHasPermission(r, row.action) ? "✓" : "—"}</td>`).join("")}
-            </tr>`).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
+function simpleSettingsWidget(title, sub, bodyId, opts = {}) {
+  const el = document.createElement("div");
+  el.innerHTML = reportsWidgetShell({ title, sub, bodyId, ...opts });
+  return el.firstElementChild;
 }
 
 function renderSystemRolesTable() {
   return `
-    <div class="table-wrap settings-roles-table">
-      <table class="dash-table">
+    <div class="reports-table-wrap settings-roles-table">
+      <table class="dash-table projects-table">
         <thead><tr><th>Role</th><th>Description</th></tr></thead>
         <tbody>
           ${ALL_ROLES.map(
@@ -70,34 +62,141 @@ export function mountSettings(container) {
   setActiveNav();
   setPageChrome({
     title: "Settings",
-    subtitle: "Company profile, users, RBAC, audit log, and backup (§2.12).",
+    subtitle: "Company profile, users, RBAC, audit log, and backup — use tabs below to switch areas.",
     showDateRange: false,
   });
 
   const root = document.createElement("div");
-  root.className = "page-content content-grid-2";
+  root.className = "reports-page settings-page dashboard-page dashboard-mockup";
 
-  const homeRoute = defaultRouteForRole(getCurrentRole());
-  const backLabel = getCurrentRole() === "client" ? "Back to Portal" : "Back to Dashboard";
-  const backBar = document.createElement("div");
-  backBar.className = "settings-back-bar";
-  backBar.innerHTML = `<a href="#${homeRoute}" class="settings-back-link">← ${backLabel}</a>`;
-  root.appendChild(backBar);
+  const stats = document.createElement("div");
+  stats.className = "dash-kpi-row";
+  stats.id = "settings-stats";
+  root.appendChild(stats);
 
-  const form = document.createElement("form");
-  form.className = "card card-pad";
-  form.innerHTML = `
-    <h3 class="section-title">Company Profile</h3>
-    <input name="name" placeholder="Company name" style="width:100%;margin-bottom:0.5rem" />
-    <input name="address" placeholder="Address" style="width:100%;margin-bottom:0.5rem" />
-    <input name="phone" placeholder="Phone" style="width:100%;margin-bottom:0.5rem" />
-    <button type="submit" class="btn btn-primary" style="width:100%">Save</button>
+  const tabHostEl = document.createElement("div");
+  tabHostEl.className = "rep-tab-host";
+
+  const contentHostEl = document.createElement("div");
+  contentHostEl.className = "rep-content-host";
+
+  let activeTab = sessionStorage.getItem(SETTINGS_TAB_STORAGE_KEY) || "profile";
+  if (!SETTINGS_SECTION_TABS.some((t) => t.id === activeTab)) activeTab = "profile";
+
+  function setActiveTab(id) {
+    if (!SETTINGS_SECTION_TABS.some((t) => t.id === id)) return;
+    activeTab = id;
+    try {
+      sessionStorage.setItem(SETTINGS_TAB_STORAGE_KEY, id);
+    } catch {
+      /* ignore */
+    }
+    contentHostEl.querySelectorAll(".rep-tab-panel").forEach((panel) => {
+      const on = panel.dataset.repTab === id;
+      panel.hidden = !on;
+    });
+    tabHostEl.querySelectorAll(".rep-tab-pill").forEach((btn) => {
+      const on = btn.dataset.repTab === id;
+      btn.classList.toggle("is-active", on);
+      btn.setAttribute("aria-selected", on ? "true" : "false");
+    });
+  }
+
+  const profileWidget = simpleSettingsWidget(
+    "Company profile",
+    "Legal name and contact details for reports and documents",
+    "settings-profile-body",
+    { headerIcon: "profile" }
+  );
+  profileWidget.querySelector("#settings-profile-body").innerHTML = `
+    <div class="settings-profile-panel">
+      <div class="settings-profile-toolbar">
+        <span id="settings-profile-status-chip" class="chip chip--warn">Incomplete</span>
+        <div class="settings-profile-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="settings-profile-edit-btn">Edit company profile</button>
+          <button type="submit" form="settings-profile-form" class="btn btn-primary btn-sm" id="settings-profile-save-btn" hidden>Save</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="settings-profile-cancel-btn" hidden>Cancel</button>
+        </div>
+      </div>
+      <div id="settings-profile-view"></div>
+      <div id="settings-profile-edit" hidden>
+        <form id="settings-profile-form" class="settings-profile-form settings-profile-form--edit">
+          <label class="settings-profile-field">
+            <span class="settings-profile-field-label">Company name</span>
+            <input name="name" placeholder="Company name" />
+          </label>
+          <label class="settings-profile-field">
+            <span class="settings-profile-field-label">Address</span>
+            <input name="address" placeholder="Address" />
+          </label>
+          <label class="settings-profile-field">
+            <span class="settings-profile-field-label">Phone</span>
+            <input name="phone" placeholder="Phone" />
+          </label>
+        </form>
+      </div>
+    </div>
   `;
+  const form = profileWidget.querySelector("#settings-profile-form");
+  const profileViewHost = profileWidget.querySelector("#settings-profile-view");
+  const profileEditHost = profileWidget.querySelector("#settings-profile-edit");
+  const profileStatusChip = profileWidget.querySelector("#settings-profile-status-chip");
+  const profileEditBtn = profileWidget.querySelector("#settings-profile-edit-btn");
+  const profileSaveBtn = profileWidget.querySelector("#settings-profile-save-btn");
+  const profileCancelBtn = profileWidget.querySelector("#settings-profile-cancel-btn");
 
-  const rolesCard = document.createElement("div");
-  rolesCard.className = "card card-pad";
-  rolesCard.innerHTML = `
-    <h3 class="section-title">Users &amp; Roles (§2.12)</h3>
+  let profileMode = "view";
+
+  function populateProfileForm(p) {
+    const data = p || {};
+    form.name.value = data.name || "";
+    form.address.value = data.address || "";
+    form.phone.value = data.phone || "";
+  }
+
+  function updateProfileStatusChip(p) {
+    const complete = isCompanyProfileComplete(p);
+    profileStatusChip.textContent = complete ? "Complete" : "Incomplete";
+    profileStatusChip.className = complete ? "chip chip--ok" : "chip chip--warn";
+  }
+
+  function syncProfileView(p) {
+    profileViewHost.innerHTML = renderCompanyProfileViewHtml(p);
+    updateProfileStatusChip(p);
+  }
+
+  function setProfileMode(mode) {
+    profileMode = mode;
+    const editing = mode === "edit";
+    profileViewHost.hidden = editing;
+    profileEditHost.hidden = !editing;
+    profileEditBtn.hidden = editing;
+    profileSaveBtn.hidden = !editing;
+    profileCancelBtn.hidden = !editing;
+    profileWidget.classList.toggle("is-profile-editing", editing);
+  }
+
+  profileEditBtn.onclick = () => {
+    populateProfileForm(companyProfile);
+    setProfileMode("edit");
+    form.name.focus();
+  };
+
+  profileCancelBtn.onclick = () => {
+    populateProfileForm(companyProfile);
+    setProfileMode("view");
+  };
+
+  syncProfileView(null);
+  setProfileMode("view");
+
+  const usersWidget = simpleSettingsWidget(
+    "Users & roles",
+    "Demo mode — employees, roles, and session switching",
+    "settings-users-body",
+    { headerIcon: "users" }
+  );
+  usersWidget.querySelector("#settings-users-body").innerHTML = `
     <p class="section-sub" id="settings-roles-note">Demo mode — switch role via the <strong>header user menu</strong> or below. Demo emails: ${DEMO_ROLE_USERS.map((u) => escapeHtml(u.email)).join(", ")}.</p>
     <form id="settings-add-user-form" class="settings-add-user-form">
       <input name="displayName" placeholder="Full name" required />
@@ -108,48 +207,81 @@ export function mountSettings(container) {
     <div id="settings-roles-list"></div>
   `;
 
-  const permCard = document.createElement("div");
-  permCard.className = "card card-pad settings-perm-card";
-  permCard.innerHTML = `
-    <h3 class="section-title">Permission matrix (RBAC)</h3>
-    <p class="section-sub">Role-based access — Owner, PM, Engineer, Accountant (§2.12).</p>
-    <div id="settings-perm-matrix"></div>
-  `;
+  const permWidget = simpleSettingsWidget(
+    "Permission matrix",
+    "Role-based access by Owner, Project Manager, Engineer, and Accountant",
+    "settings-perm-matrix-host",
+    { headerIcon: "rbac" }
+  );
+  permWidget.querySelector("#settings-perm-matrix-host").innerHTML = `<div id="settings-perm-matrix"></div>`;
 
-  const auditCard = document.createElement("div");
-  auditCard.className = "card card-pad settings-audit-card";
-  auditCard.innerHTML = `
-    <h3 class="section-title">Audit log</h3>
-    <p class="section-sub">Create, update, and delete actions with before/after snapshots.</p>
-    <div id="settings-audit-list"></div>
-  `;
+  const systemRolesWidget = simpleSettingsWidget(
+    "System roles",
+    "System-wide role definitions and descriptions",
+    "settings-system-roles-host",
+    { headerIcon: "rbac" }
+  );
+  systemRolesWidget.querySelector("#settings-system-roles-host").innerHTML = `<div id="settings-system-roles-table"></div>`;
 
-  const systemRolesCard = document.createElement("div");
-  systemRolesCard.className = "card card-pad settings-system-roles";
-  systemRolesCard.innerHTML = `
-    <h3 class="section-title">System Roles</h3>
-    <p class="section-sub">Requirements §1.3 — system-wide role definitions.</p>
-    <div id="settings-system-roles-table"></div>
-  `;
+  const rbacStack = document.createElement("div");
+  rbacStack.className = "settings-rbac-stack";
+  rbacStack.append(permWidget, systemRolesWidget);
 
-  const backupBox = document.createElement("div");
-  backupBox.className = "card card-pad";
-  backupBox.innerHTML = `
-    <h3 class="section-title">Backup</h3>
-    <p class="section-sub">Mock mode — metadata marker only</p>
+  const auditWidget = simpleSettingsWidget(
+    "Audit log",
+    "Create, update, and delete actions with before/after snapshots",
+    "settings-audit-body",
+    { headerIcon: "audit" }
+  );
+  auditWidget.querySelector("#settings-audit-body").innerHTML = `<div id="settings-audit-list"></div>`;
+
+  const backupWidget = simpleSettingsWidget(
+    "Backup",
+    "Mock mode — metadata marker only",
+    "settings-backup-body",
+    { headerIcon: "backup" }
+  );
+  backupWidget.querySelector("#settings-backup-body").innerHTML = `
     <button type="button" class="btn btn-dark" id="backup-btn">Request backup</button>
-    <p id="backup-status" style="margin-top:0.5rem;font-size:0.875rem"></p>
+    <p id="backup-status" class="settings-backup-status"></p>
   `;
 
-  root.append(form, rolesCard, permCard, auditCard, systemRolesCard, backupBox);
+  const sectionNodes = [
+    ["profile", profileWidget],
+    ["users", usersWidget],
+    ["rbac", rbacStack],
+    ["audit", auditWidget],
+    ["backup", backupWidget],
+  ];
+
+  for (const [tabId, node] of sectionNodes) {
+    contentHostEl.appendChild(wrapReportsTabPanel(tabId, node, activeTab === tabId));
+  }
+
+  root.append(tabHostEl, contentHostEl);
   container.appendChild(root);
 
-  permCard.querySelector("#settings-perm-matrix").innerHTML = renderPermissionMatrix();
+  tabHostEl.appendChild(renderReportsTabBar(SETTINGS_SECTION_TABS, activeTab, setActiveTab));
+  setActiveTab(activeTab);
 
-  systemRolesCard.querySelector("#settings-system-roles-table").innerHTML = renderSystemRolesTable();
+  root.querySelector("#settings-perm-matrix").innerHTML = renderPermissionMatrixHtml();
+  root.querySelector("#settings-system-roles-table").innerHTML = renderSystemRolesTable();
 
-  const rolesHost = rolesCard.querySelector("#settings-roles-list");
-  const rolesNote = rolesCard.querySelector("#settings-roles-note");
+  const rolesHost = root.querySelector("#settings-roles-list");
+  const rolesNote = root.querySelector("#settings-roles-note");
+
+  let companyProfile = null;
+  let auditLogsCache = [];
+
+  function updateSettingsKpi() {
+    const users = listRoleUsers().filter((u) => !u.deletedAt && u.active !== false);
+    stats.innerHTML = renderSettingsKpiRow({
+      activeUsers: users.length,
+      auditCount: auditLogsCache.length,
+      roleCount: ALL_ROLES.length,
+      profileComplete: isCompanyProfileComplete(companyProfile),
+    });
+  }
 
   function canManageUsers() {
     return canPerformAction("manage_users");
@@ -166,14 +298,17 @@ export function mountSettings(container) {
 
     if (!users.length) {
       rolesHost.innerHTML = `<p class="proj-empty">No users seeded</p>`;
+      updateSettingsKpi();
       return;
     }
 
-    rolesHost.innerHTML = users
+    const rows = users
       .filter((u) => !u.deletedAt)
       .map((u) => {
         const desc = roleDescription(u.role);
         const inactive = u.active === false;
+        const isSession = u.id === currentId;
+
         const roleControl = manage
           ? `<select class="toolbar-select settings-role-select" data-uid="${u.id}" aria-label="Role for ${escapeHtml(u.displayName || u.id)}" ${inactive ? "disabled" : ""}>
               ${ALL_ROLES.map(
@@ -182,38 +317,74 @@ export function mountSettings(container) {
               ).join("")}
             </select>`
           : `<span class="chip">${escapeHtml(roleLabel(u.role))}</span>`;
-        const switchBtn =
-          manage && u.id !== currentId && !inactive
-            ? `<button type="button" class="btn btn-ghost btn-sm settings-switch-user" data-uid="${u.id}">Switch to</button>`
-            : u.id === currentId
-              ? `<span class="chip">Active session</span>`
-              : "";
-        const statusChip = inactive
-          ? `<span class="chip chip--warn">Deactivated</span>`
-          : `<span class="chip chip--ok">Active</span>`;
-        const adminBtns = manage && u.id !== currentId
-          ? inactive
-            ? `<button type="button" class="btn btn-ghost btn-sm settings-reactivate-user" data-uid="${u.id}">Reactivate</button>
-               <button type="button" class="btn btn-ghost btn-sm settings-remove-user" data-uid="${u.id}">Remove</button>`
-            : `<button type="button" class="btn btn-ghost btn-sm settings-deactivate-user" data-uid="${u.id}">Deactivate</button>`
-          : "";
 
-        return `
-      <div class="settings-role-row${u.id === currentId ? " is-active-user" : ""}${inactive ? " is-inactive-user" : ""}" data-uid="${u.id}">
-        <div class="settings-role-info">
-          <strong>${escapeHtml(u.displayName || u.email || u.id)}</strong>
-          <span class="text-muted">${escapeHtml(u.email || "")}</span>
-          ${desc ? `<span class="settings-role-desc">${escapeHtml(desc)}</span>` : ""}
-          ${statusChip}
-        </div>
-        <div class="settings-role-actions">
-          ${roleControl}
-          ${switchBtn}
-          ${adminBtns}
-        </div>
-      </div>`;
+        let statusHtml;
+        if (isSession) {
+          statusHtml = `<span class="settings-user-status settings-user-status--session">Active session</span>`;
+        } else if (inactive) {
+          statusHtml = `<span class="settings-user-status settings-user-status--inactive">Deactivated</span>`;
+        } else {
+          statusHtml = `<span class="settings-user-status settings-user-status--active">Active</span>`;
+        }
+
+        const actionParts = [];
+        if (manage && u.id !== currentId && !inactive) {
+          actionParts.push(
+            `<button type="button" class="btn btn-sm btn-pastel btn-pastel--switch settings-switch-user" data-uid="${u.id}">Switch to</button>`
+          );
+        }
+        if (manage && u.id !== currentId) {
+          if (inactive) {
+            actionParts.push(
+              `<button type="button" class="btn btn-sm btn-pastel btn-pastel--reactivate settings-reactivate-user" data-uid="${u.id}">Reactivate</button>`,
+              `<button type="button" class="btn btn-sm btn-pastel btn-pastel--remove settings-remove-user" data-uid="${u.id}">Remove</button>`
+            );
+          } else {
+            actionParts.push(
+              `<button type="button" class="btn btn-sm btn-pastel btn-pastel--deactivate settings-deactivate-user" data-uid="${u.id}">Deactivate</button>`
+            );
+          }
+        }
+        const actionsHtml = actionParts.length
+          ? `<div class="settings-users-actions">${actionParts.join("")}</div>`
+          : `<span class="text-muted settings-users-actions-empty">—</span>`;
+
+        const rowClass = [
+          "settings-users-row",
+          isSession ? "settings-users-row--session" : "",
+          inactive ? "settings-users-row--inactive" : "",
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        return `<tr class="${rowClass}" data-uid="${u.id}">
+          <td class="settings-users-cell-user">
+            <strong class="settings-users-name">${escapeHtml(u.displayName || u.email || u.id)}</strong>
+            <span class="settings-users-email">${escapeHtml(u.email || "")}</span>
+          </td>
+          <td class="settings-users-cell-desc">${desc ? escapeHtml(desc) : "—"}</td>
+          <td class="settings-users-cell-status">${statusHtml}</td>
+          <td class="settings-users-cell-role">${roleControl}</td>
+          <td class="settings-users-cell-actions">${actionsHtml}</td>
+        </tr>`;
       })
       .join("");
+
+    rolesHost.innerHTML = `
+      <div class="reports-table-wrap settings-users-table-wrap">
+        <table class="dash-table projects-table settings-users-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Responsibilities</th>
+              <th class="settings-users-th-status">Status</th>
+              <th class="settings-users-th-role">Role</th>
+              <th class="settings-users-th-actions settings-users-actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
 
     if (manage) {
       rolesHost.querySelectorAll(".settings-role-select").forEach((sel) => {
@@ -296,18 +467,23 @@ export function mountSettings(container) {
         };
       });
     }
+
+    updateSettingsKpi();
   }
 
   function renderAuditList(logs = []) {
+    auditLogsCache = logs || [];
     const host = root.querySelector("#settings-audit-list");
     if (!host) return;
     if (!canPerformAction("manage_users")) {
       host.innerHTML = `<p class="proj-empty">Audit log is visible to Owner / Admin only.</p>`;
+      updateSettingsKpi();
       return;
     }
-    const sorted = [...logs].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 40);
+    const sorted = [...auditLogsCache].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 40);
     if (!sorted.length) {
       host.innerHTML = `<p class="proj-empty">No audit entries yet</p>`;
+      updateSettingsKpi();
       return;
     }
     host.innerHTML = `
@@ -327,11 +503,13 @@ export function mountSettings(container) {
         }).join("")}
       </ul>
     `;
+    updateSettingsKpi();
   }
 
   renderRolesList();
+  updateSettingsKpi();
 
-  const addUserForm = rolesCard.querySelector("#settings-add-user-form");
+  const addUserForm = root.querySelector("#settings-add-user-form");
   if (addUserForm) {
     addUserForm.style.display = canManageUsers() ? "" : "none";
     addUserForm.onsubmit = async (e) => {
@@ -353,11 +531,12 @@ export function mountSettings(container) {
 
   const unsubs = [
     listenValue("companyProfile/main", (p) => {
-      if (p) {
-        form.name.value = p.name || "";
-        form.address.value = p.address || "";
-        form.phone.value = p.phone || "";
+      companyProfile = p || null;
+      syncProfileView(companyProfile);
+      if (profileMode !== "edit") {
+        populateProfileForm(companyProfile);
       }
+      updateSettingsKpi();
     }),
     listenValue("roles", () => {
       invalidateRoleCache();
@@ -374,16 +553,24 @@ export function mountSettings(container) {
         address: form.address.value,
         phone: form.phone.value,
       });
+      companyProfile = {
+        name: form.name.value,
+        address: form.address.value,
+        phone: form.phone.value,
+      };
+      syncProfileView(companyProfile);
+      setProfileMode("view");
+      updateSettingsKpi();
       showToast("Saved");
     } catch (err) {
       showToast(err.message, "error");
     }
   };
 
-  backupBox.querySelector("#backup-btn").onclick = async () => {
+  root.querySelector("#backup-btn").onclick = async () => {
     try {
       await triggerBackupMetaClient();
-      backupBox.querySelector("#backup-status").textContent = "Backup marker saved";
+      root.querySelector("#backup-status").textContent = "Backup marker saved";
       showToast("Backup requested");
     } catch (err) {
       showToast(err.message, "error");
