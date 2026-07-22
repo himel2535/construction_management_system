@@ -675,6 +675,7 @@ export function resolvePageSkeletonVariant(path) {
   const pathname = (path || "").split("?")[0];
   if (ROUTE_SKELETON_MAP[pathname]) return ROUTE_SKELETON_MAP[pathname];
   if (pathname.startsWith("/projects")) return "projectsHub";
+  if (pathname.startsWith("/reports")) return "reports";
   return "listTable";
 }
 

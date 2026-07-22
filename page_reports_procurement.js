@@ -1,7 +1,6 @@
-/** §2.6.3 Procurement & stock reports */
+/** Procurement & stock reports */
 
 import { listenList, listenValue } from "./svc_data.js";
-import { formatBDT } from "./util_format.js";
 import { statusChip } from "./cmp_ui.js";
 import { listLowStock } from "./util_inventory.js";
 import {
@@ -29,6 +28,19 @@ function parseNestedByProject(root) {
   return out;
 }
 
+function renderProcTable(headRowHtml, bodyRowsHtml) {
+  return `<div class="reports-table-wrap">
+    <table class="dash-table projects-table">
+      <thead><tr>${headRowHtml}</tr></thead>
+      <tbody>${bodyRowsHtml}</tbody>
+    </table>
+  </div>`;
+}
+
+function renderProcEmpty(message) {
+  return `<p class="proj-empty rep-proc-empty">${escapeHtml(message)}</p>`;
+}
+
 export function mountProcurementStockReports(host) {
   const state = {
     materials: [],
@@ -46,23 +58,44 @@ export function mountProcurementStockReports(host) {
     },
   };
 
-  host.className = "card card-pad";
-  host.style.marginTop = "1rem";
+  host.className = "dash-widget-body rep-proc-host";
   host.innerHTML = `
-    <h3 class="section-title">Procurement &amp; stock (§2.6)</h3>
-    <p class="text-muted">PO workflow lives on Purchases. Central stock: GRN → issue voucher → site usage.</p>
-    <div class="form-grid proj-form-inline" id="stock-report-filters">
-      <label>From <input type="date" id="sr-from" /></label>
-      <label>To <input type="date" id="sr-to" /></label>
-      <label>Site <select id="sr-project"><option value="all">All sites</option></select></label>
-      <label>Material <select id="sr-material"><option value="all">All items</option></select></label>
-      <label>Site in-charge <select id="sr-sic"><option value="all">All</option></select></label>
-      <button type="button" class="btn btn-primary btn-sm" id="sr-apply">Apply filters</button>
+    <div class="rep-proc-panel">
+      <div class="rep-proc-toolbar card">
+        <p class="rep-proc-toolbar-hint">Filter and apply to refresh consumption, variance, and low-stock blocks below.</p>
+        <div class="rep-proc-filters-row">
+          <label class="rep-proc-field">
+            <span class="rep-proc-field-label">From</span>
+            <input type="date" id="sr-from" />
+          </label>
+          <label class="rep-proc-field">
+            <span class="rep-proc-field-label">To</span>
+            <input type="date" id="sr-to" />
+          </label>
+          <label class="rep-proc-field">
+            <span class="rep-proc-field-label">Site</span>
+            <select id="sr-project"><option value="all">All sites</option></select>
+          </label>
+          <label class="rep-proc-field">
+            <span class="rep-proc-field-label">Material</span>
+            <select id="sr-material"><option value="all">All items</option></select>
+          </label>
+          <label class="rep-proc-field">
+            <span class="rep-proc-field-label">Site in-charge</span>
+            <select id="sr-sic"><option value="all">All</option></select>
+          </label>
+          <div class="rep-proc-field rep-proc-field--action">
+            <button type="button" class="btn btn-primary btn-sm" id="sr-apply">Apply filters</button>
+          </div>
+        </div>
+      </div>
+      <div class="rep-proc-grid">
+        <section class="rep-proc-block card" id="sr-consumption"></section>
+        <section class="rep-proc-block card" id="sr-variance"></section>
+        <section class="rep-proc-block card" id="sr-accountability"></section>
+        <section class="rep-proc-block card" id="sr-lowstock"></section>
+      </div>
     </div>
-    <div id="sr-consumption" class="stock-report-block"></div>
-    <div id="sr-variance" class="stock-report-block"></div>
-    <div id="sr-accountability" class="stock-report-block"></div>
-    <div id="sr-lowstock" class="stock-report-block"></div>
   `;
 
   function render() {
@@ -85,12 +118,20 @@ export function mountProcurementStockReports(host) {
     const consumption = consumptionBySite(state.usageByProject, state.projects, f);
     host.querySelector("#sr-consumption").innerHTML = `
       <h4 class="sup-section-title">Site-wise consumption</h4>
-      ${consumption.length ? `<table class="dash-table"><thead><tr><th>Date</th><th>Site</th><th>Material</th><th>Used</th><th>Wasted</th><th>Task</th></tr></thead><tbody>${consumption
-        .slice(0, 50)
-        .map(
-          (r) => `<tr><td>${escapeHtml(r.logDate)}</td><td>${escapeHtml(r.projectName)}</td><td>${escapeHtml(r.materialName)}</td><td>${r.qtyUsed}</td><td>${r.qtyWasted}</td><td>${escapeHtml(r.usedFor || "—")}</td></tr>`
-        )
-        .join("")}</tbody></table>` : `<p class="proj-empty">No consumption for filters</p>`}`;
+      ${
+        consumption.length
+          ? renderProcTable(
+              "<th>Date</th><th>Site</th><th>Material</th><th>Used</th><th>Wasted</th><th>Task</th>",
+              consumption
+                .slice(0, 50)
+                .map(
+                  (r) =>
+                    `<tr><td>${escapeHtml(r.logDate)}</td><td>${escapeHtml(r.projectName)}</td><td>${escapeHtml(r.materialName)}</td><td>${r.qtyUsed}</td><td>${r.qtyWasted}</td><td>${escapeHtml(r.usedFor || "—")}</td></tr>`
+                )
+                .join("")
+            )
+          : renderProcEmpty("No consumption for filters")
+      }`;
 
     const varianceRows = [];
     for (const [pid, logs] of Object.entries(state.usageByProject)) {
@@ -101,13 +142,20 @@ export function mountProcurementStockReports(host) {
     }
     host.querySelector("#sr-variance").innerHTML = `
       <h4 class="sup-section-title">Issued vs used variance</h4>
-      ${varianceRows.length ? `<table class="dash-table"><thead><tr><th>Site</th><th>Material</th><th>Issued</th><th>Used+Wasted</th><th>Balance</th></tr></thead><tbody>${varianceRows
-        .map((r) => {
-          const proj = state.projects.find((p) => p.id === r.projectId);
-          const cls = r.flagged ? "variance-warn-row" : "";
-          return `<tr class="${cls}"><td>${escapeHtml(proj?.name || r.projectId)}</td><td>${escapeHtml(r.materialName)}</td><td>${r.qtyIssued}</td><td>${r.qtyUsed + r.qtyWasted}</td><td class="${r.flagged ? "sic-variance-warn" : ""}">${r.variance}</td></tr>`;
-        })
-        .join("")}</tbody></table>` : `<p class="proj-empty">No variance rows</p>`}`;
+      ${
+        varianceRows.length
+          ? renderProcTable(
+              "<th>Site</th><th>Material</th><th>Issued</th><th>Used+Wasted</th><th>Balance</th>",
+              varianceRows
+                .map((r) => {
+                  const proj = state.projects.find((p) => p.id === r.projectId);
+                  const cls = r.flagged ? "variance-warn-row" : "";
+                  return `<tr class="${cls}"><td>${escapeHtml(proj?.name || r.projectId)}</td><td>${escapeHtml(r.materialName)}</td><td>${r.qtyIssued}</td><td>${r.qtyUsed + r.qtyWasted}</td><td class="${r.flagged ? "sic-variance-warn" : ""}">${r.variance}</td></tr>`;
+                })
+                .join("")
+            )
+          : renderProcEmpty("No variance rows")
+      }`;
 
     const sicId = f.sicId === "all" ? state.siteInCharges[0]?.id : f.sicId;
     const acc = sicId
@@ -121,22 +169,37 @@ export function mountProcurementStockReports(host) {
     const sicName = state.siteInCharges.find((s) => s.id === sicId)?.name || "—";
     host.querySelector("#sr-accountability").innerHTML = `
       <h4 class="sup-section-title">Site in-charge accountability — ${escapeHtml(sicName)}</h4>
-      ${acc.length ? `<table class="dash-table"><thead><tr><th>Date</th><th>Type</th><th>Site</th><th>Detail</th><th>Status</th></tr></thead><tbody>${acc
-        .slice(0, 30)
-        .map(
-          (a) => `<tr><td>${escapeHtml(a.date || "—")}</td><td>${escapeHtml(a.type)}</td><td>${escapeHtml(a.projectName)}</td><td>${escapeHtml(a.label)}</td><td>${statusChip(a.status)}</td></tr>`
-        )
-        .join("")}</tbody></table>` : `<p class="proj-empty">No records for selected person</p>`}`;
+      ${
+        acc.length
+          ? renderProcTable(
+              "<th>Date</th><th>Type</th><th>Site</th><th>Detail</th><th>Status</th>",
+              acc
+                .slice(0, 30)
+                .map(
+                  (a) =>
+                    `<tr><td>${escapeHtml(a.date || "—")}</td><td>${escapeHtml(a.type)}</td><td>${escapeHtml(a.projectName)}</td><td>${escapeHtml(a.label)}</td><td>${statusChip(a.status)}</td></tr>`
+                )
+                .join("")
+            )
+          : renderProcEmpty("No records for selected person")
+      }`;
 
     const low = listLowStock(state.materials);
     host.querySelector("#sr-lowstock").innerHTML = `
       <h4 class="sup-section-title">Central low-stock alert</h4>
-      ${low.length ? `<table class="dash-table"><thead><tr><th>Material</th><th>Stock</th><th>Reorder</th><th>Shortfall</th></tr></thead><tbody>${low
-        .map((m) => {
-          const shortfall = Math.max(0, (Number(m.reorderLevel) || 0) - (Number(m.currentStock) || 0));
-          return `<tr class="variance-warn-row"><td>${escapeHtml(m.name)}</td><td>${m.currentStock}</td><td>${m.reorderLevel}</td><td>${shortfall}</td></tr>`;
-        })
-        .join("")}</tbody></table>` : `<p class="proj-empty">All materials above reorder level</p>`}`;
+      ${
+        low.length
+          ? renderProcTable(
+              "<th>Material</th><th>Stock</th><th>Reorder</th><th>Shortfall</th>",
+              low
+                .map((m) => {
+                  const shortfall = Math.max(0, (Number(m.reorderLevel) || 0) - (Number(m.currentStock) || 0));
+                  return `<tr class="variance-warn-row"><td>${escapeHtml(m.name)}</td><td>${m.currentStock}</td><td>${m.reorderLevel}</td><td>${shortfall}</td></tr>`;
+                })
+                .join("")
+            )
+          : renderProcEmpty("All materials above reorder level")
+      }`;
   }
 
   host.querySelector("#sr-apply").onclick = () => {

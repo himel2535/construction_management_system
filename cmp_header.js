@@ -56,6 +56,18 @@ const ROUTE_CHROME = {
   "/approvals": { title: "Approvals", subtitle: "Enterprise approval inbox for quality, safety, contracts, and claims." },
   "/arbitration": { title: "Arbitration", subtitle: "Disputes, hearings, awards, and offline sync console." },
   "/reports": { title: "Reports", subtitle: "Summary reports, governance metrics, and exports." },
+  "/reports/project-cost": {
+    title: "Project cost control",
+    subtitle: "Full budget vs committed vs actual by project.",
+  },
+  "/reports/analytics": {
+    title: "Reporting & Analytics",
+    subtitle: "Profitability, delays, utilization, and sector KPIs.",
+  },
+  "/reports/worker-payroll": {
+    title: "Site Worker & Payroll",
+    subtitle: "Site payroll, advances, and payment log.",
+  },
   "/client-portal": { title: "Client Portal", subtitle: "View project progress and billing (read-only)." },
   "/settings": { title: "Settings", subtitle: "Company, users, roles, and system settings." },
 };

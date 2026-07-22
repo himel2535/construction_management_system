@@ -107,3 +107,33 @@ export function procIcon(type) {
 export function milestoneIcon(type) {
   return dashboardIcon(DASH_ICONS.milestone[type] || DASH_ICONS.milestone.building);
 }
+
+/** Reports hub section widget icons (local Flaticon-style assets). */
+export const DASH_ICONS_REPORT_WIDGET = {
+  projectCost: "kpi-projects",
+  analytics: "milestone-gear",
+  workerPayroll: "approval-expense",
+  multitenant: "kpi-projects",
+  billing: "approval-billing",
+  purchases: "kpi-expense",
+  financial: "kpi-receivable",
+  governance: "milestone-gear",
+  hse: "kpi-expense",
+};
+
+export function reportWidgetIcon(type, className = "reports-widget-head-icon") {
+  const file = DASH_ICONS_REPORT_WIDGET[type] || DASH_ICONS.kpi.projects;
+  return `<img class="${className}" src="${ICON_PATH}/${file}.svg" width="32" height="32" alt="" loading="lazy" decoding="async" />`;
+}
+
+/** Reports top KPI strip — reuse kpi dashboard icons as flat imgs. */
+export function reportKpiIcon(type, className = "dash-color-icon cust-kpi-flat-icon") {
+  const map = {
+    billed: DASH_ICONS.kpi.collection,
+    receivable: DASH_ICONS.kpi.receivable,
+    subcontract: DASH_ICONS.kpi.contract,
+    expense: DASH_ICONS.kpi.expense,
+  };
+  const file = map[type] || DASH_ICONS.kpi.taka;
+  return `<img class="${className}" src="${ICON_PATH}/${file}.svg" width="38" height="38" alt="" decoding="async" />`;
+}

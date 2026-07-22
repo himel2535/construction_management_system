@@ -1735,6 +1735,252 @@ thead th { background: var(--slate-50); font-weight: 600; font-size: 0.8125rem; 
   white-space: nowrap;
 }
 
+/* Reports page (mockup — mirrors Approvals / Clients widgets) */
+.reports-page.dashboard-mockup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding-top: 2px;
+}
+.reports-page .dash-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.reports-page .dash-kpi-card {
+  padding: 0.75rem 0.875rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+.reports-page .dash-kpi-foot { margin-top: 0.35rem; }
+.reports-page .cust-kpi-card { position: relative; overflow: hidden; }
+.reports-page .cust-kpi-spark {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  pointer-events: none;
+}
+.reports-page .cust-kpi-card .dash-sparkline { width: 3.5rem; height: 1.375rem; }
+.reports-page .dash-kpi-icon {
+  width: 2.375rem;
+  height: 2.375rem;
+  border-radius: 0;
+  background: none;
+  padding: 0;
+}
+.reports-page .dash-kpi-icon--flat { background: none; box-shadow: none; }
+.reports-page .dash-kpi-icon .cust-kpi-flat-icon {
+  width: 2.375rem;
+  height: 2.375rem;
+  display: block;
+  object-fit: contain;
+}
+.reports-page .dash-kpi-card--attention { border-top: 3px solid #ef4444; }
+.reports-page .cust-kpi-card--yellow { border-top: 3px solid #eab308; }
+.reports-widget-head-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-width: 0;
+}
+.reports-widget-head-icon {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
+  margin-top: 0.1rem;
+}
+.dash-widget--reports .dash-widget-head--split {
+  align-items: center;
+  gap: 0.75rem;
+}
+.reports-view-all--head {
+  flex-shrink: 0;
+  white-space: nowrap;
+  align-self: flex-start;
+  margin-top: 0.15rem;
+}
+.dash-widget--reports {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+.dash-widget--reports .dash-widget-head {
+  padding: 0.625rem 0.875rem 0.25rem;
+}
+.dash-widget--reports .dash-widget-body {
+  padding: 0.625rem 0.875rem 0.75rem;
+}
+.dash-widget--reports .dash-widget-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+}
+.dash-widget--reports .dash-widget-sub {
+  color: #6b7280;
+  font-size: 0.8125rem;
+}
+.dash-widget--reports .dash-table,
+.dash-widget--reports .projects-table {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+.dash-widget--reports .projects-table thead th {
+  background: #f3f0ff;
+  border-bottom: 1px solid #e9d5ff;
+  color: #000;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.65rem 0.75rem;
+}
+.dash-widget--reports .projects-table tbody td {
+  padding: 0.75rem;
+  font-size: 0.8125rem;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+  color: #374151;
+}
+.dash-widget--reports .projects-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.reports-widget-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid #f3f4f6;
+}
+.reports-widget-foot-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+.reports-view-all {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent, #2563eb);
+  text-decoration: none;
+}
+.reports-view-all:hover {
+  text-decoration: underline;
+}
+.reports-table-wrap {
+  overflow-x: auto;
+}
+.reports-page .rep-money-num {
+  font-variant-numeric: tabular-nums;
+}
+.dash-widget--reports .projects-table th.rep-col-money,
+.dash-widget--reports .projects-table td.rep-col-money {
+  text-align: left;
+}
+.dash-widget--reports .projects-table th.rep-col-util,
+.dash-widget--reports .projects-table td.rep-col-util {
+  text-align: center;
+}
+
+.reports-page .procurement-stock-section .rep-proc-host {
+  width: 100%;
+}
+.reports-page .rep-proc-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  width: 100%;
+}
+.reports-page .rep-proc-toolbar.card {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--slate-200, #e2e8f0);
+  background: var(--slate-50, #f8fafc);
+  box-shadow: none;
+}
+.reports-page .rep-proc-toolbar-hint {
+  margin: 0 0 0.625rem;
+  font-size: 0.8125rem;
+  color: var(--slate-500, #64748b);
+}
+.reports-page .rep-proc-filters-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  gap: 0.5rem 0.625rem;
+  align-items: end;
+  width: 100%;
+}
+.reports-page .rep-proc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  margin: 0;
+}
+.reports-page .rep-proc-field-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--slate-600, #475569);
+}
+.reports-page .rep-proc-field input,
+.reports-page .rep-proc-field select {
+  width: 100%;
+  min-height: 2.25rem;
+  box-sizing: border-box;
+}
+.reports-page .rep-proc-field--action {
+  align-self: end;
+}
+.reports-page .rep-proc-field--action .btn {
+  white-space: nowrap;
+  min-height: 2.25rem;
+}
+.reports-page .rep-proc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  width: 100%;
+}
+.reports-page .rep-proc-block {
+  min-width: 0;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--slate-200, #e2e8f0);
+  box-shadow: none;
+}
+.reports-page .rep-proc-block .sup-section-title {
+  margin-bottom: 0.5rem;
+}
+.reports-page .rep-proc-block .reports-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+.reports-page .rep-proc-empty {
+  margin: 0.25rem 0 0;
+  padding: 0.35rem 0;
+  font-size: 0.8125rem;
+}
+@media (max-width: 1100px) {
+  .reports-page .rep-proc-filters-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .reports-page .rep-proc-field--action {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+  .reports-page .rep-proc-field--action .btn {
+    width: 100%;
+  }
+}
+@media (max-width: 900px) {
+  .reports-page .rep-proc-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .reports-page .rep-proc-filters-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Projects page (mirrors Clients directory layout) */
 .projects-page:not(.projects-page--create) {
   padding-top: 2px;
@@ -2522,19 +2768,23 @@ thead th { background: var(--slate-50); font-weight: 600; font-size: 0.8125rem; 
 }
 @media (max-width: 1400px) {
   .customers-page .dash-kpi-row,
-  .projects-page .dash-kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .projects-page .dash-kpi-row,
+  .reports-page .dash-kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 1200px) {
   .customers-page .dash-kpi-row,
-  .projects-page .dash-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .projects-page .dash-kpi-row,
+  .reports-page .dash-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 768px) {
   .customers-page .dash-kpi-row,
-  .projects-page .dash-kpi-row { grid-template-columns: 1fr 1fr; }
+  .projects-page .dash-kpi-row,
+  .reports-page .dash-kpi-row { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 480px) {
   .customers-page .dash-kpi-row,
-  .projects-page .dash-kpi-row { grid-template-columns: 1fr; }
+  .projects-page .dash-kpi-row,
+  .reports-page .dash-kpi-row { grid-template-columns: 1fr; }
 }
 .customers-toolbar {
   display: flex;
@@ -4996,6 +5246,74 @@ button.proj-header-kpi--link:hover {
 .inventory-page .inv-pill-tabs--inventory-main .inv-tab-pill--low_stock.is-active {
   background: #fee2e2; border-color: #f87171; color: #991b1b;
 }
+
+/* Reports page — subsection pills (mirrors Inventory) */
+.reports-page .rep-tab-host { margin-bottom: 0.125rem; }
+.reports-page .rep-content-host {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.reports-page .rep-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.reports-page .rep-tab-panel[hidden] {
+  display: none !important;
+}
+.reports-page .rep-pill-tabs--reports-main {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  padding-bottom: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.reports-page .rep-pill-tabs--reports-main::-webkit-scrollbar { display: none; }
+.reports-page .rep-pill-tabs--reports-main .rep-tab-pill {
+  flex-shrink: 0;
+  padding: 0.45rem 1rem;
+  min-height: 2.75rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: #fff;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+}
+.reports-page .rep-pill-tabs--reports-main .rep-tab-pill:hover { filter: brightness(0.98); }
+.reports-page .rep-pill-tabs--reports-main .rep-tab-pill.is-active {
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.reports-page .rep-tab-pill--billing { background: #eef2ff; border-color: #c7d2fe; color: #4338ca; }
+.reports-page .rep-tab-pill--billing.is-active { background: #e0e7ff; border-color: #818cf8; color: #3730a3; }
+.reports-page .rep-tab-pill--purchases { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+.reports-page .rep-tab-pill--purchases.is-active { background: #d1fae5; border-color: #34d399; color: #065f46; }
+.reports-page .rep-tab-pill--financial { background: #fffbeb; border-color: #fde68a; color: #b45309; }
+.reports-page .rep-tab-pill--financial.is-active { background: #fef3c7; border-color: #fbbf24; color: #92400e; }
+.reports-page .rep-tab-pill--project_cost { background: #fdf4ff; border-color: #f5d0fe; color: #a21caf; }
+.reports-page .rep-tab-pill--project_cost.is-active { background: #fae8ff; border-color: #e879f9; color: #86198f; }
+.reports-page .rep-tab-pill--procurement { background: #f0fdfa; border-color: #99f6e4; color: #0f766e; }
+.reports-page .rep-tab-pill--procurement.is-active { background: #ccfbf1; border-color: #2dd4bf; color: #115e59; }
+.reports-page .rep-tab-pill--subcontract { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+.reports-page .rep-tab-pill--subcontract.is-active { background: #dbeafe; border-color: #60a5fa; color: #1e40af; }
+.reports-page .rep-tab-pill--hse { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
+.reports-page .rep-tab-pill--hse.is-active { background: #ffedd5; border-color: #fb923c; color: #9a3412; }
+.reports-page .rep-tab-pill--governance { background: #f5f3ff; border-color: #ddd6fe; color: #6d28d9; }
+.reports-page .rep-tab-pill--governance.is-active { background: #ede9fe; border-color: #a78bfa; color: #5b21b6; }
+.reports-page .rep-tab-pill--analytics { background: #ecfeff; border-color: #a5f3fc; color: #0e7490; }
+.reports-page .rep-tab-pill--analytics.is-active { background: #cffafe; border-color: #22d3ee; color: #155e75; }
+.reports-page .rep-tab-pill--payroll { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+.reports-page .rep-tab-pill--payroll.is-active { background: #fee2e2; border-color: #f87171; color: #991b1b; }
+.reports-page .rep-tab-pill--multitenant { background: #f1f5f9; border-color: #cbd5e1; color: #475569; }
+.reports-page .rep-tab-pill--multitenant.is-active { background: #e2e8f0; border-color: #94a3b8; color: #334155; }
+
 @media (max-width: 1200px) {
   .inventory-page.dashboard-mockup .dash-kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -5214,7 +5532,32 @@ button.proj-header-kpi--link:hover {
   outline-offset: 2px;
 }
 
-.financial-mgmt-section .r3-stat-row { margin-bottom: 0.75rem; }
+.financial-mgmt-section .rep-fin-block {
+  margin-bottom: 1.25rem;
+}
+.financial-mgmt-section .rep-fin-block:last-child {
+  margin-bottom: 0;
+}
+.financial-mgmt-section .sup-section-title {
+  margin-bottom: 0.5rem;
+}
+.reports-page .financial-mgmt-section .rep-fin-kpi-row--duo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.reports-page .financial-mgmt-section .rep-fin-kpi-row--trio {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 1200px) {
+  .reports-page .financial-mgmt-section .rep-fin-kpi-row--trio {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 768px) {
+  .reports-page .financial-mgmt-section .rep-fin-kpi-row--duo,
+  .reports-page .financial-mgmt-section .rep-fin-kpi-row--trio {
+    grid-template-columns: 1fr;
+  }
+}
 .gov-billing-summary { margin-bottom: 0.75rem; }
 .doc-expiry-banner { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
 .doc-expiry-chip { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.8125rem; }
@@ -5231,7 +5574,550 @@ button.proj-header-kpi--link:hover {
 .qc-checklist-preview li.qc-fail { color: var(--danger-text); }
 .qc-toggle-group { margin-left: 0.35rem; }
 .ncr-section { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--slate-200); }
-.hse-doc-section .r3-stat-row { margin-bottom: 0.5rem; }
+.hse-doc-section .rep-hse-block {
+  margin-bottom: 1.25rem;
+}
+.hse-doc-section .rep-hse-block:last-child {
+  margin-bottom: 0;
+}
+.hse-doc-section .rep-hse-block .sup-section-title {
+  margin-bottom: 0.5rem;
+}
+.reports-page .hse-doc-section .rep-hse-kpi-row--quad {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.reports-page .hse-doc-section .rep-hse-kpi-row--duo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 1200px) {
+  .reports-page .hse-doc-section .rep-hse-kpi-row--quad {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 768px) {
+  .reports-page .hse-doc-section .rep-hse-kpi-row--quad,
+  .reports-page .hse-doc-section .rep-hse-kpi-row--duo {
+    grid-template-columns: 1fr;
+  }
+}
+.reports-page .governance-reports-section .rep-gov-grid,
+.reports-page .governance-reports-section .rep-gov-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  width: 100%;
+  align-items: stretch;
+}
+.reports-page .governance-reports-section .rep-gov-top-stack {
+  margin-bottom: 0.5rem;
+}
+.reports-page .governance-reports-section .rep-gov-block {
+  min-width: 0;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--slate-200, #e2e8f0);
+  box-shadow: none;
+}
+.reports-page .governance-reports-section .rep-gov-block .sup-section-title {
+  margin-bottom: 0.5rem;
+}
+.reports-page .governance-reports-section .rep-gov-block .reports-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+.reports-page .governance-reports-section .rep-gov-empty {
+  margin: 0.25rem 0 0;
+  padding: 0.35rem 0;
+  font-size: 0.8125rem;
+}
+.reports-page .governance-reports-section .rep-gov-kpi-row--five {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.reports-page .governance-reports-section .rep-gov-kpi-row--trio {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.reports-page .governance-reports-section .cust-kpi-card .dash-kpi-main {
+  padding-right: 3.5rem;
+  min-width: 0;
+}
+.reports-page .governance-reports-section .dash-kpi-label {
+  font-size: 0.6875rem;
+  line-height: 1.25;
+}
+@media (max-width: 1200px) {
+  .reports-page .governance-reports-section .rep-gov-kpi-row--five {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .reports-page .governance-reports-section .rep-gov-grid,
+  .reports-page .governance-reports-section .rep-gov-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+  .reports-page .governance-reports-section .rep-gov-kpi-row--trio {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 768px) {
+  .reports-page .governance-reports-section .rep-gov-kpi-row--five {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reports-page .analytics-reports-section .rep-analytics-stack,
+.reports-page .governance-reports-section .rep-analytics-stack,
+.reports-page .hse-doc-section .rep-analytics-stack,
+.reports-page .financial-mgmt-section .rep-analytics-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+.reports-page .analytics-reports-section .rep-analytics-block,
+.reports-page .governance-reports-section .rep-analytics-block,
+.reports-page .hse-doc-section .rep-analytics-block,
+.reports-page .financial-mgmt-section .rep-analytics-block {
+  min-width: 0;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--slate-200, #e2e8f0);
+  box-shadow: none;
+}
+.reports-page .analytics-reports-section .rep-analytics-block .sup-section-title,
+.reports-page .governance-reports-section .rep-analytics-block .sup-section-title,
+.reports-page .hse-doc-section .rep-analytics-block .sup-section-title,
+.reports-page .financial-mgmt-section .rep-analytics-block .sup-section-title {
+  margin-bottom: 0.5rem;
+}
+.reports-page .analytics-reports-section .rep-analytics-lower-grid,
+.reports-page .governance-reports-section .rep-analytics-lower-grid,
+.reports-page .hse-doc-section .rep-analytics-lower-grid,
+.reports-page .financial-mgmt-section .rep-analytics-lower-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  width: 100%;
+  align-items: stretch;
+}
+.reports-page .analytics-reports-section .rep-analytics-lower-grid .rep-analytics-block,
+.reports-page .governance-reports-section .rep-analytics-lower-grid .rep-analytics-block,
+.reports-page .hse-doc-section .rep-analytics-lower-grid .rep-analytics-block,
+.reports-page .financial-mgmt-section .rep-analytics-lower-grid .rep-analytics-block {
+  height: 100%;
+  box-sizing: border-box;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-grid,
+.reports-page .governance-reports-section .rep-analytics-util-grid,
+.reports-page .hse-doc-section .rep-analytics-util-grid,
+.reports-page .financial-mgmt-section .rep-analytics-util-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-card,
+.reports-page .governance-reports-section .rep-analytics-util-card,
+.reports-page .hse-doc-section .rep-analytics-util-card,
+.reports-page .financial-mgmt-section .rep-analytics-util-card {
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid transparent;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-card--warn,
+.reports-page .governance-reports-section .rep-analytics-util-card--warn,
+.reports-page .hse-doc-section .rep-analytics-util-card--warn,
+.reports-page .financial-mgmt-section .rep-analytics-util-card--warn {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-card--ok,
+.reports-page .governance-reports-section .rep-analytics-util-card--ok,
+.reports-page .hse-doc-section .rep-analytics-util-card--ok,
+.reports-page .financial-mgmt-section .rep-analytics-util-card--ok {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-card--danger,
+.reports-page .governance-reports-section .rep-analytics-util-card--danger,
+.reports-page .hse-doc-section .rep-analytics-util-card--danger,
+.reports-page .financial-mgmt-section .rep-analytics-util-card--danger {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-card--teal,
+.reports-page .governance-reports-section .rep-analytics-util-card--teal,
+.reports-page .hse-doc-section .rep-analytics-util-card--teal,
+.reports-page .financial-mgmt-section .rep-analytics-util-card--teal {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-card--purple,
+.reports-page .governance-reports-section .rep-analytics-util-card--purple,
+.reports-page .hse-doc-section .rep-analytics-util-card--purple,
+.reports-page .financial-mgmt-section .rep-analytics-util-card--purple {
+  background: #faf5ff;
+  border-color: #e9d5ff;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-card--blue,
+.reports-page .governance-reports-section .rep-analytics-util-card--blue,
+.reports-page .hse-doc-section .rep-analytics-util-card--blue,
+.reports-page .financial-mgmt-section .rep-analytics-util-card--blue {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-card--neutral,
+.reports-page .governance-reports-section .rep-analytics-util-card--neutral,
+.reports-page .hse-doc-section .rep-analytics-util-card--neutral,
+.reports-page .financial-mgmt-section .rep-analytics-util-card--neutral {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-card-title,
+.reports-page .governance-reports-section .rep-analytics-util-card-title,
+.reports-page .hse-doc-section .rep-analytics-util-card-title {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.5rem;
+  color: var(--slate-600, #475569);
+}
+.reports-page .analytics-reports-section .rep-analytics-util-card--warn .rep-analytics-util-card-title,
+.reports-page .governance-reports-section .rep-analytics-util-card--warn .rep-analytics-util-card-title,
+.reports-page .hse-doc-section .rep-analytics-util-card--warn .rep-analytics-util-card-title {
+  color: #c2410c;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-card--ok .rep-analytics-util-card-title,
+.reports-page .governance-reports-section .rep-analytics-util-card--ok .rep-analytics-util-card-title,
+.reports-page .hse-doc-section .rep-analytics-util-card--ok .rep-analytics-util-card-title {
+  color: #047857;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-card--danger .rep-analytics-util-card-title,
+.reports-page .governance-reports-section .rep-analytics-util-card--danger .rep-analytics-util-card-title,
+.reports-page .hse-doc-section .rep-analytics-util-card--danger .rep-analytics-util-card-title {
+  color: #b91c1c;
+}
+.reports-page .governance-reports-section .rep-analytics-util-card--teal .rep-analytics-util-card-title,
+.reports-page .hse-doc-section .rep-analytics-util-card--teal .rep-analytics-util-card-title,
+.reports-page .financial-mgmt-section .rep-analytics-util-card--teal .rep-analytics-util-card-title {
+  color: #0f766e;
+}
+.reports-page .governance-reports-section .rep-analytics-util-card--purple .rep-analytics-util-card-title,
+.reports-page .hse-doc-section .rep-analytics-util-card--purple .rep-analytics-util-card-title,
+.reports-page .financial-mgmt-section .rep-analytics-util-card--purple .rep-analytics-util-card-title {
+  color: #7e22ce;
+}
+.reports-page .governance-reports-section .rep-analytics-util-card--blue .rep-analytics-util-card-title,
+.reports-page .hse-doc-section .rep-analytics-util-card--blue .rep-analytics-util-card-title,
+.reports-page .financial-mgmt-section .rep-analytics-util-card--blue .rep-analytics-util-card-title {
+  color: #4338ca;
+}
+.reports-page .governance-reports-section .rep-analytics-util-card,
+.reports-page .hse-doc-section .rep-analytics-util-card,
+.reports-page .financial-mgmt-section .rep-analytics-util-card {
+  padding: 0.75rem 0.85rem;
+}
+.reports-page .governance-reports-section .rep-gov-placeholder-panel,
+.reports-page .hse-doc-section .rep-gov-placeholder-panel,
+.reports-page .financial-mgmt-section .rep-gov-placeholder-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 6rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  border: 1px dashed #c7d2fe;
+  box-sizing: border-box;
+}
+.reports-page .governance-reports-section .rep-gov-placeholder-panel .rep-analytics-empty,
+.reports-page .hse-doc-section .rep-gov-placeholder-panel .rep-analytics-empty,
+.reports-page .financial-mgmt-section .rep-gov-placeholder-panel .rep-analytics-empty {
+  margin: 0;
+  text-align: center;
+  color: var(--slate-500, #64748b);
+}
+.reports-page .governance-reports-section .rep-metric-util-value,
+.reports-page .hse-doc-section .rep-metric-util-value,
+.reports-page .financial-mgmt-section .rep-metric-util-value {
+  font-size: 1.125rem;
+  line-height: 1.3;
+  font-weight: 700;
+  color: var(--slate-900, #0f172a);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0.35rem;
+}
+.reports-page .governance-reports-section .rep-analytics-util-grid--triple,
+.reports-page .hse-doc-section .rep-analytics-util-grid--triple,
+.reports-page .financial-mgmt-section .rep-analytics-util-grid--triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.reports-page .governance-reports-section .rep-analytics-util-card .rep-util-stat-stack,
+.reports-page .hse-doc-section .rep-analytics-util-card .rep-util-stat-stack,
+.reports-page .financial-mgmt-section .rep-analytics-util-card .rep-util-stat-stack {
+  padding: 0;
+  gap: 0.35rem;
+}
+.reports-page .governance-reports-section .rep-analytics-lower-grid .rep-analytics-block,
+.reports-page .hse-doc-section .rep-analytics-lower-grid .rep-analytics-block,
+.reports-page .financial-mgmt-section .rep-analytics-lower-grid .rep-analytics-block {
+  min-height: 8rem;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  font-size: 0.8125rem;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-name {
+  font-weight: 600;
+  color: var(--slate-800, #1e293b);
+}
+.reports-page .analytics-reports-section .rep-analytics-util-meta {
+  font-size: 0.75rem;
+  color: var(--slate-500, #64748b);
+}
+.reports-page .analytics-reports-section .rep-analytics-util-badge {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+}
+.reports-page .analytics-reports-section .rep-analytics-util-badge--muted {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+.reports-page .analytics-reports-section .rep-analytics-empty,
+.reports-page .governance-reports-section .rep-analytics-empty,
+.reports-page .hse-doc-section .rep-analytics-empty,
+.reports-page .financial-mgmt-section .rep-analytics-empty {
+  margin: 0;
+  padding: 0.25rem 0;
+  font-size: 0.8125rem;
+}
+.reports-page .analytics-reports-section .rep-sector-compare-inner,
+.reports-page .governance-reports-section .rep-sector-compare-inner,
+.reports-page .hse-doc-section .rep-sector-compare-inner,
+.reports-page .financial-mgmt-section .rep-sector-compare-inner {
+  gap: 0.5rem;
+}
+.reports-page .analytics-reports-section .sector-compare-card,
+.reports-page .governance-reports-section .sector-compare-card,
+.reports-page .hse-doc-section .sector-compare-card,
+.reports-page .financial-mgmt-section .sector-compare-card {
+  border-radius: 8px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--slate-200, #e2e8f0);
+}
+.reports-page .analytics-reports-section .sector-compare-card-title,
+.reports-page .governance-reports-section .sector-compare-card-title,
+.reports-page .hse-doc-section .sector-compare-card-title,
+.reports-page .financial-mgmt-section .sector-compare-card-title {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.reports-page .analytics-reports-section .sector-compare-card--gov .sector-compare-card-title,
+.reports-page .governance-reports-section .sector-compare-card--gov .sector-compare-card-title,
+.reports-page .hse-doc-section .sector-compare-card--gov .sector-compare-card-title,
+.reports-page .financial-mgmt-section .sector-compare-card--gov .sector-compare-card-title {
+  background: #f0fdfa;
+  color: #0f766e;
+  border-bottom: 1px solid #99f6e4;
+}
+.reports-page .analytics-reports-section .sector-compare-card--private .sector-compare-card-title,
+.reports-page .governance-reports-section .sector-compare-card--private .sector-compare-card-title,
+.reports-page .hse-doc-section .sector-compare-card--private .sector-compare-card-title,
+.reports-page .financial-mgmt-section .sector-compare-card--private .sector-compare-card-title {
+  background: #eef2ff;
+  color: #4338ca;
+  border-bottom: 1px solid #c7d2fe;
+}
+.reports-page .analytics-reports-section .rep-sector-stats,
+.reports-page .governance-reports-section .rep-sector-stats,
+.reports-page .hse-doc-section .rep-sector-stats,
+.reports-page .financial-mgmt-section .rep-sector-stats {
+  padding: 0.65rem 0.75rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.reports-page .analytics-reports-section .rep-sector-stat,
+.reports-page .governance-reports-section .rep-sector-stat,
+.reports-page .hse-doc-section .rep-sector-stat,
+.reports-page .financial-mgmt-section .rep-sector-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+.reports-page .analytics-reports-section .rep-sector-stat-label,
+.reports-page .governance-reports-section .rep-sector-stat-label,
+.reports-page .hse-doc-section .rep-sector-stat-label,
+.reports-page .financial-mgmt-section .rep-sector-stat-label {
+  color: var(--slate-600, #475569);
+}
+.reports-page .analytics-reports-section .rep-sector-stat-value,
+.reports-page .governance-reports-section .rep-sector-stat-value,
+.reports-page .hse-doc-section .rep-sector-stat-value,
+.reports-page .financial-mgmt-section .rep-sector-stat-value {
+  font-size: 0.875rem;
+  color: var(--slate-900, #0f172a);
+}
+.reports-page .analytics-reports-section .rep-sector-stat--attention .rep-sector-stat-value,
+.reports-page .governance-reports-section .rep-sector-stat--attention .rep-sector-stat-value,
+.reports-page .hse-doc-section .rep-sector-stat--attention .rep-sector-stat-value,
+.reports-page .financial-mgmt-section .rep-sector-stat--attention .rep-sector-stat-value {
+  color: #dc2626;
+}
+.reports-page .analytics-reports-section .sector-bar {
+  margin: 0 0.75rem 0.75rem;
+  height: 8px;
+}
+.reports-page .analytics-reports-section .sector-bar span {
+  border-radius: 999px;
+}
+.reports-page .analytics-reports-section .sector-bar-fill--gov {
+  background: #14b8a6;
+}
+.reports-page .analytics-reports-section .sector-bar-fill--private {
+  background: #6366f1;
+}
+@media (max-width: 900px) {
+  .reports-page .analytics-reports-section .rep-analytics-lower-grid,
+  .reports-page .governance-reports-section .rep-analytics-lower-grid,
+  .reports-page .hse-doc-section .rep-analytics-lower-grid,
+  .reports-page .financial-mgmt-section .rep-analytics-lower-grid,
+  .reports-page .analytics-reports-section .rep-analytics-util-grid,
+  .reports-page .governance-reports-section .rep-analytics-util-grid,
+  .reports-page .governance-reports-section .rep-analytics-util-grid--triple,
+  .reports-page .hse-doc-section .rep-analytics-util-grid--triple,
+  .reports-page .financial-mgmt-section .rep-analytics-util-grid--triple,
+  .reports-page .hse-doc-section .rep-analytics-util-grid,
+  .reports-page .financial-mgmt-section .rep-analytics-util-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reports-page .worker-payroll-reports-section .rep-payroll-stack,
+.reports-page .reports-detail-widget .rep-payroll-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+.reports-page .worker-payroll-reports-section .rep-payroll-block,
+.reports-page .reports-detail-widget .rep-payroll-block {
+  min-width: 0;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--slate-200, #e2e8f0);
+  box-shadow: none;
+}
+.reports-page .worker-payroll-reports-section .rep-payroll-block .sup-section-title,
+.reports-page .reports-detail-widget .rep-payroll-block .sup-section-title {
+  margin-bottom: 0.5rem;
+}
+.reports-page .worker-payroll-reports-section .rep-payroll-lower-grid,
+.reports-page .reports-detail-widget .rep-payroll-lower-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  width: 100%;
+  align-items: stretch;
+}
+.reports-page .worker-payroll-reports-section .rep-payroll-lower-grid .rep-payroll-block,
+.reports-page .reports-detail-widget .rep-payroll-lower-grid .rep-payroll-block {
+  height: 100%;
+  box-sizing: border-box;
+}
+.reports-page .worker-payroll-reports-section .rep-payroll-reconcile-card,
+.reports-page .reports-detail-widget .rep-payroll-reconcile-card {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+.reports-page .worker-payroll-reports-section .rep-payroll-reconcile-desc,
+.reports-page .reports-detail-widget .rep-payroll-reconcile-desc {
+  margin: 0 0 0.875rem;
+  font-size: 0.8125rem;
+  color: var(--slate-600, #475569);
+  line-height: 1.45;
+}
+.reports-page .worker-payroll-reports-section .rep-payroll-reconcile-actions,
+.reports-page .reports-detail-widget .rep-payroll-reconcile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.reports-page .worker-payroll-reports-section .rep-payroll-empty,
+.reports-page .reports-detail-widget .rep-payroll-empty {
+  margin: 0.25rem 0 0;
+  padding: 0.35rem 0;
+  font-size: 0.8125rem;
+}
+@media (max-width: 768px) {
+  .reports-page .worker-payroll-reports-section .rep-payroll-lower-grid,
+  .reports-page .reports-detail-widget .rep-payroll-lower-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reports-page .multitenant-reports-section .rep-multitenant-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+.reports-page .multitenant-reports-section .rep-multitenant-block {
+  min-width: 0;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--slate-200, #e2e8f0);
+  box-shadow: none;
+}
+.reports-page .multitenant-reports-section .rep-multitenant-block .sup-section-title {
+  margin-bottom: 0.5rem;
+}
+.reports-page .multitenant-reports-section .rep-multitenant-sync-card {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+.reports-page .multitenant-reports-section .rep-multitenant-kpi-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.reports-page .multitenant-reports-section .rep-multitenant-empty {
+  margin: 0.25rem 0 0;
+  padding: 0.35rem 0;
+  font-size: 0.8125rem;
+}
+.reports-page .multitenant-reports-section .rep-multitenant-block .projects-table th,
+.reports-page .multitenant-reports-section .rep-multitenant-block .projects-table td {
+  text-align: left;
+}
+@media (max-width: 1200px) {
+  .reports-page .multitenant-reports-section .rep-multitenant-kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 768px) {
+  .reports-page .multitenant-reports-section .rep-multitenant-kpi-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .gov-kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
@@ -8486,7 +9372,6 @@ button.proj-header-kpi--link:hover {
 .sic-payroll-calc-card { margin-top: 0.75rem; }
 .wrk-report-block { margin-top: 0.75rem; }
 .wrk-reports-panel .wrk-reports-toolbar { margin-bottom: 0.25rem; }
-.worker-payroll-section .r3-report-block { margin-top: 0.75rem; }
 
 /* ——— Dashboard mockup layout ——— */
 .dashboard-mockup { display: flex; flex-direction: column; gap: 1rem; }

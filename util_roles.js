@@ -138,6 +138,7 @@ export function navKeyFromPath(path) {
   const p = path.split("?")[0];
   if (p.startsWith("/projects")) return "projects";
   if (p.startsWith("/clients") || p.startsWith("/customers")) return "clients";
+  if (p.startsWith("/reports")) return "reports";
   return HASH_TO_NAV[p] || null;
 }
 

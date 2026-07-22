@@ -6,6 +6,16 @@
   }).format(amount ?? 0);
 }
 
+const bdtNumberFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+
+/** Numeric amount only (no BDT prefix), preserves sign. */
+export function formatBDTNumber(amount) {
+  const n = Number(amount) || 0;
+  const abs = Math.abs(n);
+  const formatted = bdtNumberFormatter.format(abs);
+  return n < 0 ? `-${formatted}` : formatted;
+}
+
 export function formatDate(date) {
   try {
     return new Date(date).toLocaleDateString("en-US");

@@ -225,6 +225,7 @@ export function setActiveNav() {
       (navPath === "/projects" && path.startsWith("/projects")) ||
       (navPath === "/clients" && (path.startsWith("/clients") || path.startsWith("/customers"))) ||
       (navPath === "/billing" && (path === "/billing" || path === "/sales")) ||
+      (navPath === "/reports" && path.startsWith("/reports")) ||
       (navPath === "/client-portal" && path === "/client-portal") ||
       (navPath === "/settings" && path === "/settings");
     a.classList.toggle("active", active);

@@ -24,6 +24,11 @@ export function formatCompactBDT(amount) {
   return formatBDT(v);
 }
 
+/** Compact BDT label without the "BDT" prefix (e.g. "50.16 Lac"). */
+export function formatCompactBDTPlain(amount) {
+  return formatCompactBDT(amount).replace(/^BDT\s?/, "");
+}
+
 export function formatCompactBDTSign(amount) {
   return formatCompactBDT(amount).replace(/^BDT\s?/, "৳ ");
 }
