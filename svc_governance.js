@@ -276,6 +276,56 @@ export async function clearApprovalQueue(entityType, entityId) {
 }
 
 /**
+ * Whether the entity at row.path is present in the client cache (not merely "pending in queue").
+ * @param {object} row
+ */
+export function isApprovalQueueEntityLoaded(row) {
+  if (!row?.path) return false;
+  return resolveRead(row.path) !== undefined;
+}
+
+function entityMatchesPendingQueueRow(row, entity) {
+  if (!entity || typeof entity !== "object") return false;
+  if (row.entityType === "projectExpense") {
+    return (entity.status || "draft") === "submitted";
+  }
+  const st = entity.status || "draft";
+  return st === "submitted" || st === "pending";
+}
+
+/**
+ * Queue row is outdated: entity is loaded and no longer awaiting this inbox action.
+ * @param {object} row
+ */
+export function isApprovalQueueRowStale(row) {
+  if (!row || row.status !== "pending" || !row.path) return false;
+  if (!isApprovalQueueEntityLoaded(row)) return false;
+  const entity = resolveRead(row.path);
+  return !entityMatchesPendingQueueRow(row, entity);
+}
+
+/**
+ * Whether an approval queue row still matches a submittable entity in storage.
+ * @param {object} row
+ */
+export function isApprovalQueueRowActionable(row) {
+  if (!row || row.status !== "pending" || !row.path) return false;
+  if (!isApprovalQueueEntityLoaded(row)) return false;
+  const entity = resolveRead(row.path);
+  return entityMatchesPendingQueueRow(row, entity);
+}
+
+/**
+ * Show in Approvals inbox until proven stale (trust queue while entity cache is loading).
+ * @param {object} row
+ */
+export function isApprovalQueueRowVisible(row) {
+  if (!row || row.status !== "pending" || !row.path) return false;
+  if (isApprovalQueueRowStale(row)) return false;
+  return true;
+}
+
+/**
  * Apply workflow transition with audit + approval queue sync.
  * @param {object} opts
  */
@@ -368,11 +418,19 @@ export async function applyQueueDecision({ row, decision }) {
   }
 
   if (row.entityType === "projectExpense") {
-    const { advanceExpenseApproval, rejectProjectExpense } = await import("./svc_projectExpense.js");
+    const { advanceExpenseApproval, rejectProjectExpense, STALE_APPROVAL_MSG, EXPENSE_LOADING_MSG } =
+      await import("./svc_projectExpense.js");
+    if (isApprovalQueueRowStale(row)) {
+      await clearApprovalQueue("projectExpense", row.entityId);
+      throw new Error(STALE_APPROVAL_MSG);
+    }
+    if (!isApprovalQueueRowActionable(row)) {
+      throw new Error(EXPENSE_LOADING_MSG);
+    }
     if (decision === "approve") {
-      await advanceExpenseApproval(row.projectId, row.entityId);
+      await advanceExpenseApproval(row);
     } else {
-      await rejectProjectExpense(row.projectId, row.entityId);
+      await rejectProjectExpense(row);
     }
     return;
   }

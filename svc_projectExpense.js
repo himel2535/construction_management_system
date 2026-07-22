@@ -25,6 +25,110 @@ export function expenseStoragePath(projectId, expenseId) {
   return `${EXPENSE_PATH}/${projectId}/${expenseId}`;
 }
 
+export const STALE_APPROVAL_MSG =
+  "This item is no longer waiting for approval (already processed or updated).";
+
+export const EXPENSE_LOADING_MSG = "Loading expense details… try again in a moment.";
+
+/** @param {string} path */
+export function parseExpenseQueuePath(path) {
+  if (!path || typeof path !== "string") return null;
+  const m = path.match(/^projectExpenses\/([^/]+)\/([^/]+)$/);
+  if (!m) return null;
+  return { projectId: m[1], expenseId: m[2] };
+}
+
+/**
+ * @param {{ projectId?: string, entityId?: string, path?: string } | string} rowOrProjectId
+ * @param {string} [expenseId]
+ */
+export function resolveExpenseContext(rowOrProjectId, expenseId) {
+  let projectId = "";
+  let resolvedExpenseId = "";
+  let path = "";
+
+  if (typeof rowOrProjectId === "object" && rowOrProjectId !== null) {
+    const row = rowOrProjectId;
+    projectId = row.projectId || "";
+    resolvedExpenseId = row.entityId || "";
+    path = row.path || "";
+  } else {
+    projectId = rowOrProjectId || "";
+    resolvedExpenseId = expenseId || "";
+    path = projectId && resolvedExpenseId ? expenseStoragePath(projectId, resolvedExpenseId) : "";
+  }
+
+  const parsed = parseExpenseQueuePath(path);
+  if (parsed) {
+    projectId = projectId || parsed.projectId;
+    resolvedExpenseId = resolvedExpenseId || parsed.expenseId;
+  }
+  if (!path && projectId && resolvedExpenseId) {
+    path = expenseStoragePath(projectId, resolvedExpenseId);
+  }
+
+  let loaded = false;
+  let cur = null;
+  if (path) {
+    const raw = readRef(path);
+    if (raw !== undefined) {
+      loaded = true;
+      cur = raw && typeof raw === "object" ? raw : {};
+    }
+  }
+
+  return { projectId, expenseId: resolvedExpenseId, path, cur, loaded };
+}
+
+async function assertExpensePendingApproval(ctx) {
+  const { expenseId, loaded, cur } = ctx;
+  if (!ctx.projectId || !expenseId) {
+    throw new Error(STALE_APPROVAL_MSG);
+  }
+  if (!loaded) {
+    throw new Error(EXPENSE_LOADING_MSG);
+  }
+  if ((cur?.status || "draft") !== "submitted") {
+    await clearApprovalQueue("projectExpense", expenseId);
+    throw new Error(STALE_APPROVAL_MSG);
+  }
+}
+
+/**
+ * Same role/stage rules as Finance expense table action buttons.
+ * @param {object} row approval queue row
+ * @param {string} [role]
+ */
+export function canApproveExpenseQueueRow(row, role = normalizeRole(getCurrentRole())) {
+  const ctx = resolveExpenseContext(row);
+  if (!ctx.loaded || (ctx.cur?.status || "draft") !== "submitted") return false;
+  const project = getProject(ctx.projectId);
+  const gov = isGovProject(project);
+  if (gov) {
+    return canRoleApproveExpenseStage(ctx.cur.approvalStage || "pm", role);
+  }
+  return (
+    role === "owner" ||
+    canRoleApproveExpenseStage("pm", role) ||
+    canRoleApproveExpenseStage("accountant", role)
+  );
+}
+
+export function canRejectExpenseQueueRow(row, role = normalizeRole(getCurrentRole())) {
+  return canApproveExpenseQueueRow(row, role);
+}
+
+/** @param {object} row */
+export function expenseQueueRowAwaitingLabel(row) {
+  const ctx = resolveExpenseContext(row);
+  if (!ctx.loaded || (ctx.cur?.status || "draft") !== "submitted") return "";
+  const project = getProject(ctx.projectId);
+  if (!isGovProject(project)) return "";
+  const stage = ctx.cur.approvalStage || "pm";
+  const label = EXPENSE_STAGE_LABELS[stage] || stage;
+  return `Awaiting ${label}`;
+}
+
 export function listProjectExpenses(projectId) {
   if (!projectId) return [];
   return valToList(resolveRead(`${EXPENSE_PATH}/${projectId}`) || {});
@@ -168,10 +272,34 @@ async function finalizeExpenseApproval(projectId, expenseId, cur) {
   await refreshReports();
 }
 
-export async function advanceExpenseApproval(projectId, expenseId) {
-  const path = expenseStoragePath(projectId, expenseId);
-  const cur = readRef(path) || {};
-  if ((cur.status || "draft") !== "submitted") throw new Error("Expense is not pending approval");
+async function ensureExpenseContextLoaded(ctx) {
+  if (ctx.loaded || !ctx.path) return ctx;
+  const { get } = await import("./svc_data.js");
+  if (ctx.projectId) {
+    await get(`${EXPENSE_PATH}/${ctx.projectId}`);
+  } else {
+    await get(EXPENSE_PATH);
+  }
+  return resolveExpenseContext({
+    projectId: ctx.projectId,
+    entityId: ctx.expenseId,
+    path: ctx.path,
+  });
+}
+
+export async function advanceExpenseApproval(projectIdOrRow, expenseId) {
+  let ctx =
+    typeof projectIdOrRow === "object" && projectIdOrRow !== null
+      ? resolveExpenseContext(projectIdOrRow)
+      : resolveExpenseContext({
+          projectId: projectIdOrRow,
+          entityId: expenseId,
+          path: expenseStoragePath(projectIdOrRow, expenseId),
+        });
+  ctx = await ensureExpenseContextLoaded(ctx);
+  await assertExpensePendingApproval(ctx);
+
+  const { projectId, expenseId: eid, path, cur } = ctx;
 
   const project = getProject(projectId);
   const gov = isGovProject(project);
@@ -192,10 +320,10 @@ export async function advanceExpenseApproval(projectId, expenseId) {
         lastApprovedBy: getCurrentUserId(),
         lastApprovedAt: now,
       });
-      await clearApprovalQueue("projectExpense", expenseId);
+      await clearApprovalQueue("projectExpense", eid);
       await upsertApprovalQueue({
         entityType: "projectExpense",
-        entityId: expenseId,
+        entityId: eid,
         projectId,
         path,
         title: `${expenseTitle(cur)} (${EXPENSE_STAGE_LABELS[next]})`,
@@ -205,7 +333,7 @@ export async function advanceExpenseApproval(projectId, expenseId) {
       });
       await writeAuditLog({
         entityType: "projectExpense",
-        entityId: expenseId,
+        entityId: eid,
         action: "stage_approve",
         diffSummary: `${EXPENSE_STAGE_LABELS[stage]} approved → ${EXPENSE_STAGE_LABELS[next]}`,
         projectId,
@@ -213,21 +341,30 @@ export async function advanceExpenseApproval(projectId, expenseId) {
       await refreshReports();
       return;
     }
-    await finalizeExpenseApproval(projectId, expenseId, cur);
+    await finalizeExpenseApproval(projectId, eid, cur);
     return;
   }
 
   if (!canRoleApproveExpenseStage("accountant", role) && !canRoleApproveExpenseStage("pm", role) && role !== "owner") {
     guardAction("approve_expense");
   }
-  await finalizeExpenseApproval(projectId, expenseId, cur);
+  await finalizeExpenseApproval(projectId, eid, cur);
 }
 
-export async function rejectProjectExpense(projectId, expenseId, reason = "") {
+export async function rejectProjectExpense(projectIdOrRow, expenseId, reason = "") {
   guardAction("approve_expense");
-  const path = expenseStoragePath(projectId, expenseId);
-  const cur = readRef(path) || {};
-  if ((cur.status || "draft") !== "submitted") throw new Error("Expense is not pending approval");
+  let ctx =
+    typeof projectIdOrRow === "object" && projectIdOrRow !== null
+      ? resolveExpenseContext(projectIdOrRow)
+      : resolveExpenseContext({
+          projectId: projectIdOrRow,
+          entityId: expenseId,
+          path: expenseStoragePath(projectIdOrRow, expenseId),
+        });
+  ctx = await ensureExpenseContextLoaded(ctx);
+  await assertExpensePendingApproval(ctx);
+
+  const { projectId, expenseId: eid, path, cur } = ctx;
   const now = Date.now();
   await updatePath(path, {
     ...cur,
@@ -238,10 +375,10 @@ export async function rejectProjectExpense(projectId, expenseId, reason = "") {
     rejectedAt: now,
     updatedAt: now,
   });
-  await clearApprovalQueue("projectExpense", expenseId);
+  await clearApprovalQueue("projectExpense", eid);
   await writeAuditLog({
     entityType: "projectExpense",
-    entityId: expenseId,
+    entityId: eid,
     action: "reject",
     diffSummary: `Rejected: ${expenseTitle(cur)}`,
     projectId,

@@ -1,5 +1,5 @@
-import { getCurrentRole } from "./svc_governance.js";
-import { defaultRouteForRole, roleLabel, filterNavItems } from "./util_roles.js";
+import { getCurrentRole, canPerformAction } from "./svc_governance.js";
+import { defaultRouteForRole, roleLabel, filterNavItems, sortUsersByRoleRank } from "./util_roles.js";
 import { getCurrentUserName, getCurrentUserId } from "./svc_auth.js";
 import { getRoutePath, navigateTo } from "./util_route.js";
 import { listenList } from "./svc_data.js";
@@ -205,13 +205,16 @@ export function createAppHeader() {
           <span class="date-range-text"></span>
           <span class="date-chevron">${iconSvg("chevron")}</span>
         </button>
-        <button type="button" class="header-user" id="header-user-btn" aria-label="User menu">
-          <span class="user-avatar">OD</span>
-          <span class="user-meta">
-            <span class="user-name">Owner (Demo)</span>
-            <span class="user-chevron">${iconSvg("chevron")}</span>
-          </span>
-        </button>
+        <div class="header-user-wrap">
+          <button type="button" class="header-user" id="header-user-btn" aria-label="User menu" aria-expanded="false" aria-haspopup="true">
+            <span class="user-avatar">OD</span>
+            <span class="user-meta">
+              <span class="user-name">Owner (Demo)</span>
+              <span class="user-chevron">${iconSvg("chevron")}</span>
+            </span>
+          </button>
+          <div class="header-user-dropdown notify-dropdown" id="header-user-dropdown" hidden role="menu" aria-label="Demo user menu"></div>
+        </div>
         <button type="button" class="btn btn-primary header-quick-action" id="header-quick-action">
           + Quick Action <span class="qa-chevron">${iconSvg("chevron")}</span>
         </button>
@@ -262,9 +265,7 @@ export function initHeaderInteractions(options = {}) {
 
   initGlobalSearch(options.nav || []);
 
-  document.getElementById("header-user-btn")?.addEventListener("click", () => {
-    navigateTo("/settings");
-  });
+  initUserMenu();
 
   initNotificationBell();
 
@@ -426,6 +427,96 @@ function escapeNotifyHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function initUserMenu() {
+  const btn = document.getElementById("header-user-btn");
+  const dropdown = document.getElementById("header-user-dropdown");
+  if (!btn || !dropdown) return;
+
+  const renderDropdown = () => {
+    const currentId = getCurrentUserId();
+    import("./svc_demoSession.js").then(({ DEMO_ROLE_USERS, switchDemoUser, isDemoUserId }) => {
+      const canSwitch = canPerformAction("manage_users") || isDemoUserId(currentId);
+
+      if (!canSwitch) {
+        dropdown.innerHTML = `
+        <button type="button" class="header-user-dropdown-item notify-dropdown-item" data-action="settings">
+          <strong>Users &amp; settings</strong>
+        </button>`;
+        dropdown.querySelector('[data-action="settings"]')?.addEventListener("click", () => {
+          dropdown.hidden = true;
+          btn.setAttribute("aria-expanded", "false");
+          navigateTo("/settings");
+        });
+        return;
+      }
+
+      const sorted = sortUsersByRoleRank(DEMO_ROLE_USERS);
+      dropdown.innerHTML = `
+        <p class="header-user-dropdown-title">Switch demo user</p>
+        <div class="header-user-dropdown-list" role="group" aria-label="Demo users by role">
+        ${sorted
+          .map((u) => {
+            const active = u.id === currentId;
+            return `<button type="button" class="demo-user-card${active ? " is-active-user" : ""}" data-uid="${escapeNotifyHtml(u.id)}" role="menuitem"${active ? " disabled aria-current=\"true\"" : ""}>
+            <span class="demo-user-card__head">
+              <span class="demo-user-card__name">${escapeNotifyHtml(u.displayName)}</span>
+              ${active ? `<span class="demo-user-card__badge">Active</span>` : ""}
+            </span>
+            <span class="demo-user-card__meta">
+              <span class="demo-user-card__role demo-user-card__pill">${escapeNotifyHtml(roleLabel(u.role))}</span>
+              <span class="demo-user-card__email demo-user-card__pill" title="${escapeNotifyHtml(u.email)}">${escapeNotifyHtml(u.email)}</span>
+            </span>
+          </button>`;
+          })
+          .join("")}
+        </div>
+        <div class="header-user-dropdown-footer">
+          <button type="button" class="header-user-dropdown-link" data-action="settings">Users &amp; settings →</button>
+        </div>`;
+
+      dropdown.querySelectorAll("[data-uid]").forEach((item) => {
+        item.onclick = () => {
+          dropdown.hidden = true;
+          btn.setAttribute("aria-expanded", "false");
+          try {
+            switchDemoUser(item.dataset.uid);
+            renderDropdown();
+          } catch (err) {
+            import("./cmp_toast.js").then(({ showToast }) => showToast(err.message, "error"));
+          }
+        };
+      });
+      dropdown.querySelector('[data-action="settings"]')?.addEventListener("click", () => {
+        dropdown.hidden = true;
+        btn.setAttribute("aria-expanded", "false");
+        navigateTo("/settings");
+      });
+    });
+  };
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = dropdown.hidden;
+    if (open) renderDropdown();
+    dropdown.hidden = !open;
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!dropdown.hidden && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+      dropdown.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !dropdown.hidden) {
+      dropdown.hidden = true;
+      btn.setAttribute("aria-expanded", "false");
+    }
+  });
 }
 
 function initNotificationBell() {

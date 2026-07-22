@@ -110,6 +110,17 @@ export function normalizeRole(role) {
   return role || "owner";
 }
 
+/** Index in ALL_ROLES (seniority); unknown roles sort last. */
+export function roleRank(role) {
+  const idx = ALL_ROLES.indexOf(normalizeRole(role));
+  return idx >= 0 ? idx : ALL_ROLES.length;
+}
+
+/** Stable sort: highest org rank first (owner → client). */
+export function sortUsersByRoleRank(users) {
+  return [...users].sort((a, b) => roleRank(a.role) - roleRank(b.role));
+}
+
 export function roleLabel(role) {
   return ROLE_LABELS[normalizeRole(role)] || role || "User";
 }

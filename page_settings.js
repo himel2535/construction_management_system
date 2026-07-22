@@ -15,6 +15,7 @@ import { ALL_ROLES, roleLabel, roleDescription, defaultRouteForRole } from "./ut
 import { navigateTo } from "./util_route.js";
 import { PERMISSION_GROUPS, MATRIX_ROLES, roleHasPermission, matrixRoleLabel } from "./util_permissions.js";
 import { createEmployee, deactivateUser, reactivateUser, removeEmployee } from "./svc_userManagement.js";
+import { switchDemoUser, DEMO_ROLE_USERS } from "./svc_demoSession.js";
 import { formatDate } from "./util_format.js";
 import { buildAuditDiff } from "./util_audit.js";
 
@@ -97,7 +98,7 @@ export function mountSettings(container) {
   rolesCard.className = "card card-pad";
   rolesCard.innerHTML = `
     <h3 class="section-title">Users &amp; Roles (§2.12)</h3>
-    <p class="section-sub" id="settings-roles-note">Demo mode — switch active user role to test permissions.</p>
+    <p class="section-sub" id="settings-roles-note">Demo mode — switch role via the <strong>header user menu</strong> or below. Demo emails: ${DEMO_ROLE_USERS.map((u) => escapeHtml(u.email)).join(", ")}.</p>
     <form id="settings-add-user-form" class="settings-add-user-form">
       <input name="displayName" placeholder="Full name" required />
       <input name="email" type="email" placeholder="Email" required />
@@ -235,10 +236,10 @@ export function mountSettings(container) {
                 email: user.email,
                 role: sel.value,
               });
-            refreshSidebarNav();
-            syncHeaderUser();
-          }
-          renderRolesList();
+              refreshSidebarNav();
+              syncHeaderUser();
+            }
+            renderRolesList();
           } catch (err) {
             showToast(err.message, "error");
             sel.value = user.role;
@@ -249,22 +250,9 @@ export function mountSettings(container) {
       rolesHost.querySelectorAll(".settings-switch-user").forEach((btn) => {
         btn.onclick = async () => {
           const uid = btn.dataset.uid;
-          const user = users.find((x) => x.id === uid);
-          if (!user) return;
           try {
-            guardAction("manage_users");
-            setCurrentUser({
-              id: uid,
-              name: user.displayName || user.email,
-              email: user.email,
-              role: user.role,
-            });
-        invalidateRoleCache();
-        refreshSidebarNav();
-        syncHeaderUser();
-        renderRolesList();
-            showToast(`Switched to ${user.displayName || user.email}`);
-            navigateTo(defaultRouteForRole(user.role));
+            switchDemoUser(uid);
+            renderRolesList();
           } catch (err) {
             showToast(err.message, "error");
           }

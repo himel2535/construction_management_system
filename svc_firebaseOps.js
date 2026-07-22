@@ -16,8 +16,9 @@ import { aggregateProjectCosts, sumBoqBudget, budgetVariance } from "./util_proj
 import { expiryAlertLevel, requiresExpiry, normalizeDocumentType } from "./util_projectDocument.js";
 import { computeAnalyticsSummaries } from "./util_analytics.js";
 import { buildWorkerPayrollReports } from "./util_payroll.js";
+import { DEMO_ROLE_USERS } from "./svc_demoSession.js";
 
-/** Firebase RTDB rejects `undefined` anywhere in update payloads. */
+export { DEMO_ROLE_USERS };
 function omitUndefinedDeep(value) {
   if (value === undefined) return undefined;
   if (value === null || typeof value !== "object") return value;
@@ -234,24 +235,22 @@ export async function ensureFirebaseSeed() {
 }
 
 async function ensureDemoRoles(now) {
-  const users = [
-    { id: "demo-user", role: "owner", displayName: "Owner Admin", email: "owner@demo.com" },
-    { id: "demo-pm", role: "project_manager", displayName: "PM Rahman", email: "pm@demo.com" },
-    { id: "demo-site-eng", role: "site_engineer", displayName: "Site Engineer Karim", email: "engineer@demo.com" },
-    { id: "demo-site-sup", role: "site_supervisor", displayName: "Site Supervisor Ali", email: "supervisor@demo.com" },
-    { id: "demo-accountant", role: "accountant", displayName: "Finance Suma", email: "finance@demo.com" },
-    { id: "demo-procurement", role: "procurement_officer", displayName: "Procurement Nasir", email: "procurement@demo.com" },
-    { id: "demo-client", role: "client", displayName: "Client Rahim", email: "rahim@demo.com", clientId: "client_1" },
-  ];
-  for (const u of users) {
+  for (const u of DEMO_ROLE_USERS) {
     const snap = await get(ref(db, `roles/${u.id}`));
-    if (snap.exists()) continue;
-    await set(ref(db, `roles/${u.id}`), {
-      ...u,
-      active: true,
+    const existing = snap.exists() ? snap.val() || {} : {};
+    if (existing.source === "live") continue;
+    const payload = {
+      ...existing,
+      role: u.role,
+      displayName: u.displayName,
+      email: u.email,
       source: "demo",
       updatedAt: now,
-    });
+    };
+    if (u.clientId) payload.clientId = u.clientId;
+    if (existing.active === false) payload.active = false;
+    else payload.active = true;
+    await set(ref(db, `roles/${u.id}`), payload);
   }
 }
 
