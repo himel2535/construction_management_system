@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Construction ERP — Triniti | Project Documentation</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #1e40af; --primary-light: #3b82f6; --primary-dark: #1e3a8a;
+      --accent: #f59e0b; --accent2: #10b981; --accent3: #8b5cf6; --accent4: #ef4444;
+      --dark: #0f172a; --dark2: #1e293b; --dark3: #334155; --gray: #64748b;
+      --light: #f1f5f9; --white: #ffffff; --border: #e2e8f0;
+      --shadow: 0 4px 24px rgba(0,0,0,0.08); --shadow-lg: 0 20px 60px rgba(0,0,0,0.15);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', 'Hind Siliguri', sans-serif; background: #f8fafc; color: var(--dark); line-height: 1.6; }
+
+    .hero { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #1e40af 100%); color: white; padding: 80px 60px 100px; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; top: -100px; right: -100px; width: 500px; height: 500px; background: radial-gradient(circle, rgba(59,130,246,0.3) 0%, transparent 70%); border-radius: 50%; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); padding: 8px 18px; border-radius: 100px; font-size: 13px; font-weight: 500; margin-bottom: 28px; }
+    .hero h1 { font-size: 52px; font-weight: 900; line-height: 1.15; margin-bottom: 16px; position: relative; z-index: 1; }
+    .hero h1 em { color: var(--accent); font-style: normal; }
+    .hero p.subtitle { font-size: 18px; color: rgba(255,255,255,0.75); max-width: 650px; margin-bottom: 40px; position: relative; z-index: 1; }
+    .hero-meta { display: flex; gap: 40px; flex-wrap: wrap; position: relative; z-index: 1; }
+    .hero-meta-item { text-align: center; }
+    .hero-meta-item .num { font-size: 36px; font-weight: 800; color: var(--accent); display: block; }
+    .hero-meta-item .label { font-size: 12px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; }
+    .hero-divider { width: 1px; background: rgba(255,255,255,0.2); align-self: stretch; }
+
+    .toc-nav { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,0.97); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 60px; display: flex; align-items: center; gap: 4px; overflow-x: auto; }
+    .toc-link { padding: 14px 16px; font-size: 13px; font-weight: 500; color: var(--gray); text-decoration: none; white-space: nowrap; border-bottom: 3px solid transparent; transition: all 0.2s; }
+    .toc-link:hover { color: var(--primary); border-bottom-color: var(--primary); }
+
+    .section { padding: 70px 60px; }
+    .section:nth-child(even) { background: white; }
+    .section-label { display: inline-flex; align-items: center; gap: 8px; background: #eff6ff; color: var(--primary); font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 6px 16px; border-radius: 100px; margin-bottom: 16px; }
+    .section-title { font-size: 36px; font-weight: 800; color: var(--dark); margin-bottom: 12px; }
+    .section-title span { color: var(--primary); }
+    .section-subtitle { font-size: 16px; color: var(--gray); max-width: 650px; margin-bottom: 48px; }
+
+    .overview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 32px; }
+    .overview-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 28px; box-shadow: var(--shadow); transition: transform 0.2s; }
+    .overview-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+    .overview-card .icon { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 16px; }
+    .overview-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .overview-card p { font-size: 14px; color: var(--gray); line-height: 1.7; }
+    .icon-blue { background: #eff6ff; } .icon-orange { background: #fff7ed; } .icon-green { background: #f0fdf4; } .icon-purple { background: #faf5ff; } .icon-red { background: #fef2f2; } .icon-teal { background: #f0fdfa; }
+
+    .tech-stack { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 40px; }
+    .tech-pill { display: flex; align-items: center; gap: 10px; background: var(--dark2); color: white; padding: 10px 20px; border-radius: 100px; font-size: 14px; font-weight: 500; }
+    .tech-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-yellow { background: #facc15; } .dot-orange { background: #fb923c; } .dot-blue { background: #60a5fa; } .dot-green { background: #34d399; }
+
+    .roles-table { width: 100%; border-collapse: separate; border-spacing: 0; background: white; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); border: 1px solid var(--border); }
+    .roles-table th { background: var(--dark); color: white; padding: 16px 20px; font-size: 13px; font-weight: 600; text-align: left; }
+    .roles-table td { padding: 14px 20px; font-size: 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .roles-table tr:last-child td { border-bottom: none; }
+    .roles-table tr:hover td { background: #f8fafc; }
+    .role-badge { display: inline-block; padding: 4px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; }
+    .role-owner { background: #fef3c7; color: #92400e; } .role-pm { background: #dbeafe; color: #1e40af; } .role-se { background: #d1fae5; color: #065f46; } .role-ss { background: #e0e7ff; color: #3730a3; } .role-acc { background: #fce7f3; color: #9d174d; } .role-po { background: #fff3cd; color: #856404; } .role-client { background: #f3f4f6; color: #374151; }
+
+    .modules-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+    .module-card { background: white; border: 1px solid var(--border); border-radius: 20px; padding: 32px; box-shadow: var(--shadow); transition: transform 0.2s; position: relative; overflow: hidden; }
+    .module-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+    .module-card.blue::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+    .module-card.green::before { background: linear-gradient(90deg, #10b981, #34d399); }
+    .module-card.orange::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .module-card.purple::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+    .module-card.red::before { background: linear-gradient(90deg, #ef4444, #f87171); }
+    .module-card.teal::before { background: linear-gradient(90deg, #14b8a6, #2dd4bf); }
+    .module-card.indigo::before { background: linear-gradient(90deg, #6366f1, #818cf8); }
+    .module-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+    .module-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+    .module-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; }
+    .module-header-text h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .module-header-text .url { font-size: 12px; color: var(--gray); font-family: monospace; background: var(--light); padding: 2px 8px; border-radius: 4px; }
+    .module-desc { font-size: 14px; color: var(--gray); margin-bottom: 20px; line-height: 1.7; }
+    .feature-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .feature-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--dark3); }
+    .feature-list li::before { content: 'v'; font-family: monospace; font-size: 11px; font-weight: 700; color: white; background: var(--accent2); width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .connects-to { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .connects-label { font-size: 11px; font-weight: 600; color: var(--gray); text-transform: uppercase; }
+    .connect-tag { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 100px; background: var(--light); color: var(--dark3); }
+
+    .workflow-steps { display: flex; flex-direction: column; gap: 0; }
+    .workflow-step { display: grid; grid-template-columns: 60px 1fr; gap: 24px; }
+    .step-left { display: flex; flex-direction: column; align-items: center; }
+    .step-num { width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: white; font-size: 18px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 6px #dbeafe; position: relative; z-index: 1; }
+    .step-line { width: 2px; flex: 1; background: linear-gradient(to bottom, var(--primary), #dbeafe); margin: 6px auto 0; min-height: 40px; }
+    .workflow-step:last-child .step-line { display: none; }
+    .step-right { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 24px 28px; margin-bottom: 20px; box-shadow: var(--shadow); }
+    .step-right h4 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .step-right p { font-size: 14px; color: var(--gray); line-height: 1.7; }
+    .step-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .step-tag { font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 100px; background: #eff6ff; color: var(--primary); }
+
+    .approval-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 40px 0; }
+    .flow-box { text-align: center; padding: 20px 28px; border-radius: 14px; min-width: 130px; }
+    .flow-box .icon { font-size: 28px; margin-bottom: 8px; }
+    .flow-box .title { font-size: 13px; font-weight: 700; }
+    .flow-box .sub { font-size: 11px; color: var(--gray); margin-top: 4px; }
+    .flow-arrow { font-size: 24px; color: var(--gray); padding: 0 8px; }
+    .fb-draft { background: #f1f5f9; } .fb-submit { background: #eff6ff; color: var(--primary); } .fb-approve { background: #f0fdf4; color: #15803d; } .fb-paid { background: #fefce8; color: #a16207; }
+
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .feature-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: var(--shadow); text-align: center; transition: transform 0.2s; }
+    .feature-card:hover { transform: translateY(-3px); }
+    .feature-card .emoji { font-size: 36px; margin-bottom: 12px; display: block; }
+    .feature-card h4 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .feature-card p { font-size: 13px; color: var(--gray); line-height: 1.6; }
+
+    .summary-box { background: linear-gradient(135deg, #0f172a, #1e3a8a); color: white; border-radius: 24px; padding: 56px 60px; text-align: center; position: relative; overflow: hidden; }
+    .summary-box h2 { font-size: 32px; font-weight: 800; margin-bottom: 20px; }
+    .summary-box p { font-size: 17px; color: rgba(255,255,255,0.8); max-width: 800px; margin: 0 auto 32px; line-height: 1.8; }
+    .summary-box .quote { font-size: 17px; font-style: italic; color: var(--accent); border-left: 4px solid var(--accent); padding: 16px 24px; text-align: left; background: rgba(255,255,255,0.05); border-radius: 0 12px 12px 0; max-width: 800px; margin: 0 auto; }
+
+    .data-flow-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .data-node { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .data-node .node-title { font-size: 13px; font-weight: 700; color: var(--dark); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .data-node .node-item { font-size: 12px; color: var(--gray); padding: 4px 10px; background: var(--light); border-radius: 6px; font-family: monospace; margin-bottom: 4px; }
+
+    .print-btn { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; border: none; padding: 14px 24px; border-radius: 100px; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: 0 8px 24px rgba(30,64,175,0.4); display: flex; align-items: center; gap: 8px; transition: all 0.2s; z-index: 200; }
+    .print-btn:hover { background: var(--primary-dark); transform: translateY(-2px); }
+    .divider { height: 1px; background: var(--border); margin: 0 60px; }
+    .footer { background: var(--dark); color: rgba(255,255,255,0.5); text-align: center; padding: 32px; font-size: 13px; }
+    .footer strong { color: rgba(255,255,255,0.8); }
+    @media print { .toc-nav, .print-btn { display: none !important; } }
+  </style>
+</head>
+<body>
+
+<button class="print-btn" onclick="window.print()">&#128424; Print / Save PDF</button>
+
+<section class="hero">
+  <div class="hero-badge">&#127959; Project Documentation &mdash; Office Presentation</div>
+  <h1>Construction ERP<br><em>Triniti</em></h1>
+  <p class="subtitle">একটি সম্পূর্ণ নির্মাণ কোম্পানি ব্যবস্থাপনা সফটওয়্যার &mdash; Project থেকে Payroll, Billing থেকে BOQ, সবকিছু এক জায়গায়।</p>
+  <div class="hero-meta">
+    <div class="hero-meta-item"><span class="num">16</span><span class="label">মডিউল</span></div>
+    <div class="hero-divider"></div>
+    <div class="hero-meta-item"><span class="num">8</span><span class="label">User Roles</span></div>
+    <div class="hero-divider"></div>
+    <div class="hero-meta-item"><span class="num">130+</span><span class="label">JS Files</span></div>
+    <div class="hero-divider"></div>
+    <div class="hero-meta-item"><span class="num">Real-time</span><span class="label">Firebase DB</span></div>
+    <div class="hero-divider"></div>
+    <div class="hero-meta-item"><span class="num">Offline</span><span class="label">Sync Support</span></div>
+  </div>
+</section>
+
+<nav class="toc-nav">
+  <a class="toc-link" href="#overview">Overview</a>
+  <a class="toc-link" href="#roles">User Roles</a>
+  <a class="toc-link" href="#modules">Modules</a>
+  <a class="toc-link" href="#workflow">Workflow</a>
+  <a class="toc-link" href="#approval">Approval System</a>
+  <a class="toc-link" href="#data">Database</a>
+  <a class="toc-link" href="#features">Key Features</a>
+  <a class="toc-link" href="#summary">Summary</a>
+</nav>
+
+<!-- OVERVIEW -->
+<section class="section" id="overview">
+  <div class="section-label">Project Overview</div>
+  <h2 class="section-title">এই Software <span>কী করে?</span></h2>
+  <p class="section-subtitle">একটি নির্মাণ কোম্পানির শুরু থেকে শেষ পর্যন্ত সব ডিজিটাল ব্যবস্থাপনা &mdash; একটি মাত্র Platform-এ।</p>
+  <div class="overview-grid">
+    <div class="overview-card"><div class="icon icon-blue">&#127959;</div><h3>Project Management</h3><p>Government ও Private উভয় প্রজেক্ট পরিচালনা &mdash; BOQ, Milestone, Progress, Contract সব কিছু।</p></div>
+    <div class="overview-card"><div class="icon icon-orange">&#128176;</div><h3>Financial Management</h3><p>Billing, Accounting, Supplier Payment, Payroll &mdash; সম্পূর্ণ Financial Ecosystem এক জায়গায়।</p></div>
+    <div class="overview-card"><div class="icon icon-green">&#128119;</div><h3>HR &amp; Site Management</h3><p>Worker Attendance, Payroll, Site Diary, Material Log &mdash; মাঠ পর্যায়ের সব তথ্য ডিজিটালে।</p></div>
+    <div class="overview-card"><div class="icon icon-purple">&#128230;</div><h3>Supply Chain</h3><p>Supplier, Purchase Order, Inventory, Issue Voucher &mdash; কেনাকাটা থেকে সাইট পর্যন্ত সব ট্র্যাক।</p></div>
+    <div class="overview-card"><div class="icon icon-red">&#128202;</div><h3>Reports &amp; Analytics</h3><p>P&amp;L, Cash Flow, Budget Analysis, HSE, Governance &mdash; Real-time Business Intelligence।</p></div>
+    <div class="overview-card"><div class="icon icon-teal">&#9989;</div><h3>Approval Workflow</h3><p>সব গুরুত্বপূর্ণ কাজে Role-based Approval &mdash; অনুমোদন ছাড়া কোনো বড় কাজ নয়।</p></div>
+  </div>
+  <div>
+    <p style="font-size:14px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Technology Stack</p>
+    <div class="tech-stack">
+      <div class="tech-pill"><span class="dot dot-yellow"></span>JavaScript (ES Modules)</div>
+      <div class="tech-pill"><span class="dot dot-orange"></span>Firebase Realtime Database</div>
+      <div class="tech-pill"><span class="dot dot-blue"></span>Vanilla CSS (314KB)</div>
+      <div class="tech-pill"><span class="dot dot-green"></span>SPA Router (No Framework)</div>
+      <div class="tech-pill"><span class="dot dot-yellow"></span>Offline Sync Queue</div>
+      <div class="tech-pill"><span class="dot dot-orange"></span>Multi-Tenant Architecture</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ROLES -->
+<section class="section" id="roles">
+  <div class="section-label">User Roles</div>
+  <h2 class="section-title">কে কী <span>করতে পারে</span></h2>
+  <p class="section-subtitle">৮ ধরনের User Role &mdash; প্রত্যেকে শুধু তার কাজের অংশটুকু দেখতে ও করতে পারে।</p>
+  <table class="roles-table">
+    <thead><tr><th>Role</th><th>পদবি</th><th>কী করতে পারে</th><th>কোন Page দেখে</th></tr></thead>
+    <tbody>
+      <tr><td><span class="role-badge role-owner">Owner</span></td><td><strong>মালিক / Admin</strong></td><td>সবকিছু &mdash; সম্পূর্ণ অ্যাক্সেস, User manage করা</td><td>সব Page</td></tr>
+      <tr><td><span class="role-badge role-pm">Project Manager</span></td><td><strong>প্রজেক্ট ম্যানেজার</strong></td><td>প্রজেক্ট পরিচালনা, টিম গঠন, Expense ও Billing Approve</td><td>Dashboard, Projects, Clients, Workers, Approvals, Reports</td></tr>
+      <tr><td><span class="role-badge role-se">Site Engineer</span></td><td><strong>সাইট ইঞ্জিনিয়ার</strong></td><td>Site Diary, Quality Check, Progress entry, Material Request</td><td>Dashboard, Projects, Site Incharge, Approvals</td></tr>
+      <tr><td><span class="role-badge role-ss">Site Supervisor</span></td><td><strong>সাইট সুপারভাইজার</strong></td><td>লেবার তদারকি, Material Supervision, Attendance</td><td>Dashboard, Projects, Site Incharge, Workers</td></tr>
+      <tr><td><span class="role-badge role-acc">Accountant</span></td><td><strong>হিসাবরক্ষক / Finance</strong></td><td>বাজেট, বিলিং, Supplier Payment, Payroll</td><td>Dashboard, Billing, Accounting, Reports, Approvals</td></tr>
+      <tr><td><span class="role-badge role-po">Procurement Officer</span></td><td><strong>ক্রয় কর্মকর্তা</strong></td><td>Supplier, Purchase Order, Inventory, Issue Voucher</td><td>Dashboard, Purchases, Suppliers, Inventory, Reports</td></tr>
+      <tr><td><span class="role-badge role-client">Client</span></td><td><strong>ক্লায়েন্ট</strong></td><td>শুধু নিজের প্রজেক্টের অগ্রগতি ও Invoice দেখা</td><td>Client Portal শুধু</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<div class="divider"></div>
+
+<!-- MODULES -->
+<section class="section" id="modules">
+  <div class="section-label">Modules</div>
+  <h2 class="section-title">প্রতিটি <span>Module</span> কী করে</h2>
+  <p class="section-subtitle">মোট ১৬টি Module &mdash; প্রতিটি আলাদা কাজের জন্য, সবগুলো একে অপরের সাথে সংযুক্ত।</p>
+  <div class="modules-grid">
+
+    <div class="module-card blue">
+      <div class="module-header"><div class="module-icon icon-blue">&#128202;</div><div class="module-header-text"><h3>Dashboard</h3><span class="url">/dashboard</span></div></div>
+      <p class="module-desc">সম্পূর্ণ ব্যবসার একনজরে সারসংক্ষেপ। সকালে এটি দেখলেই বুঝবেন কোম্পানি আজকে কোথায় আছে।</p>
+      <ul class="feature-list">
+        <li>KPI Cards &mdash; প্রজেক্ট সংখ্যা, Contract মূল্য, পাওনা টাকা</li>
+        <li>Project Performance Table &mdash; সব প্রজেক্টের Health ও Budget</li>
+        <li>Cash Flow Chart &mdash; মাসিক আয়-ব্যয়ের গ্রাফ</li>
+        <li>Pending Approvals &mdash; অনুমোদনের জন্য অপেক্ষমাণ items</li>
+        <li>Attention Panel &mdash; জরুরি সতর্কতা (Low Stock, Overdue Bill)</li>
+        <li>Upcoming Milestones &mdash; আসন্ন Deadline</li>
+      </ul>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">Projects</span><span class="connect-tag">Billing</span><span class="connect-tag">Inventory</span><span class="connect-tag">Approvals</span></div>
+    </div>
+
+    <div class="module-card green">
+      <div class="module-header"><div class="module-icon icon-green">&#128100;</div><div class="module-header-text"><h3>Clients / Customers</h3><span class="url">/clients</span></div></div>
+      <p class="module-desc">সব ক্লায়েন্টের তালিকা ও বিস্তারিত তথ্য। Private ও Government Client আলাদা করে দেখা যায়।</p>
+      <ul class="feature-list">
+        <li>ক্লায়েন্ট যোগ করা ও সম্পাদনা করা</li>
+        <li>Private ও Government Client ধরন</li>
+        <li>ক্লায়েন্টের সাথে যুক্ত প্রজেক্ট দেখা</li>
+        <li>মোট Contract Value ও Outstanding</li>
+        <li>Search ও Filter সুবিধা</li>
+      </ul>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">Projects</span><span class="connect-tag">Billing</span></div>
+    </div>
+
+    <div class="module-card orange" style="grid-column: span 2;">
+      <div class="module-header"><div class="module-icon icon-orange">&#127959;</div><div class="module-header-text"><h3>Projects &mdash; সম্পূর্ণ প্রজেক্ট হাব &#11088;</h3><span class="url">/projects</span></div></div>
+      <p class="module-desc">সবচেয়ে গুরুত্বপূর্ণ Module। প্রতিটি প্রজেক্টের জন্য আলাদা ফাইল &mdash; চুক্তি থেকে শুরু করে Final Billing পর্যন্ত সব কিছু।</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;">
+        <div style="background:#fff7ed;border-radius:10px;padding:14px;"><p style="font-size:12px;font-weight:700;color:#9a3412;margin-bottom:8px;">চুক্তি ও পরিকল্পনা</p><ul class="feature-list"><li>Contract বিবরণ</li><li>BOQ (Bill of Quantities)</li><li>Milestone Plan</li><li>Team Assignment</li></ul></div>
+        <div style="background:#f0fdf4;border-radius:10px;padding:14px;"><p style="font-size:12px;font-weight:700;color:#14532d;margin-bottom:8px;">মাঠ পর্যায়ের কাজ</p><ul class="feature-list"><li>দৈনিক Progress Entry</li><li>Quality Check</li><li>Safety Incidents</li><li>Change Orders</li></ul></div>
+        <div style="background:#eff6ff;border-radius:10px;padding:14px;"><p style="font-size:12px;font-weight:700;color:#1e3a8a;margin-bottom:8px;">আর্থিক ব্যবস্থাপনা</p><ul class="feature-list"><li>Billing (RA / Final)</li><li>Budget vs Actual</li><li>Retention Money</li><li>Compliance Docs</li></ul></div>
+      </div>
+      <p style="font-size:13px;color:var(--gray);"><strong>Government Project-এর বিশেষ Feature:</strong> Agency, NIT Number, Measurement Sheet, Retention Calculation</p>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">Clients</span><span class="connect-tag">Workers</span><span class="connect-tag">Inventory</span><span class="connect-tag">Billing</span><span class="connect-tag">Site Incharge</span><span class="connect-tag">Approvals</span><span class="connect-tag">Reports</span></div>
+    </div>
+
+    <div class="module-card purple">
+      <div class="module-header"><div class="module-icon icon-purple">&#128176;</div><div class="module-header-text"><h3>Billing / Sales</h3><span class="url">/billing</span></div></div>
+      <p class="module-desc">ক্লায়েন্টকে Invoice পাঠানো এবং Payment ট্র্যাক করা। Draft থেকে Paid পর্যন্ত সম্পূর্ণ workflow।</p>
+      <ul class="feature-list">
+        <li>Milestone Bill &mdash; নির্দিষ্ট কাজ শেষে বিল</li>
+        <li>Progress / RA Bill &mdash; কাজের % অনুযায়ী</li>
+        <li>Final Bill &mdash; সব কাজ শেষে</li>
+        <li>Status: Draft &rarr; Submitted &rarr; Approved &rarr; Paid</li>
+        <li>KPI: Invoiced, Collected, Pending, Overdue</li>
+      </ul>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">Projects</span><span class="connect-tag">Accounting</span><span class="connect-tag">Approvals</span></div>
+    </div>
+
+    <div class="module-card indigo">
+      <div class="module-header"><div class="module-icon icon-purple">&#128214;</div><div class="module-header-text"><h3>Accounting</h3><span class="url">/accounting</span></div></div>
+      <p class="module-desc">কোম্পানির সম্পূর্ণ হিসাব-নিকাশ। কোন প্রজেক্টে কতটাকা আয়, কত খরচ, মোট লাভ কত।</p>
+      <ul class="feature-list">
+        <li>Project-wise Revenue ও Expense</li>
+        <li>Profit &amp; Loss Statement</li>
+        <li>Cash Flow Management</li>
+        <li>Manual Voucher Entry</li>
+        <li>Expense Categories: Materials, Labor, Equipment</li>
+      </ul>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">Billing</span><span class="connect-tag">Purchases</span><span class="connect-tag">Payroll</span></div>
+    </div>
+
+    <div class="module-card teal">
+      <div class="module-header"><div class="module-icon icon-teal">&#128722;</div><div class="module-header-text"><h3>Purchases</h3><span class="url">/purchases</span></div></div>
+      <p class="module-desc">সাপ্লায়ারের কাছ থেকে কেনাকাটার সম্পূর্ণ প্রক্রিয়া। PO তৈরি থেকে Goods Received পর্যন্ত।</p>
+      <ul class="feature-list">
+        <li>Purchase Order (PO) তৈরি</li>
+        <li>Approval Workflow: Draft &rarr; Approved</li>
+        <li>GRN (Goods Received Note) রেকর্ড</li>
+        <li>Inventory-তে Stock In করা</li>
+        <li>Supplier Payment সংযুক্ত</li>
+      </ul>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">Suppliers</span><span class="connect-tag">Inventory</span><span class="connect-tag">Accounting</span></div>
+    </div>
+
+    <div class="module-card red">
+      <div class="module-header"><div class="module-icon icon-red">&#127981;</div><div class="module-header-text"><h3>Suppliers</h3><span class="url">/suppliers</span></div></div>
+      <p class="module-desc">সব সাপ্লায়ারের তালিকা ও লেনদেনের ইতিহাস। কার কাছে কত বাকি তা Aging Analysis-এ দেখা যায়।</p>
+      <ul class="feature-list">
+        <li>Supplier Profile: Overview, Bills, Payments</li>
+        <li>Documents ও Notes সংরক্ষণ</li>
+        <li>Aging Analysis: ৩০/৬০/৯০+ দিনের বকেয়া</li>
+        <li>FIFO Payment Allocation</li>
+        <li>Account Statement তৈরি</li>
+      </ul>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">Purchases</span><span class="connect-tag">Accounting</span><span class="connect-tag">Inventory</span></div>
+    </div>
+
+    <div class="module-card green">
+      <div class="module-header"><div class="module-icon icon-green">&#128230;</div><div class="module-header-text"><h3>Inventory</h3><span class="url">/inventory</span></div></div>
+      <p class="module-desc">কেন্দ্রীয় গুদাম থেকে সাইট পর্যন্ত মালামালের সম্পূর্ণ ট্র্যাকিং।</p>
+      <ul class="feature-list">
+        <li>Materials Register &mdash; সব মালামালের তালিকা</li>
+        <li>Stock In (GRN) ও Stock Out রেকর্ড</li>
+        <li>Central Ledger ও Issue Vouchers</li>
+        <li>Pending Returns ট্র্যাক</li>
+        <li>Low Stock Alert &mdash; স্বয়ংক্রিয় সতর্কতা</li>
+      </ul>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">Purchases</span><span class="connect-tag">Site Incharge</span><span class="connect-tag">Projects</span></div>
+    </div>
+
+    <div class="module-card blue">
+      <div class="module-header"><div class="module-icon icon-blue">&#128295;</div><div class="module-header-text"><h3>Assets</h3><span class="url">/assets</span></div></div>
+      <p class="module-desc">কোম্পানির যন্ত্রপাতি, যান ও সরঞ্জামের রেজিস্টার। কোন যন্ত্র কোন সাইটে, কখন Maintenance লাগবে।</p>
+      <ul class="feature-list">
+        <li>Asset Register &mdash; সম্পদের তালিকা</li>
+        <li>Project-এ Asset Assignment</li>
+        <li>Maintenance Schedule ও Log</li>
+        <li>Overdue Maintenance সতর্কতা</li>
+        <li>Status: Active, Under Repair, Retired</li>
+      </ul>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">Projects</span><span class="connect-tag">Accounting</span></div>
+    </div>
+
+    <div class="module-card orange">
+      <div class="module-header"><div class="module-icon icon-orange">&#128119;</div><div class="module-header-text"><h3>Workers / HR</h3><span class="url">/workers</span></div></div>
+      <p class="module-desc">সব শ্রমিক ও কর্মীর ডিজিটাল রেজিস্টার। উপস্থিতি থেকে বেতন পর্যন্ত সব কিছু।</p>
+      <ul class="feature-list">
+        <li>Worker Profile &mdash; নাম, পদবি, মজুরি</li>
+        <li>Attendance Calendar &mdash; Present/Absent/Half Day</li>
+        <li>Salary Calculation: মজুরি &times; দিন &minus; Advance</li>
+        <li>Advance Salary রেকর্ড</li>
+        <li>Pay Cycle: Daily / Weekly / Monthly</li>
+      </ul>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">Projects</span><span class="connect-tag">Site Incharge</span><span class="connect-tag">Accounting</span></div>
+    </div>
+
+    <div class="module-card teal" style="grid-column: span 2;">
+      <div class="module-header"><div class="module-icon icon-teal">&#127968;</div><div class="module-header-text"><h3>Site Incharge &mdash; সাইট ব্যবস্থাপনা কেন্দ্র</h3><span class="url">/site-incharge</span></div></div>
+      <p class="module-desc">প্রতিটি সাইটের দৈনিক কার্যক্রমের ডিজিটাল রেকর্ড।</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+        <div style="background:#f0fdfa;border-radius:10px;padding:14px;"><p style="font-size:12px;font-weight:700;color:#134e4a;margin-bottom:8px;">Site Diary</p><ul class="feature-list"><li>তারিখ ও আবহাওয়া</li><li>উপস্থিত Worker সংখ্যা</li><li>দিনের কাজের বিবরণ</li><li>ছবি সংযুক্ত করা</li></ul></div>
+        <div style="background:#fefce8;border-radius:10px;padding:14px;"><p style="font-size:12px;font-weight:700;color:#713f12;margin-bottom:8px;">Material Log</p><ul class="feature-list"><li>কোন Material কতটুকু ব্যবহার</li><li>Issued vs Used Variance</li><li>Material Request পাঠানো</li></ul></div>
+        <div style="background:#faf5ff;border-radius:10px;padding:14px;"><p style="font-size:12px;font-weight:700;color:#4c1d95;margin-bottom:8px;">Roster &amp; Settlement</p><ul class="feature-list"><li>Worker Roster রেকর্ড</li><li>Settlement Calculation</li><li>Activity Feed</li></ul></div>
+      </div>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">Projects</span><span class="connect-tag">Workers</span><span class="connect-tag">Inventory</span><span class="connect-tag">Approvals</span></div>
+    </div>
+
+    <div class="module-card purple">
+      <div class="module-header"><div class="module-icon icon-purple">&#128203;</div><div class="module-header-text"><h3>Approvals</h3><span class="url">/approvals</span></div></div>
+      <p class="module-desc">সব Module-এর Approval Inbox এক জায়গায়। Boss এখান থেকে সব অনুমোদন দিতে বা বাতিল করতে পারেন।</p>
+      <ul class="feature-list">
+        <li>Project Expenses অনুমোদন</li>
+        <li>Supplier Bills অনুমোদন</li>
+        <li>Material Requests অনুমোদন</li>
+        <li>Site Diary অনুমোদন</li>
+        <li>Documents, Change Orders, Claims</li>
+      </ul>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">সব Module</span></div>
+    </div>
+
+    <div class="module-card red">
+      <div class="module-header"><div class="module-icon icon-red">&#128202;</div><div class="module-header-text"><h3>Reports &amp; Analytics</h3><span class="url">/reports</span></div></div>
+      <p class="module-desc">কোম্পানির সম্পূর্ণ বিশ্লেষণ। Financial থেকে HSE &mdash; সব ধরনের রিপোর্ট এক জায়গায়।</p>
+      <ul class="feature-list">
+        <li>Financial: P&amp;L, Cash Flow, Budget Analysis</li>
+        <li>HSE: Quality, Safety, NCR Reports</li>
+        <li>Governance: Approval Aging, Compliance</li>
+        <li>Procurement: Stock, Purchase Analysis</li>
+        <li>Worker Payroll Report</li>
+      </ul>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">সব Module (Read)</span></div>
+    </div>
+
+    <div class="module-card green">
+      <div class="module-header"><div class="module-icon icon-green">&#127760;</div><div class="module-header-text"><h3>Client Portal</h3><span class="url">/client-portal</span></div></div>
+      <p class="module-desc">ক্লায়েন্টদের জন্য আলাদা view &mdash; নিজেই ঘরে বসে প্রজেক্টের অগ্রগতি দেখতে পারেন।</p>
+      <ul class="feature-list">
+        <li>নিজের প্রজেক্টের Progress দেখা</li>
+        <li>Invoice ও Payment status দেখা</li>
+        <li>Milestone অগ্রগতি</li>
+        <li>শুধু Read-only access</li>
+      </ul>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">Projects</span><span class="connect-tag">Billing</span></div>
+    </div>
+
+    <div class="module-card indigo">
+      <div class="module-header"><div class="module-icon icon-purple">&#9878;</div><div class="module-header-text"><h3>Arbitration</h3><span class="url">/arbitration</span></div></div>
+      <p class="module-desc">Contract-সম্পর্কিত বিরোধ নিষ্পত্তির ব্যবস্থা।</p>
+      <ul class="feature-list">
+        <li>Dispute তৈরি ও Submit করা</li>
+        <li>Arbitration Case পরিচালনা</li>
+        <li>Hearing Schedule করা</li>
+        <li>Award/Settlement রেকর্ড</li>
+      </ul>
+      <div class="connects-to"><span class="connects-label">Connects to:</span><span class="connect-tag">Projects</span><span class="connect-tag">Approvals</span></div>
+    </div>
+
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- WORKFLOW -->
+<section class="section" id="workflow">
+  <div class="section-label">Complete Workflow</div>
+  <h2 class="section-title">একটি <span>প্রজেক্টের যাত্রা</span> &mdash; শুরু থেকে শেষ</h2>
+  <p class="section-subtitle">ধরুন আপনি "ABC Tower" নামে একটি প্রজেক্ট শুরু করলেন &mdash; কিভাবে এই System-এ সব চলে।</p>
+  <div class="workflow-steps">
+    <div class="workflow-step"><div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div><div class="step-right"><h4>&#128100; Client যোগ করা</h4><p>Clients Page-এ "ABC Real Estate" যোগ করুন। নাম, ফোন, ঠিকানা, Client Type (Private/Government) দিন।</p><div class="step-tags"><span class="step-tag">Clients Page</span></div></div></div>
+    <div class="workflow-step"><div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div><div class="step-right"><h4>&#127959; নতুন Project তৈরি</h4><p>Projects &rarr; New Project: "ABC Tower" তৈরি করুন। Client assign করুন, Budget, শুরু ও শেষের তারিখ দিন।</p><div class="step-tags"><span class="step-tag">Projects Page</span><span class="step-tag">New Project Form</span></div></div></div>
+    <div class="workflow-step"><div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div><div class="step-right"><h4>&#128203; BOQ ও Milestone সেট করা</h4><p>Project-এর BOQ Tab-এ কোন কাজ কতটাকায় করবেন তা লিখুন। Milestone Tab-এ গুরুত্বপূর্ণ ধাপ ও Deadline দিন।</p><div class="step-tags"><span class="step-tag">Projects &rarr; BOQ</span><span class="step-tag">Milestone</span></div></div></div>
+    <div class="workflow-step"><div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div><div class="step-right"><h4>&#128119; Team ও Site Incharge নিয়োগ</h4><p>Projects &rarr; Team Tab-এ Project Manager, Site Engineer assign করুন। Site Incharge Page-এ সাইটের দারোগা নিয়োগ করুন।</p><div class="step-tags"><span class="step-tag">Projects &rarr; Team</span><span class="step-tag">Site Incharge</span></div></div></div>
+    <div class="workflow-step"><div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div><div class="step-right"><h4>&#128722; মালামাল কেনা</h4><p>Purchases Page-এ PO তৈরি &rarr; Approval-এ যাবে &rarr; Boss Approve করবেন &rarr; মাল এলে GRN করুন &rarr; Inventory-তে Stock In হবে।</p><div class="step-tags"><span class="step-tag">Purchases</span><span class="step-tag">Approvals</span><span class="step-tag">Inventory</span></div></div></div>
+    <div class="workflow-step"><div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div><div class="step-right"><h4>&#128230; সাইটে মালামাল পাঠানো</h4><p>Inventory &rarr; Issue Voucher তৈরি &rarr; সাইটে মালামাল পাঠান &rarr; Site Incharge-এ Material Log-এ রেকর্ড হবে।</p><div class="step-tags"><span class="step-tag">Inventory</span><span class="step-tag">Site Incharge</span></div></div></div>
+    <div class="workflow-step"><div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div><div class="step-right"><h4>&#128214; প্রতিদিন Site Diary লেখা</h4><p>Site Incharge প্রতিদিন Diary লেখেন &mdash; আবহাওয়া, কতজন Worker, কী কাজ হলো, ছবি। এটি Approval-এ যায়, PM Approve করেন।</p><div class="step-tags"><span class="step-tag">Site Incharge &rarr; Diary</span><span class="step-tag">Approvals</span></div></div></div>
+    <div class="workflow-step"><div class="step-left"><div class="step-num">8</div><div class="step-line"></div></div><div class="step-right"><h4>&#128176; ক্লায়েন্টকে Bill পাঠানো</h4><p>কাজ ৩০% শেষ হলে Billing Page-এ RA Bill তৈরি &rarr; Approve &rarr; ক্লায়েন্ট টাকা দিলে Paid &rarr; Accounting-এ Income যোগ হবে।</p><div class="step-tags"><span class="step-tag">Billing</span><span class="step-tag">Approvals</span><span class="step-tag">Accounting</span></div></div></div>
+    <div class="workflow-step"><div class="step-left"><div class="step-num">9</div><div class="step-line"></div></div><div class="step-right"><h4>&#128119; মাস শেষে Worker-দের বেতন</h4><p>Workers Page-এ মাসিক Attendance দেখুন &rarr; System বেতন হিসাব করবে &rarr; Payment confirm করুন &rarr; Accounting-এ Expense যোগ।</p><div class="step-tags"><span class="step-tag">Workers &rarr; Payroll</span><span class="step-tag">Accounting</span></div></div></div>
+    <div class="workflow-step"><div class="step-left"><div class="step-num">10</div><div class="step-line"></div></div><div class="step-right"><h4>&#128202; রিপোর্ট দেখা ও সিদ্ধান্ত নেওয়া</h4><p>Reports Page-এ দেখুন &mdash; কোন প্রজেক্টে কত লাভ, কত খরচ বেশি, কোন Milestone delayed। Dashboard-এও Real-time সব দেখা যাচ্ছে।</p><div class="step-tags"><span class="step-tag">Reports</span><span class="step-tag">Dashboard</span></div></div></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- APPROVAL -->
+<section class="section" id="approval">
+  <div class="section-label">Approval System</div>
+  <h2 class="section-title">Approval <span>Workflow</span></h2>
+  <p class="section-subtitle">কোনো বড় কাজ অনুমোদন ছাড়া হয় না &mdash; এটি নিশ্চিত করে কোম্পানির আর্থিক নিরাপত্তা।</p>
+  <div class="approval-flow">
+    <div class="flow-box fb-draft"><div class="icon">&#128221;</div><div class="title">Draft</div><div class="sub">তৈরি করা হয়েছে</div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box fb-submit"><div class="icon">&#128228;</div><div class="title">Submitted</div><div class="sub">Approval-এ পাঠানো</div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box fb-approve"><div class="icon">&#9989;</div><div class="title">Approved</div><div class="sub">অনুমোদিত</div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box fb-paid"><div class="icon">&#128179;</div><div class="title">Paid / Closed</div><div class="sub">সম্পন্ন</div></div>
+  </div>
+  <p style="text-align:center;color:var(--gray);font-size:14px;margin-bottom:40px;">অথবা Approved-এর পরিবর্তে &rarr; <strong style="color:#dc2626;">Rejected (বাতিল)</strong> &rarr; Draft-এ ফেরত</p>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+    <div style="background:white;border:1px solid var(--border);border-radius:14px;padding:20px;text-align:center;box-shadow:var(--shadow);"><div style="font-size:28px;margin-bottom:10px;">&#128184;</div><h4 style="font-size:14px;margin-bottom:6px;">Project Expense</h4><p style="font-size:12px;color:var(--gray);">খরচের অনুমোদন</p></div>
+    <div style="background:white;border:1px solid var(--border);border-radius:14px;padding:20px;text-align:center;box-shadow:var(--shadow);"><div style="font-size:28px;margin-bottom:10px;">&#129534;</div><h4 style="font-size:14px;margin-bottom:6px;">Supplier Bill</h4><p style="font-size:12px;color:var(--gray);">সাপ্লায়ারের বিল</p></div>
+    <div style="background:white;border:1px solid var(--border);border-radius:14px;padding:20px;text-align:center;box-shadow:var(--shadow);"><div style="font-size:28px;margin-bottom:10px;">&#128230;</div><h4 style="font-size:14px;margin-bottom:6px;">Material Request</h4><p style="font-size:12px;color:var(--gray);">মালামালের চাহিদা</p></div>
+    <div style="background:white;border:1px solid var(--border);border-radius:14px;padding:20px;text-align:center;box-shadow:var(--shadow);"><div style="font-size:28px;margin-bottom:10px;">&#128214;</div><h4 style="font-size:14px;margin-bottom:6px;">Site Diary</h4><p style="font-size:12px;color:var(--gray);">দৈনিক সাইট রিপোর্ট</p></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- DATABASE -->
+<section class="section" id="data">
+  <div class="section-label">Database Structure</div>
+  <h2 class="section-title">Data কোথায় <span>সংরক্ষিত</span> হয়</h2>
+  <p class="section-subtitle">Firebase Realtime Database-এ সব তথ্য Real-time সংরক্ষিত হয় এবং সব device-এ তাৎক্ষণিক sync হয়।</p>
+  <div class="data-flow-grid">
+    <div class="data-node"><div class="node-title"><span>&#127959;</span> Project Data</div><div class="node-item">projects/</div><div class="node-item">projectMilestones/</div><div class="node-item">projectTeamAssignments/</div><div class="node-item">projectDocuments/</div></div>
+    <div class="data-node"><div class="node-title"><span>&#128176;</span> Financial Data</div><div class="node-item">sales/</div><div class="node-item">projectExpenses/</div><div class="node-item">purchaseOrders/</div><div class="node-item">supplierBills/</div></div>
+    <div class="data-node"><div class="node-title"><span>&#128100;</span> People Data</div><div class="node-item">clients/</div><div class="node-item">workers/</div><div class="node-item">siteInCharges/</div><div class="node-item">payrollEntries/</div></div>
+    <div class="data-node"><div class="node-title"><span>&#128230;</span> Supply Chain</div><div class="node-item">suppliers/</div><div class="node-item">materials/</div><div class="node-item">stockIn / stockOut/</div><div class="node-item">issueVouchers/</div></div>
+    <div class="data-node"><div class="node-title"><span>&#9989;</span> Governance</div><div class="node-item">approvalQueue/</div><div class="node-item">qualityChecks/</div><div class="node-item">safetyIncidents/</div><div class="node-item">disputes/</div></div>
+    <div class="data-node"><div class="node-title"><span>&#128260;</span> System Data</div><div class="node-item">tenants/</div><div class="node-item">offlineQueue/</div><div class="node-item">syncCheckpoints/</div><div class="node-item">auditLog/</div></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="section-label">Key Features</div>
+  <h2 class="section-title">এই System-এর <span>বিশেষ সুবিধা</span></h2>
+  <p class="section-subtitle">সাধারণ Software-এর তুলনায় এই System-এ যা বিশেষভাবে আছে।</p>
+  <div class="features-grid">
+    <div class="feature-card"><span class="emoji">&#127970;</span><h4>Multi-Tenant Architecture</h4><p>একটি Software-এ একাধিক কোম্পানি পরিচালনা। প্রতিটি কোম্পানির Data সম্পূর্ণ আলাদা।</p></div>
+    <div class="feature-card"><span class="emoji">&#128272;</span><h4>Role-Based Access Control</h4><p>৮ ধরনের Role &mdash; প্রত্যেকে শুধু তার কাজের অংশ দেখতে পারেন।</p></div>
+    <div class="feature-card"><span class="emoji">&#128276;</span><h4>Offline Support</h4><p>Internet না থাকলেও কাজ চলে। Internet ফিরলে স্বয়ংক্রিয়ভাবে Sync হয়।</p></div>
+    <div class="feature-card"><span class="emoji">&#9889;</span><h4>Real-Time Updates</h4><p>Firebase-এর কারণে যেকোনো পরিবর্তন তাৎক্ষণিক সব Device-এ দেখা যায়।</p></div>
+    <div class="feature-card"><span class="emoji">&#127981;</span><h4>Government Project Support</h4><p>সরকারি ঠিকাদারের জন্য বিশেষ Feature &mdash; BOQ, Measurement, Retention।</p></div>
+    <div class="feature-card"><span class="emoji">&#128203;</span><h4>Complete Audit Trail</h4><p>সব পরিবর্তনের ইতিহাস রেকর্ড। কে, কখন, কী পরিবর্তন করেছে সব দেখা যায়।</p></div>
+    <div class="feature-card"><span class="emoji">&#127760;</span><h4>Client Portal</h4><p>ক্লায়েন্টরা নিজেই ঘরে বসে প্রজেক্টের অগ্রগতি ও Invoice দেখতে পারেন।</p></div>
+    <div class="feature-card"><span class="emoji">&#128202;</span><h4>Advanced Reports</h4><p>Financial P&amp;L, HSE Metrics, Procurement Analysis, Payroll &mdash; সব রিপোর্ট।</p></div>
+    <div class="feature-card"><span class="emoji">&#9878;</span><h4>Arbitration Module</h4><p>Contract বিরোধ নিষ্পত্তির জন্য Dispute থেকে Legal Award পর্যন্ত Digital Workflow।</p></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- SUMMARY -->
+<section class="section" id="summary">
+  <div class="section-label">Presentation Summary</div>
+  <h2 class="section-title">Client-কে <span>যা বলবেন</span></h2>
+  <p class="section-subtitle">Presentation-এ এই কথাগুলো বললে সবাই বুঝবে এবং Impress হবে।</p>
+  <div class="summary-box">
+    <h2>&#127959; এক কথায় কী করেছি?</h2>
+    <p>একটি নির্মাণ কোম্পানির <strong>সম্পূর্ণ ERP System</strong> তৈরি করেছি &mdash; যেখানে প্রজেক্ট পরিচালনা, ক্লায়েন্ট ব্যবস্থাপনা, শ্রমিকের বেতন, মালামালের গুদাম, সাপ্লায়ারের হিসাব, সাইটের দৈনিক ডায়েরি এবং আর্থিক রিপোর্ট &mdash; সব কিছু একটি মাত্র Software-এ ডিজিটালভাবে পরিচালনা করা যায়।</p>
+    <div class="quote">"আগে যে কাজ ১০টি আলাদা খাতায় বা Excel File-এ করতে হতো, এখন সেটা একটি Browser-এ খুলেই করা যাচ্ছে &mdash; Real-time, Offline Support সহ, এবং প্রতিটি কাজে Approval Workflow সহ।"</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:24px;margin-top:32px;">
+    <div style="background:white;border:1px solid var(--border);border-radius:20px;padding:32px;box-shadow:var(--shadow);">
+      <h3 style="font-size:18px;margin-bottom:16px;color:var(--primary);">&#128204; মূল Points</h3>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:12px;">
+        <li style="display:flex;gap:12px;font-size:14px;"><span style="font-size:18px;">&#128290;</span><span><strong>১৬টি Module</strong> &mdash; প্রতিটি আলাদা কাজের জন্য</span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span style="font-size:18px;">&#128100;</span><span><strong>৮ ধরনের User Role</strong> &mdash; নিরাপদ access control</span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span style="font-size:18px;">&#9889;</span><span><strong>Real-time Database</strong> &mdash; Firebase-এ তাৎক্ষণিক update</span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span style="font-size:18px;">&#128276;</span><span><strong>Offline কাজ করে</strong> &mdash; Internet ছাড়াও চলে</span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span style="font-size:18px;">&#127981;</span><span><strong>Government Project Support</strong></span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span style="font-size:18px;">&#9989;</span><span><strong>Approval Workflow</strong> &mdash; সব কাজে permission</span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span style="font-size:18px;">&#128202;</span><span><strong>Advanced Reports</strong> &mdash; Financial, HSE, Procurement</span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span style="font-size:18px;">&#127760;</span><span><strong>Client Portal</strong> &mdash; ক্লায়েন্টের নিজস্ব view</span></li>
+      </ul>
+    </div>
+    <div style="background:white;border:1px solid var(--border);border-radius:20px;padding:32px;box-shadow:var(--shadow);">
+      <h3 style="font-size:18px;margin-bottom:16px;color:#15803d;">&#127919; এই System কেন দরকার ছিল?</h3>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:12px;">
+        <li style="display:flex;gap:12px;font-size:14px;"><span>&#10060;</span><span>আগে: খাতা ও Excel-এ হিসাব &rarr; Data হারিয়ে যেত</span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span>&#9989;</span><span>এখন: সব Digital &rarr; কখনো হারাবে না</span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span>&#10060;</span><span>আগে: কে কত টাকা নিল বুঝা যেত না</span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span>&#9989;</span><span>এখন: Audit Log &rarr; সম্পূর্ণ স্বচ্ছতা</span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span>&#10060;</span><span>আগে: সাইটে কী হচ্ছে অফিস থেকে জানা যেত না</span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span>&#9989;</span><span>এখন: Real-time Site Diary &rarr; সবসময় আপডেট</span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span>&#10060;</span><span>আগে: কোন প্রজেক্টে লাভ-ক্ষতি বুঝা কঠিন</span></li>
+        <li style="display:flex;gap:12px;font-size:14px;"><span>&#9989;</span><span>এখন: Reports-এ তাৎক্ষণিক P&amp;L &rarr; সঠিক সিদ্ধান্ত</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <p><strong>Construction ERP &mdash; Triniti</strong> &nbsp;|&nbsp; Project Documentation &nbsp;|&nbsp; Office Presentation</p>
+  <p style="margin-top:8px;">Built with JavaScript (ES Modules) + Firebase Realtime Database &nbsp;|&nbsp; Live: <strong>http://localhost:3000</strong></p>
+</footer>
+
+<script>
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const el = document.querySelector(a.getAttribute('href'));
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+  const tocLinks = document.querySelectorAll('.toc-link');
+  const sections = document.querySelectorAll('section[id]');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => { if (window.scrollY >= s.offsetTop - 100) current = s.id; });
+    tocLinks.forEach(l => {
+      const active = l.getAttribute('href') === '#' + current;
+      l.style.color = active ? 'var(--primary)' : '';
+      l.style.borderBottomColor = active ? 'var(--primary)' : 'transparent';
+    });
+  });
+</script>
+</body>
+</html>
