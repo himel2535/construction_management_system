@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Work Report — 23 July 2026</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", Calibri, Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.45;
+      color: #1a1a1a;
+      max-width: 720px;
+      margin: 2rem auto;
+      padding: 0 1.5rem 3rem;
+      background: #fff;
+    }
+    h1 {
+      font-size: 18pt;
+      font-weight: 700;
+      margin: 0 0 0.25rem;
+      color: #0f172a;
+    }
+    .meta {
+      font-size: 10pt;
+      color: #475569;
+      margin-bottom: 1.75rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .meta p { margin: 0.2rem 0; }
+    h2 {
+      font-size: 12pt;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 1.5rem 0 0.6rem;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    h3 {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #334155;
+      margin: 1rem 0 0.4rem;
+    }
+    ol, ul { margin: 0.35rem 0 0.75rem; padding-left: 1.35rem; }
+    li { margin: 0.25rem 0; }
+    ol ol, ol ul, ul ul { margin-top: 0.25rem; margin-bottom: 0.35rem; }
+    .deliverable {
+      background: #f1f5f9;
+      border-left: 4px solid #2563eb;
+      padding: 0.75rem 1rem;
+      margin: 1rem 0;
+    }
+    .signature {
+      margin-top: 2.5rem;
+      font-size: 10pt;
+    }
+    .signature p { margin: 0.5rem 0; }
+    .hint {
+      font-size: 9pt;
+      color: #64748b;
+      margin-top: 2rem;
+      padding: 0.75rem;
+      background: #f8fafc;
+      border-radius: 6px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+      margin: 0.5rem 0 1rem;
+    }
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 0.4rem 0.5rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f8fafc; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <h1>Daily Work Report</h1>
+  <div class="meta">
+    <p><strong>Project:</strong> Construction Management System — Project Hub</p>
+    <p><strong>Date:</strong> 23 July 2026</p>
+    <p><strong>Module:</strong> Manage Projects → Project Hub (Private &amp; Government Civil)</p>
+  </div>
+
+  <h2>1. Purpose</h2>
+  <p>
+    Work focused on aligning the Project Hub with a consistent Reports-style user experience:
+    green overview metrics, white table shells, modal-based Add/Create flows, centered Actions
+    columns, and fixes for Billing and Activity tabs. Workflow logic was reviewed so UI actions
+    match draft → submit → approve patterns.
+  </p>
+
+  <h2>2. Module structure</h2>
+  <ol>
+    <li><strong>Main section — Projects (Manage Projects)</strong>
+      <ul>
+        <li>User selects a project and opens Hub mode.</li>
+      </ul>
+    </li>
+    <li><strong>Hub shell (shared wrapper)</strong>
+      <ul>
+        <li>Toolbar, KPI row, tab groups, panel headers.</li>
+        <li>Layout: <em>projects-page--hub</em>.</li>
+      </ul>
+    </li>
+    <li><strong>Sub-sections — tab groups</strong>
+      <ol type="a">
+        <li><strong>Overview</strong> — Home (summary, stats, recent activity).</li>
+        <li><strong>Planning</strong> — BOQ &amp; Budget; Phases; Milestones; Timeline; Progress.</li>
+        <li><strong>Operations</strong> — Documents; Resources; Team; Messages; Quality; Safety.</li>
+        <li><strong>Commercial</strong> — Private: Client contract, Billing, Variations &amp; claims. Government: Contract, Compliance, Retention, Measurement &amp; IPC, Billing (IPC).</li>
+        <li><strong>Activity</strong> — Metrics tiles and full audit trail feed.</li>
+      </ol>
+    </li>
+    <li><strong>Child sections (examples)</strong>
+      <ul>
+        <li>Phases → metrics + Phase schedule table.</li>
+        <li>Quality → metrics + quality checks table.</li>
+        <li>Billing (private) → metrics + Client bills table.</li>
+        <li>Activity → stat tiles + activity feed cards.</li>
+      </ul>
+    </li>
+  </ol>
+
+  <h2>3. Work completed today</h2>
+
+  <h3>3.1 Hub framework</h3>
+  <ol>
+    <li>Clearer short tab labels (e.g. Client contract, Variations &amp; claims).</li>
+    <li>Panel title, subtitle, and icon via hub metadata.</li>
+    <li>Shared pattern across polished tabs:
+      <ol type="a">
+        <li>Green overview metric tiles.</li>
+        <li>White <em>projects-table</em> shells with section title and footer (Showing X of Y).</li>
+        <li>Create/Add via <em>openCustFormDialog</em> (modals, not inline forms).</li>
+        <li>Actions column buttons centered in the cell.</li>
+      </ol>
+    </li>
+    <li>Key files: cmp_projectHub.js, cmp_reports.js, cmp_dashboardIcons.js, cmp_projectTab.js, page_projects.js, styles.css.</li>
+  </ol>
+
+  <h3>3.2 Planning</h3>
+  <ol>
+    <li>Phases — hub metrics + phase schedule; workflow actions.</li>
+    <li>Milestones — hub metrics + schedule table; submit/approve workflow.</li>
+    <li>Timeline — hub metrics + Gantt shell.</li>
+    <li>BOQ, Progress, Resources — same hub table/metrics pattern.</li>
+  </ol>
+
+  <h3>3.3 Operations</h3>
+  <ol>
+    <li>Quality — add check modal; quality tab styling; centered Actions; workflow for checks/NCR.</li>
+    <li>Safety — incident/NCR modals; safety tab; Mark closed vs workflow Close.</li>
+    <li>Documents — document workflow + hub table.</li>
+    <li>Team — roster, RACI matrix, tasks in hub shells.</li>
+    <li>Resources and Messages — hub alignment where updated.</li>
+  </ol>
+
+  <h3>3.4 Commercial — Private</h3>
+  <ol>
+    <li>Client contract — metric tiles + payment milestones; milestone modals; status chips.</li>
+    <li>Billing — create draft bill modal; Amount/Paid left-aligned; Status and Actions centered; column widths total 100%.</li>
+    <li>Variations &amp; claims — change order, claim, EOT modals; contracts tab; workflow actions.</li>
+  </ol>
+
+  <h3>3.5 Commercial — Government</h3>
+  <ol>
+    <li>Contract, Compliance, Retention — hub metrics and read-oriented shells.</li>
+    <li>Billing (IPC) — gov billing hub shell.</li>
+    <li>Measurement — measurement book / IPC workflow buttons.</li>
+  </ol>
+
+  <h3>3.6 Activity tab</h3>
+  <ol>
+    <li>Shared activity log helpers and hub Activity tab build.</li>
+    <li>Hub feed: full-width card (action + badge left, date right, summary below).</li>
+    <li>Home overview keeps the original three-column timeline.</li>
+    <li>Metrics, empty state, and feed shell styling.</li>
+  </ol>
+
+  <h3>3.7 Final polish (user feedback)</h3>
+  <ol>
+    <li>Client bills — Approve/Submit centered in Actions; status chip centered.</li>
+    <li>Activity list — card layout to balance information across the width.</li>
+  </ol>
+
+  <h2>4. Workflow study</h2>
+  <ol>
+    <li><strong>svc_workflow.js</strong> — States: draft → submitted → approved → rejected → closed; edit rules by status.</li>
+    <li><strong>svc_governance.js</strong> — Role permissions (<em>canPerformAction</em>); Submit / Approve / Reject buttons.</li>
+    <li><strong>Audit / Activity</strong> — <em>writeAuditLog</em> and <em>auditProject</em> feed the Activity tab.</li>
+    <li><strong>Private billing</strong> — Draft → Submit → Approve → Record payment (<em>submit_billing</em>, <em>approve_billing</em>).</li>
+    <li><strong>Quality, Safety, Documents, Variations</strong> — Entity-specific workflow on table rows.</li>
+    <li><strong>Phases &amp; Milestones</strong> — <em>workflowStatus</em> on phases and milestones.</li>
+    <li><strong>Government</strong> — Measurement and IPC workflow buttons.</li>
+  </ol>
+  <p><strong>Takeaway:</strong> Hub tables show status and role-appropriate actions; records move through approval steps instead of inline edits on approved data.</p>
+
+  <h2>5. Main files touched</h2>
+  <table>
+    <thead>
+      <tr><th>File</th><th>Area</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>page_projects.js</td><td>Hub routing; phases, milestones, timeline, documents, activity</td></tr>
+      <tr><td>page_projects_private.js</td><td>Client contract, client bills</td></tr>
+      <tr><td>page_projects_r3.js</td><td>Quality, safety, variations &amp; claims</td></tr>
+      <tr><td>page_projects_gov.js</td><td>Gov commercial, measurement, billing</td></tr>
+      <tr><td>page_projects_r2.js</td><td>BOQ, progress, resources</td></tr>
+      <tr><td>page_projects_team.js</td><td>Team hub</td></tr>
+      <tr><td>cmp_projectHub.js</td><td>Tab groups, labels, panel wrapper</td></tr>
+      <tr><td>cmp_projectTab.js</td><td>Dialogs, audit, helpers</td></tr>
+      <tr><td>cmp_reports.js</td><td>KPI and sparkline widgets</td></tr>
+      <tr><td>styles.css</td><td>Hub styles (metrics, tables, billing, activity, etc.)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>6. Deliverable</h2>
+  <div class="deliverable">
+    Project Hub Planning, Operations, Commercial (Private and Gov), and Activity tabs use a
+    consistent Reports-style hub UX with workflow-aware modals and tables; Billing Actions/Status
+    centering and Activity card layout are completed.
+  </div>
+
+  <h2>7. Suggested next steps</h2>
+  <ol>
+    <li>Browser check on Commercial tabs and Activity refresh.</li>
+    <li>Gov IPC table amount alignment if still needed.</li>
+    <li>Git commit / PR per team process.</li>
+  </ol>
+
+  <div class="signature">
+    <p><strong>Name:</strong> _________________________________</p>
+    <p><strong>Role:</strong> _________________________________</p>
+    <p><strong>Signature / Date:</strong> _________________________________</p>
+  </div>
+
+  <p class="hint">
+    <strong>How to copy with numbering:</strong> Open this file in Chrome or Edge → press Ctrl+A → Ctrl+C → paste into Word or Google Docs. Numbering and headings will paste correctly.
+  </p>
+
+</body>
+</html>
