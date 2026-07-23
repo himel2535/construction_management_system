@@ -4,7 +4,8 @@
 import { create, updatePath } from "./svc_data.js";
 
 import { getCurrentUserId } from "./svc_auth.js";
-import { auditProject, openEditDialog, validateUrl } from "./cmp_projectTab.js";
+import { auditProject, openCustFormDialog, openEditDialog, validateUrl } from "./cmp_projectTab.js";
+import { renderBoqStatGrid } from "./page_projects_r2.js";
 import {
   R3_PATHS,
   guardAction,
@@ -23,6 +24,7 @@ import { computeRevisedContractValue } from "./util_privateProject.js";
 import { syncMilestoneAmounts } from "./svc_privateProject.js";
 import { createNcr, updateNcrResolution } from "./svc_ncr.js";
 import { ncrResolutionLabel, NCR_SEVERITIES } from "./util_ncr.js";
+import { COST_CATEGORIES } from "./util_projectCost.js";
 
 export const R3_TABS = [
   { id: "quality", label: "Quality" },
@@ -126,135 +128,250 @@ function checklistPreviewHtml(items, editable, rowId) {
     .join("")}</ul>`;
 }
 
-export function buildQualityTab(state) {
-  const card = sectionCard("Quality Checks", "Inspection checklists per phase/milestone with approval workflow (§2.9)");
-  const body = card.querySelector(".section-card-body");
+const QUALITY_CHECK_TYPES = [
+  { value: "structural", label: "Structural" },
+  { value: "finishing", label: "Finishing" },
+  { value: "mep", label: "MEP" },
+  { value: "material", label: "Material" },
+];
+
+function phaseSelectOptions(state) {
+  return [
+    { value: "", label: "WBS phase" },
+    ...(state.phases || []).map((ph) => ({ value: ph.id, label: ph.name })),
+  ];
+}
+
+function milestoneSelectOptions(state) {
+  return [
+    { value: "", label: "Milestone" },
+    ...(state.milestones || []).map((m) => ({ value: m.id, label: m.title })),
+  ];
+}
+
+function openAddQualityCheckDialog(state) {
   if (!state.selectedProjectId) {
-    body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-    return card;
+    showToast("Select a project first", "error");
+    return;
+  }
+  openCustFormDialog({
+    title: "Add quality check",
+    subtitle: "Create an inspection checklist linked to phase or milestone.",
+    submitLabel: "Add quality check",
+    modalClass: "proj-qc-modal",
+    values: {
+      title: "",
+      checkType: "structural",
+      phaseId: "",
+      milestoneId: "",
+      checklistItems: "",
+      dueDate: "",
+      assignee: "",
+      evidenceUrl: "",
+    },
+    sections: [
+      {
+        title: "Check details",
+        fields: [
+          { name: "title", label: "Title *", type: "text", required: true },
+          { name: "checkType", label: "Type", type: "select", options: QUALITY_CHECK_TYPES },
+          { name: "phaseId", label: "WBS phase", type: "select", options: phaseSelectOptions(state) },
+          { name: "milestoneId", label: "Milestone", type: "select", options: milestoneSelectOptions(state) },
+        ],
+      },
+      {
+        title: "Checklist & evidence",
+        fields: [
+          {
+            name: "checklistItems",
+            label: "Checklist items * (one per line)",
+            type: "textarea",
+            fullWidth: true,
+            required: true,
+          },
+          { name: "dueDate", label: "Due date", type: "date" },
+          { name: "assignee", label: "Assignee", type: "text" },
+          { name: "evidenceUrl", label: "Evidence URL", type: "text" },
+        ],
+      },
+    ],
+    onSave: async (data) => {
+      try {
+        guardAction("create_quality");
+        const items = parseChecklist(data.checklistItems);
+        if (!items.length) {
+          showToast("Add at least one checklist item", "error");
+          throw new Error("validation");
+        }
+        const urlCheck = validateUrl(data.evidenceUrl);
+        if (!urlCheck.ok) {
+          showToast(urlCheck.message, "error");
+          throw new Error("validation");
+        }
+        const id = await create(`${R3_PATHS.qualityChecks}/${state.selectedProjectId}`, {
+          ...governanceBase(state.selectedProjectId),
+          title: data.title,
+          checkType: data.checkType,
+          phaseId: data.phaseId || "",
+          milestoneId: data.milestoneId || "",
+          checklistItems: items,
+          dueDate: data.dueDate || null,
+          assignee: data.assignee || "",
+          evidenceUrl: data.evidenceUrl || "",
+        });
+        await auditProject(state, {
+          entityType: "qualityCheck",
+          entityId: id,
+          action: "create",
+          diffSummary: `Quality check: ${data.title} (${items.length} items)`,
+        });
+        showToast("Quality check added");
+      } catch (err) {
+        if (err?.message !== "validation") showToast(err.message, "error");
+        throw err;
+      }
+    },
+  });
+}
+
+export function buildQualityTab(state) {
+  const root = document.createElement("div");
+  root.className = "proj-quality-tab";
+  if (!state.selectedProjectId) {
+    root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+    return root;
   }
 
-  const phaseOpts = (state.phases || [])
-    .map((ph) => `<option value="${ph.id}">${escapeHtml(ph.name)}</option>`)
-    .join("");
-  const msOpts = (state.milestones || [])
-    .map((m) => `<option value="${m.id}">${escapeHtml(m.title)}</option>`)
-    .join("");
+  const rows = state.qualityChecks || [];
+  const isOpen = (q) => q.status !== "approved" && q.status !== "closed";
+  const openCount = rows.filter(isOpen).length;
+  const approvedCount = rows.filter((q) => q.status === "approved").length;
+  const closedCount = rows.filter((q) => q.status === "closed").length;
 
   const openByPhase = {};
-  (state.qualityChecks || []).forEach((q) => {
+  rows.forEach((q) => {
     if (q.status === "approved" || q.status === "closed") return;
     const key = q.phaseId
       ? (state.phases || []).find((p) => p.id === q.phaseId)?.name || "Phase"
       : "Unassigned";
     openByPhase[key] = (openByPhase[key] || 0) + 1;
   });
-  const summaryStrip = document.createElement("div");
-  summaryStrip.className = "qc-phase-summary";
-  summaryStrip.innerHTML = Object.keys(openByPhase).length
-    ? Object.entries(openByPhase)
-        .map(([name, n]) => `<span class="qc-phase-link">${escapeHtml(name)}: <strong>${n}</strong> open</span>`)
-        .join("")
-    : `<span class="text-muted">No open quality checks</span>`;
 
-  const form = document.createElement("form");
-  form.className = "form-grid proj-form";
-  form.innerHTML = `
-    <input name="title" placeholder="Checklist title *" required />
-    <select name="checkType">
-      <option value="structural">Structural</option>
-      <option value="finishing">Finishing</option>
-      <option value="mep">MEP</option>
-      <option value="material">Material</option>
-    </select>
-    <select name="phaseId"><option value="">WBS phase</option>${phaseOpts}</select>
-    <select name="milestoneId"><option value="">Milestone</option>${msOpts}</select>
-    <textarea name="checklistItems" rows="4" placeholder="Checklist items (one per line) *" required></textarea>
-    <input name="dueDate" type="date" />
-    <input name="assignee" placeholder="Assignee" />
-    <input name="evidenceUrl" placeholder="Evidence URL" />
-    <button type="submit" class="btn btn-primary btn-sm">Add quality check</button>
-  `;
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      guardAction("create_quality");
-      const fd = new FormData(form);
-      const items = parseChecklist(fd.get("checklistItems"));
-      if (!items.length) {
-        showToast("Add at least one checklist item", "error");
-        return;
-      }
-      const urlCheck = validateUrl(fd.get("evidenceUrl"));
-      if (!urlCheck.ok) {
-        showToast(urlCheck.message, "error");
-        return;
-      }
-      const id = await create(`${R3_PATHS.qualityChecks}/${state.selectedProjectId}`, {
-        ...governanceBase(state.selectedProjectId),
-        title: fd.get("title"),
-        checkType: fd.get("checkType"),
-        phaseId: fd.get("phaseId") || "",
-        milestoneId: fd.get("milestoneId") || "",
-        checklistItems: items,
-        dueDate: fd.get("dueDate") || null,
-        assignee: fd.get("assignee") || "",
-        evidenceUrl: fd.get("evidenceUrl") || "",
-      });
-      await auditProject(state, {
-        entityType: "qualityCheck",
-        entityId: id,
-        action: "create",
-        diffSummary: `Quality check: ${fd.get("title")} (${items.length} items)`,
-      });
-      form.reset();
-      showToast("Quality check added");
-    } catch (err) {
-      showToast(err.message, "error");
-    }
-  };
+  const metricsSection = document.createElement("section");
+  metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-quality-metrics";
+  metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Quality overview</h4>`;
+  metricsSection.appendChild(
+    renderBoqStatGrid([
+      { label: "Total checks", value: rows.length },
+      {
+        label: "Open",
+        value: openCount,
+        attention: openCount > 0,
+      },
+      { label: "Approved", value: approvedCount },
+      { label: "Closed", value: closedCount },
+    ])
+  );
+  const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+  if (statGrid) statGrid.classList.add("proj-quality-stat-grid");
 
-  const list = document.createElement("div");
-  list.className = "table-wrap";
-  const rows = state.qualityChecks || [];
+  let phaseBanner = null;
+  if (Object.keys(openByPhase).length) {
+    phaseBanner = document.createElement("div");
+    phaseBanner.className = "proj-quality-open-banner";
+    phaseBanner.innerHTML = `<div class="qc-phase-summary">${Object.entries(openByPhase)
+      .map(([name, n]) => `<span class="qc-phase-link">${escapeHtml(name)}: <strong>${n}</strong> open</span>`)
+      .join("")}</div>`;
+  }
+
   const phaseName = (id) => (state.phases || []).find((p) => p.id === id)?.name || "—";
   const msName = (id) => (state.milestones || []).find((m) => m.id === id)?.title || "—";
-  list.innerHTML = `
-    <table class="dash-table">
-      <thead><tr><th>Item</th><th>Phase</th><th>Milestone</th><th>Type</th><th>Checklist</th><th>Due</th><th>Status</th><th>Actions</th></tr></thead>
+
+  const countLabel =
+    rows.length === 1
+      ? "Showing 1 of 1 check"
+      : `Showing ${rows.length} of ${rows.length} checks`;
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "reports-table-wrap proj-quality-table proj-quality-table-shell";
+  tableWrap.innerHTML = `
+    <div class="proj-quality-table-head-row">
+      <h4 class="proj-boq-section-title proj-quality-table-head">Quality checks</h4>
+      <button type="button" class="btn btn-primary btn-sm proj-qc-add-btn">Add quality check</button>
+    </div>
+    <table class="dash-table projects-table">
+      <colgroup>
+        <col class="proj-quality-col-item" />
+        <col class="proj-quality-col-equal" />
+        <col class="proj-quality-col-equal" />
+        <col class="proj-quality-col-equal" />
+        <col class="proj-quality-col-checklist" />
+        <col class="proj-quality-col-equal" />
+        <col class="proj-quality-col-equal" />
+        <col class="proj-quality-col-equal" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Phase</th>
+          <th>Milestone</th>
+          <th>Type</th>
+          <th>Checklist</th>
+          <th>Due</th>
+          <th>Status</th>
+          <th class="rep-col-actions">Actions</th>
+        </tr>
+      </thead>
       <tbody>
-        ${rows
-          .map((r) => {
-            const path = `${R3_PATHS.qualityChecks}/${state.selectedProjectId}/${r.id}`;
-            const editable = (r.status || "draft") === "draft";
-            const checklistHtml = checklistPreviewHtml(r.checklistItems || [r.title], editable, r.id);
-            return `<tr data-id="${r.id}">
-              <td><strong>${escapeHtml(r.title)}</strong></td>
+        ${
+          rows.length
+            ? rows
+                .map((r) => {
+                  const path = `${R3_PATHS.qualityChecks}/${state.selectedProjectId}/${r.id}`;
+                  const editable = (r.status || "draft") === "draft";
+                  const checklistHtml = checklistPreviewHtml(
+                    r.checklistItems || [r.title],
+                    editable,
+                    r.id
+                  );
+                  return `<tr data-id="${escapeHtml(r.id)}">
+              <td><strong class="proj-quality-item-main">${escapeHtml(r.title)}</strong></td>
               <td>${escapeHtml(phaseName(r.phaseId))}</td>
               <td>${escapeHtml(msName(r.milestoneId))}</td>
               <td>${escapeHtml(r.checkType || "—")}</td>
-              <td>${checklistHtml}</td>
+              <td class="proj-quality-checklist-cell">${checklistHtml}</td>
               <td>${r.dueDate ? formatDate(r.dueDate) : "—"}</td>
               <td>${statusChip(r.status)}</td>
-              <td class="proj-row-actions-cell">
+              <td class="rep-col-actions proj-row-actions-cell">
                 ${workflowButtonsHtml(r, path, "qualityCheck")}
-                <button type="button" class="btn btn-ghost btn-sm qc-edit-btn" data-id="${r.id}">Edit</button>
+                <button type="button" class="btn btn-ghost btn-sm qc-edit-btn" data-id="${escapeHtml(r.id)}">Edit</button>
               </td>
             </tr>`;
-          })
-          .join("") || `<tr><td colspan="8" class="proj-empty">No quality checks</td></tr>`}
+                })
+                .join("")
+            : '<tr class="empty-row"><td colspan="8">No quality checks — click Add quality check</td></tr>'
+        }
       </tbody>
     </table>
+    <div class="reports-widget-foot">
+      <span class="reports-widget-foot-meta">${escapeHtml(countLabel)}</span>
+    </div>
   `;
 
-  body.append(summaryStrip, form, list);
-  wireWorkflowButtons(list, (btn) => ({
+  if (phaseBanner) root.append(metricsSection, phaseBanner, tableWrap);
+  else root.append(metricsSection, tableWrap);
+
+  tableWrap.querySelector(".proj-qc-add-btn")?.addEventListener("click", () =>
+    openAddQualityCheckDialog(state)
+  );
+
+  wireWorkflowButtons(tableWrap, (btn) => ({
     projectId: state.selectedProjectId,
     entityType: "qualityCheck",
     title: rows.find((x) => x.id === btn.dataset.id)?.title,
   }));
 
-  list.querySelectorAll(".qc-pass-btn, .qc-fail-btn").forEach((btn) => {
+  tableWrap.querySelectorAll(".qc-pass-btn, .qc-fail-btn").forEach((btn) => {
     btn.onclick = async () => {
       const row = rows.find((x) => x.id === btn.dataset.id);
       if (!row || (row.status || "draft") !== "draft") return;
@@ -270,7 +387,7 @@ export function buildQualityTab(state) {
     };
   });
 
-  list.querySelectorAll(".qc-edit-btn").forEach((btn) => {
+  tableWrap.querySelectorAll(".qc-edit-btn").forEach((btn) => {
     btn.onclick = () => {
       const r = rows.find((x) => x.id === btn.dataset.id);
       if (!r) return;
@@ -302,99 +419,332 @@ export function buildQualityTab(state) {
     };
   });
 
-  return card;
+  return root;
+}
+
+const INCIDENT_SEVERITIES = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "critical", label: "Critical" },
+];
+
+const NCR_SEVERITY_OPTIONS = NCR_SEVERITIES.map((s) => ({
+  value: s,
+  label: s.charAt(0).toUpperCase() + s.slice(1),
+}));
+
+function isHighCriticalSeverity(severity) {
+  return severity === "high" || severity === "critical";
+}
+
+function openLogIncidentDialog(state) {
+  if (!state.selectedProjectId) {
+    showToast("Select a project first", "error");
+    return;
+  }
+  openCustFormDialog({
+    title: "Log incident",
+    subtitle: "Record a safety incident with severity and corrective follow-up.",
+    submitLabel: "Log incident",
+    modalClass: "proj-safety-incident-modal",
+    values: {
+      title: "",
+      severity: "low",
+      incidentDate: "",
+      rootCause: "",
+      correctiveAction: "",
+    },
+    sections: [
+      {
+        title: "Incident details",
+        fields: [
+          { name: "title", label: "Summary *", type: "text", required: true },
+          { name: "severity", label: "Severity", type: "select", options: INCIDENT_SEVERITIES },
+          { name: "incidentDate", label: "Incident date", type: "date" },
+        ],
+      },
+      {
+        title: "Follow-up",
+        fields: [
+          { name: "rootCause", label: "Root cause", type: "textarea", fullWidth: true },
+          { name: "correctiveAction", label: "Corrective action", type: "textarea", fullWidth: true },
+        ],
+      },
+    ],
+    onSave: async (data) => {
+      try {
+        guardAction("create_safety");
+        const id = await create(`${R3_PATHS.safetyIncidents}/${state.selectedProjectId}`, {
+          ...governanceBase(state.selectedProjectId),
+          title: data.title,
+          severity: data.severity,
+          incidentDate: data.incidentDate || null,
+          rootCause: data.rootCause || "",
+          correctiveAction: data.correctiveAction || "",
+          closureStatus: "open",
+        });
+        await auditProject(state, {
+          entityType: "safetyIncident",
+          entityId: id,
+          action: "create",
+          diffSummary: `Safety incident: ${data.title} (${data.severity})`,
+        });
+        showToast("Incident logged");
+      } catch (err) {
+        showToast(err.message, "error");
+        throw err;
+      }
+    },
+  });
+}
+
+function openLogNcrDialog(state) {
+  if (!state.selectedProjectId) {
+    showToast("Select a project first", "error");
+    return;
+  }
+  openCustFormDialog({
+    title: "Log NCR",
+    subtitle: "Document non-conformance and planned corrective action.",
+    submitLabel: "Log NCR",
+    modalClass: "proj-ncr-modal",
+    values: {
+      title: "",
+      severity: "low",
+      phaseId: "",
+      description: "",
+      correctiveAction: "",
+    },
+    sections: [
+      {
+        title: "NCR details",
+        fields: [
+          { name: "title", label: "Title *", type: "text", required: true },
+          { name: "severity", label: "Severity", type: "select", options: NCR_SEVERITY_OPTIONS },
+          { name: "phaseId", label: "WBS phase", type: "select", options: phaseSelectOptions(state) },
+        ],
+      },
+      {
+        title: "Resolution plan",
+        fields: [
+          {
+            name: "description",
+            label: "Description / non-conformance",
+            type: "textarea",
+            fullWidth: true,
+          },
+          { name: "correctiveAction", label: "Corrective action", type: "textarea", fullWidth: true },
+        ],
+      },
+    ],
+    onSave: async (data) => {
+      try {
+        await createNcr(state.selectedProjectId, {
+          title: data.title,
+          severity: data.severity,
+          phaseId: data.phaseId,
+          description: data.description,
+          correctiveAction: data.correctiveAction,
+        });
+        showToast("NCR logged");
+      } catch (err) {
+        showToast(err.message, "error");
+        throw err;
+      }
+    },
+  });
 }
 
 export function buildSafetyTab(state) {
-  const card = sectionCard("Safety Incidents", "Incident log with corrective actions");
-  const body = card.querySelector(".section-card-body");
+  const root = document.createElement("div");
+  root.className = "proj-safety-tab";
   if (!state.selectedProjectId) {
-    body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-    return card;
+    root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+    return root;
   }
 
-  const form = document.createElement("form");
-  form.className = "form-grid proj-form";
-  form.innerHTML = `
-    <input name="title" placeholder="Incident summary *" required />
-    <select name="severity">
-      <option value="low">Low</option>
-      <option value="medium">Medium</option>
-      <option value="high">High</option>
-      <option value="critical">Critical</option>
-    </select>
-    <input name="incidentDate" type="date" />
-    <input name="rootCause" placeholder="Root cause" />
-    <input name="correctiveAction" placeholder="Corrective action" />
-    <button type="submit" class="btn btn-primary btn-sm">Log incident</button>
-  `;
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      guardAction("create_safety");
-      const fd = new FormData(form);
-      const id = await create(`${R3_PATHS.safetyIncidents}/${state.selectedProjectId}`, {
-        ...governanceBase(state.selectedProjectId),
-        title: fd.get("title"),
-        severity: fd.get("severity"),
-        incidentDate: fd.get("incidentDate") || null,
-        rootCause: fd.get("rootCause") || "",
-        correctiveAction: fd.get("correctiveAction") || "",
-        closureStatus: "open",
-      });
-      await auditProject(state, {
-        entityType: "safetyIncident",
-        entityId: id,
-        action: "create",
-        diffSummary: `Safety incident: ${fd.get("title")} (${fd.get("severity")})`,
-      });
-      form.reset();
-      showToast("Incident logged");
-    } catch (err) {
-      showToast(err.message, "error");
-    }
-  };
-
-  const list = document.createElement("div");
-  list.className = "table-wrap";
   const rows = state.safetyIncidents || [];
-  list.innerHTML = `
-    <table class="dash-table">
-      <thead><tr><th>Summary</th><th>Severity</th><th>Date</th><th>Closure</th><th>Status</th><th>Actions</th></tr></thead>
+  const ncrRows = state.ncrReports || [];
+  const openIncidents = rows.filter((r) => r.closureStatus !== "closed").length;
+  const openNcrs = ncrRows.filter((r) => {
+    const st = r.resolutionStatus || "open";
+    return st === "open" || st === "in_progress";
+  }).length;
+  const highCriticalCount =
+    rows.filter((r) => isHighCriticalSeverity(r.severity)).length +
+    ncrRows.filter((r) => isHighCriticalSeverity(r.severity)).length;
+
+  const metricsSection = document.createElement("section");
+  metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-safety-metrics";
+  metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Safety overview</h4>`;
+  metricsSection.appendChild(
+    renderBoqStatGrid([
+      { label: "Total incidents", value: rows.length },
+      { label: "Open incidents", value: openIncidents, attention: openIncidents > 0 },
+      { label: "Open NCRs", value: openNcrs, attention: openNcrs > 0 },
+      {
+        label: "High / critical",
+        value: highCriticalCount,
+        attention: highCriticalCount > 0,
+      },
+    ])
+  );
+  const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+  if (statGrid) statGrid.classList.add("proj-safety-stat-grid");
+
+  const incidentCountLabel =
+    rows.length === 1
+      ? "Showing 1 of 1 incident"
+      : `Showing ${rows.length} of ${rows.length} incidents`;
+
+  const incidentTableWrap = document.createElement("div");
+  incidentTableWrap.className =
+    "reports-table-wrap proj-safety-table proj-safety-incidents-shell";
+  incidentTableWrap.innerHTML = `
+    <div class="proj-safety-table-head-row">
+      <h4 class="proj-boq-section-title proj-safety-table-head">Incidents</h4>
+      <button type="button" class="btn btn-primary btn-sm proj-safety-log-incident-btn">Log incident</button>
+    </div>
+    <table class="dash-table projects-table">
+      <colgroup>
+        <col class="proj-safety-inc-col-summary" />
+        <col class="proj-safety-inc-col-equal" />
+        <col class="proj-safety-inc-col-equal" />
+        <col class="proj-safety-inc-col-equal" />
+        <col class="proj-safety-inc-col-equal" />
+        <col class="proj-safety-inc-col-equal" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Summary</th>
+          <th>Severity</th>
+          <th>Date</th>
+          <th>Closure</th>
+          <th>Status</th>
+          <th class="rep-col-actions">Actions</th>
+        </tr>
+      </thead>
       <tbody>
-        ${rows
-          .map((r) => {
-            const path = `${R3_PATHS.safetyIncidents}/${state.selectedProjectId}/${r.id}`;
-            const closeBtn =
-              r.closureStatus !== "closed"
-                ? `<button type="button" class="btn btn-ghost btn-sm safety-close-btn" data-id="${r.id}">Close</button>`
-                : "";
-            return `<tr>
-              <td>${escapeHtml(r.title)}</td>
-              <td>${statusChip(r.severity === "critical" || r.severity === "high" ? "delayed" : "on_time", r.severity)}</td>
+        ${
+          rows.length
+            ? rows
+                .map((r) => {
+                  const path = `${R3_PATHS.safetyIncidents}/${state.selectedProjectId}/${r.id}`;
+                  const closeBtn =
+                    r.closureStatus !== "closed"
+                      ? `<button type="button" class="btn btn-ghost btn-sm safety-close-btn" data-id="${escapeHtml(r.id)}">Mark closed</button>`
+                      : "";
+                  return `<tr data-id="${escapeHtml(r.id)}">
+              <td><strong class="proj-safety-summary-main">${escapeHtml(r.title)}</strong></td>
+              <td>${statusChip(isHighCriticalSeverity(r.severity) ? "delayed" : "on_time", r.severity)}</td>
               <td>${r.incidentDate ? formatDate(r.incidentDate) : "—"}</td>
               <td>${escapeHtml(r.closureStatus || "open")}</td>
               <td>${statusChip(r.status)}</td>
-              <td class="proj-row-actions-cell">
+              <td class="rep-col-actions proj-row-actions-cell">
                 ${workflowButtonsHtml(r, path, "safetyIncident")}
-                <button type="button" class="btn btn-ghost btn-sm safety-edit-btn" data-id="${r.id}">Edit</button>
+                <button type="button" class="btn btn-ghost btn-sm safety-edit-btn" data-id="${escapeHtml(r.id)}">Edit</button>
                 ${closeBtn}
               </td>
             </tr>`;
-          })
-          .join("") || `<tr><td colspan="6" class="proj-empty">No incidents</td></tr>`}
+                })
+                .join("")
+            : '<tr class="empty-row"><td colspan="6">No incidents — click Log incident</td></tr>'
+        }
       </tbody>
     </table>
+    <div class="reports-widget-foot">
+      <span class="reports-widget-foot-meta">${escapeHtml(incidentCountLabel)}</span>
+    </div>
   `;
 
-  body.append(form, list);
-  wireWorkflowButtons(list, (btn) => ({
+  const ncrCountLabel =
+    ncrRows.length === 1
+      ? "Showing 1 of 1 NCR"
+      : `Showing ${ncrRows.length} of ${ncrRows.length} NCRs`;
+
+  const ncrTableWrap = document.createElement("div");
+  ncrTableWrap.className = "reports-table-wrap proj-safety-table proj-safety-ncr-shell";
+  ncrTableWrap.innerHTML = `
+    <div class="proj-safety-table-head-row">
+      <h4 class="proj-boq-section-title proj-safety-table-head">Non-conformance reports (NCR)</h4>
+      <button type="button" class="btn btn-primary btn-sm proj-safety-log-ncr-btn">Log NCR</button>
+    </div>
+    <table class="dash-table projects-table">
+      <colgroup>
+        <col class="proj-safety-ncr-col-title" />
+        <col class="proj-safety-ncr-col-equal" />
+        <col class="proj-safety-ncr-col-equal" />
+        <col class="proj-safety-ncr-col-equal" />
+        <col class="proj-safety-ncr-col-equal" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Severity</th>
+          <th>Resolution</th>
+          <th>Corrective action</th>
+          <th class="rep-col-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${
+          ncrRows.length
+            ? ncrRows
+                .map((r) => {
+                  const st = r.resolutionStatus || "open";
+                  const progBtn =
+                    st === "open"
+                      ? `<button type="button" class="btn btn-ghost btn-sm ncr-act" data-id="${escapeHtml(r.id)}" data-to="in_progress">In progress</button>`
+                      : "";
+                  const resolveBtn =
+                    st === "in_progress"
+                      ? `<button type="button" class="btn btn-primary btn-sm ncr-act" data-id="${escapeHtml(r.id)}" data-to="resolved">Resolve</button>`
+                      : "";
+                  const closeBtn =
+                    st === "resolved"
+                      ? `<button type="button" class="btn btn-ghost btn-sm ncr-act" data-id="${escapeHtml(r.id)}" data-to="closed">Close</button>`
+                      : "";
+                  const desc = r.description
+                    ? `<div class="proj-safety-ncr-desc text-muted">${escapeHtml(r.description)}</div>`
+                    : "";
+                  return `<tr data-ncr-id="${escapeHtml(r.id)}">
+              <td>
+                <strong class="proj-safety-summary-main">${escapeHtml(r.title)}</strong>
+                ${desc}
+              </td>
+              <td>${statusChip(isHighCriticalSeverity(r.severity) ? "delayed" : "on_time", r.severity)}</td>
+              <td>${escapeHtml(ncrResolutionLabel(st))}</td>
+              <td class="proj-safety-ncr-corrective">${escapeHtml(r.correctiveAction || "—")}</td>
+              <td class="rep-col-actions proj-row-actions-cell proj-safety-ncr-actions">${progBtn}${resolveBtn}${closeBtn}</td>
+            </tr>`;
+                })
+                .join("")
+            : '<tr class="empty-row"><td colspan="5">No NCR records — click Log NCR</td></tr>'
+        }
+      </tbody>
+    </table>
+    <div class="reports-widget-foot">
+      <span class="reports-widget-foot-meta">${escapeHtml(ncrCountLabel)}</span>
+    </div>
+  `;
+
+  root.append(metricsSection, incidentTableWrap, ncrTableWrap);
+
+  incidentTableWrap.querySelector(".proj-safety-log-incident-btn")?.addEventListener("click", () =>
+    openLogIncidentDialog(state)
+  );
+  ncrTableWrap.querySelector(".proj-safety-log-ncr-btn")?.addEventListener("click", () =>
+    openLogNcrDialog(state)
+  );
+
+  wireWorkflowButtons(incidentTableWrap, (btn) => ({
     projectId: state.selectedProjectId,
     entityType: "safetyIncident",
     title: rows.find((x) => x.id === btn.dataset.id)?.title,
   }));
 
-  list.querySelectorAll(".safety-edit-btn").forEach((btn) => {
+  incidentTableWrap.querySelectorAll(".safety-edit-btn").forEach((btn) => {
     btn.onclick = () => {
       const r = rows.find((x) => x.id === btn.dataset.id);
       if (!r) return;
@@ -406,12 +756,7 @@ export function buildSafetyTab(state) {
             name: "severity",
             label: "Severity",
             type: "select",
-            options: [
-              { value: "low", label: "Low" },
-              { value: "medium", label: "Medium" },
-              { value: "high", label: "High" },
-              { value: "critical", label: "Critical" },
-            ],
+            options: INCIDENT_SEVERITIES,
           },
           { name: "rootCause", label: "Root cause", type: "textarea" },
           { name: "correctiveAction", label: "Corrective action", type: "textarea" },
@@ -432,10 +777,18 @@ export function buildSafetyTab(state) {
     };
   });
 
-  list.querySelectorAll(".safety-close-btn").forEach((btn) => {
+  incidentTableWrap.querySelectorAll(".safety-close-btn").forEach((btn) => {
     btn.onclick = async () => {
       const r = rows.find((x) => x.id === btn.dataset.id);
-      if (!r || !(await confirmAction({ title: "Close incident?", message: "Mark this incident as closed?", confirmLabel: "Mark closed" }))) return;
+      if (
+        !r ||
+        !(await confirmAction({
+          title: "Close incident?",
+          message: "Mark this incident as closed?",
+          confirmLabel: "Mark closed",
+        }))
+      )
+        return;
       try {
         await updatePath(`${R3_PATHS.safetyIncidents}/${state.selectedProjectId}/${r.id}`, {
           ...r,
@@ -456,68 +809,7 @@ export function buildSafetyTab(state) {
     };
   });
 
-  const ncrSection = document.createElement("div");
-  ncrSection.className = "ncr-section";
-  const phaseOpts = (state.phases || [])
-    .map((ph) => `<option value="${ph.id}">${escapeHtml(ph.name)}</option>`)
-    .join("");
-  ncrSection.innerHTML = `<h4 class="r3-subhead">Non-Conformance Reports (NCR)</h4>`;
-
-  const ncrForm = document.createElement("form");
-  ncrForm.className = "form-grid proj-form";
-  ncrForm.innerHTML = `
-    <input name="title" placeholder="NCR title *" required />
-    <select name="severity">
-      ${NCR_SEVERITIES.map((s) => `<option value="${s}">${s}</option>`).join("")}
-    </select>
-    <select name="phaseId"><option value="">Phase (optional)</option>${phaseOpts}</select>
-    <input name="description" placeholder="Description / non-conformance detail" />
-    <input name="correctiveAction" placeholder="Corrective action" />
-    <button type="submit" class="btn btn-secondary btn-sm">Log NCR</button>
-  `;
-  ncrForm.onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const fd = new FormData(ncrForm);
-      await createNcr(state.selectedProjectId, {
-        title: fd.get("title"),
-        severity: fd.get("severity"),
-        phaseId: fd.get("phaseId"),
-        description: fd.get("description"),
-        correctiveAction: fd.get("correctiveAction"),
-      });
-      ncrForm.reset();
-      showToast("NCR logged");
-    } catch (err) {
-      showToast(err.message, "error");
-    }
-  };
-
-  const ncrRows = state.ncrReports || [];
-  const ncrTable = document.createElement("div");
-  ncrTable.className = "table-wrap";
-  ncrTable.innerHTML = `
-    <table class="dash-table">
-      <thead><tr><th>Title</th><th>Severity</th><th>Resolution</th><th>Corrective action</th><th>Actions</th></tr></thead>
-      <tbody>
-        ${ncrRows.length ? ncrRows.map((r) => {
-          const st = r.resolutionStatus || "open";
-          const progBtn = st === "open" ? `<button type="button" class="btn btn-ghost btn-sm ncr-act" data-id="${r.id}" data-to="in_progress">In progress</button>` : "";
-          const resolveBtn = st === "in_progress" ? `<button type="button" class="btn btn-primary btn-sm ncr-act" data-id="${r.id}" data-to="resolved">Resolve</button>` : "";
-          const closeBtn = st === "resolved" ? `<button type="button" class="btn btn-ghost btn-sm ncr-act" data-id="${r.id}" data-to="closed">Close</button>` : "";
-          return `<tr>
-            <td><strong>${escapeHtml(r.title)}</strong><br><small class="text-muted">${escapeHtml(r.description || "")}</small></td>
-            <td>${statusChip(r.severity === "critical" || r.severity === "high" ? "delayed" : "on_time", r.severity)}</td>
-            <td>${escapeHtml(ncrResolutionLabel(st))}</td>
-            <td>${escapeHtml(r.correctiveAction || "—")}</td>
-            <td>${progBtn}${resolveBtn}${closeBtn}</td>
-          </tr>`;
-        }).join("") : '<tr class="empty-row"><td colspan="5">No NCR records</td></tr>'}
-      </tbody>
-    </table>
-  `;
-
-  ncrTable.querySelectorAll(".ncr-act").forEach((btn) => {
+  ncrTableWrap.querySelectorAll(".ncr-act").forEach((btn) => {
     btn.onclick = async () => {
       try {
         await updateNcrResolution(state.selectedProjectId, btn.dataset.id, btn.dataset.to);
@@ -528,286 +820,422 @@ export function buildSafetyTab(state) {
     };
   });
 
-  ncrSection.append(ncrForm, ncrTable);
-  body.append(ncrSection);
-
-  return card;
+  return root;
 }
 
-export function buildContractsTab(state) {
-  const project = state.projects.find((p) => p.id === state.selectedProjectId);
-  const gov = isGovProject(project);
-  const card = sectionCard(
-    gov ? "VO, Claims & EOT" : "Contracts & Claims",
-    gov ? "Variation orders, time extension, liquidated damages" : "Change orders and contract claims"
-  );
-  const body = card.querySelector(".section-card-body");
+function costCategoryOptions() {
+  return COST_CATEGORIES.map((c) => ({ value: c, label: c }));
+}
+
+function boqSelectOptions(state) {
+  return [
+    { value: "", label: "Impacted BOQ item" },
+    ...(state.boqItems || []).map((b) => ({
+      value: b.id,
+      label: `${b.itemCode || ""} ${b.item}`.trim(),
+    })),
+  ];
+}
+
+function isWorkflowOpen(status) {
+  const st = status || "draft";
+  return st !== "approved" && st !== "closed";
+}
+
+function openAddChangeOrderDialog(state, gov) {
   if (!state.selectedProjectId) {
-    body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-    return card;
+    showToast("Select a project first", "error");
+    return;
   }
-
-  const boqOpts = (state.boqItems || [])
-    .map((b) => `<option value="${b.id}">${escapeHtml(b.itemCode || "")} ${escapeHtml(b.item)}</option>`)
-    .join("");
-
-  const ld = gov ? computeLiquidatedDamages(project, state.eotRequests) : { days: 0, amount: 0 };
-  const ldBanner = gov
-    ? `<p class="gov-ld-banner">LD exposure: <strong>${formatBDT(ld.amount)}</strong> (${ld.days} days beyond contract + approved EOT)</p>`
-    : "";
-
-  const revisedBanner = !gov
-    ? (() => {
-        const { base, variations, revised } = computeRevisedContractValue(project, state.changeOrders || []);
-        return `<p class="private-revised-banner">Revised contract value: <strong>${formatBDT(revised)}</strong> (base ${formatBDT(base)}${variations ? ` + variations ${formatBDT(variations)}` : ""})</p>`;
-      })()
-    : "";
-
-  const coForm = document.createElement("form");
-  coForm.className = "form-grid proj-form";
-  coForm.innerHTML = gov
-    ? `
-    <input name="title" placeholder="Variation title *" required />
-    <input name="voNumber" placeholder="VO number" />
-    <input name="variationNo" placeholder="Variation #" />
-    <input name="clauseRef" placeholder="Contract clause ref" />
-    <select name="boqId"><option value="">Impacted BOQ item</option>${boqOpts}</select>
-    <input name="qtyChange" type="number" step="0.01" placeholder="Qty change" />
-    <input name="financialImpact" type="number" placeholder="Financial impact (BDT)" />
-    <select name="costCategory">
-      <option value="material">material</option>
-      <option value="labor">labor</option>
-      <option value="subcontract">subcontract</option>
-      <option value="equipment">equipment</option>
-      <option value="overhead">overhead</option>
-    </select>
-    <button type="submit" class="btn btn-primary btn-sm">Add variation order</button>
-  `
-    : `
-    <input name="title" placeholder="Change order title *" required />
-    <input name="variationNo" placeholder="Variation #" />
-    <input name="financialImpact" type="number" placeholder="Financial impact (BDT)" />
-    <select name="costCategory">
-      <option value="material">material</option>
-      <option value="labor">labor</option>
-      <option value="subcontract">subcontract</option>
-      <option value="equipment">equipment</option>
-      <option value="overhead">overhead</option>
-    </select>
-    <button type="submit" class="btn btn-primary btn-sm">Add change order</button>
-  `;
-  coForm.onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      guardAction("create_change_order");
-      const fd = new FormData(coForm);
-      const id = await create(`${R3_PATHS.changeOrders}/${state.selectedProjectId}`, {
-        ...governanceBase(state.selectedProjectId),
-        title: fd.get("title"),
-        voNumber: fd.get("voNumber") || "",
-        variationNo: fd.get("variationNo") || "",
-        clauseRef: fd.get("clauseRef") || "",
-        boqId: fd.get("boqId") || "",
-        qtyChange: Number(fd.get("qtyChange")) || 0,
-        financialImpact: Number(fd.get("financialImpact")) || 0,
-        costCategory: fd.get("costCategory"),
-      });
-      await auditProject(state, {
-        entityType: "changeOrder",
-        entityId: id,
-        action: "create",
-        diffSummary: `Change order: ${fd.get("title")}`,
-      });
-      coForm.reset();
-      showToast(gov ? "Variation order created" : "Change order created");
-    } catch (err) {
-      showToast(err.message, "error");
-    }
+  const privateValues = {
+    title: "",
+    variationNo: "",
+    financialImpact: "",
+    costCategory: "material",
   };
-
-  let eotForm = null;
-  if (gov) {
-    eotForm = document.createElement("form");
-    eotForm.className = "form-grid proj-form";
-    eotForm.innerHTML = `
-      <input name="title" placeholder="EOT request title *" required />
-      <input name="daysRequested" type="number" placeholder="Days requested *" required />
-      <input name="reason" placeholder="Reason / justification" />
-      <input name="supportingDocUrl" placeholder="Supporting document URL" />
-      <button type="submit" class="btn btn-secondary btn-sm">Submit EOT request</button>
-    `;
-    eotForm.onsubmit = async (e) => {
-      e.preventDefault();
-      const fd = new FormData(eotForm);
+  const govValues = {
+    title: "",
+    voNumber: "",
+    variationNo: "",
+    clauseRef: "",
+    boqId: "",
+    qtyChange: "",
+    financialImpact: "",
+    costCategory: "material",
+  };
+  openCustFormDialog({
+    title: gov ? "Add variation order" : "Add change order",
+    subtitle: gov
+      ? "Record a VO with BOQ impact and financial effect."
+      : "Record a contract variation and cost category.",
+    submitLabel: gov ? "Add variation order" : "Add change order",
+    modalClass: "proj-co-modal",
+    values: gov ? govValues : privateValues,
+    sections: gov
+      ? [
+          {
+            title: "Variation",
+            fields: [
+              { name: "title", label: "Variation title *", type: "text", required: true },
+              { name: "voNumber", label: "VO number", type: "text" },
+              { name: "variationNo", label: "Variation #", type: "text" },
+              { name: "clauseRef", label: "Contract clause ref", type: "text" },
+              { name: "boqId", label: "Impacted BOQ item", type: "select", options: boqSelectOptions(state) },
+              { name: "qtyChange", label: "Qty change", type: "number", step: "0.01" },
+            ],
+          },
+          {
+            title: "Commercial",
+            fields: [
+              { name: "financialImpact", label: "Financial impact (BDT)", type: "number" },
+              { name: "costCategory", label: "Cost category", type: "select", options: costCategoryOptions() },
+            ],
+          },
+        ]
+      : [
+          {
+            title: "Change order",
+            fields: [
+              { name: "title", label: "Change order title *", type: "text", required: true },
+              { name: "variationNo", label: "Variation #", type: "text" },
+              { name: "financialImpact", label: "Financial impact (BDT)", type: "number" },
+              { name: "costCategory", label: "Cost category", type: "select", options: costCategoryOptions() },
+            ],
+          },
+        ],
+    onSave: async (data) => {
       try {
-        const urlCheck = validateUrl(fd.get("supportingDocUrl"));
+        guardAction("create_change_order");
+        const id = await create(`${R3_PATHS.changeOrders}/${state.selectedProjectId}`, {
+          ...governanceBase(state.selectedProjectId),
+          title: data.title,
+          voNumber: data.voNumber || "",
+          variationNo: data.variationNo || "",
+          clauseRef: data.clauseRef || "",
+          boqId: data.boqId || "",
+          qtyChange: Number(data.qtyChange) || 0,
+          financialImpact: Number(data.financialImpact) || 0,
+          costCategory: data.costCategory,
+        });
+        await auditProject(state, {
+          entityType: "changeOrder",
+          entityId: id,
+          action: "create",
+          diffSummary: `Change order: ${data.title}`,
+        });
+        showToast(gov ? "Variation order created" : "Change order created");
+      } catch (err) {
+        showToast(err.message, "error");
+        throw err;
+      }
+    },
+  });
+}
+
+function openAddClaimDialog(state) {
+  if (!state.selectedProjectId) {
+    showToast("Select a project first", "error");
+    return;
+  }
+  openCustFormDialog({
+    title: "Add contract claim",
+    subtitle: "Log a claim amount with basis and optional attachment.",
+    submitLabel: "Add claim",
+    modalClass: "proj-claim-modal",
+    values: {
+      title: "",
+      amount: "",
+      basis: "",
+      attachmentUrl: "",
+    },
+    sections: [
+      {
+        title: "Claim",
+        fields: [
+          { name: "title", label: "Claim title *", type: "text", required: true },
+          { name: "amount", label: "Claim amount (BDT) *", type: "number", required: true },
+          { name: "basis", label: "Basis / description", type: "textarea", fullWidth: true },
+          { name: "attachmentUrl", label: "Attachment URL", type: "text" },
+        ],
+      },
+    ],
+    onSave: async (data) => {
+      try {
+        guardAction("create_claim");
+        const urlCheck = validateUrl(data.attachmentUrl);
         if (!urlCheck.ok) {
           showToast(urlCheck.message, "error");
-          return;
+          throw new Error("validation");
+        }
+        const id = await create(`${R3_PATHS.contractClaims}/${state.selectedProjectId}`, {
+          ...governanceBase(state.selectedProjectId),
+          title: data.title,
+          amount: Number(data.amount) || 0,
+          basis: data.basis || "",
+          attachmentUrl: data.attachmentUrl || "",
+          settlementStatus: "open",
+        });
+        await auditProject(state, {
+          entityType: "contractClaim",
+          entityId: id,
+          action: "create",
+          diffSummary: `Contract claim: ${data.title}`,
+        });
+        showToast("Claim added");
+      } catch (err) {
+        if (err?.message !== "validation") showToast(err.message, "error");
+        throw err;
+      }
+    },
+  });
+}
+
+function openAddEotDialog(state, project) {
+  if (!state.selectedProjectId) {
+    showToast("Select a project first", "error");
+    return;
+  }
+  openCustFormDialog({
+    title: "Submit EOT request",
+    subtitle: "Request an extension of time with supporting documentation.",
+    submitLabel: "Submit EOT request",
+    modalClass: "proj-eot-modal",
+    values: {
+      title: "",
+      daysRequested: "",
+      reason: "",
+      supportingDocUrl: "",
+    },
+    sections: [
+      {
+        title: "Extension request",
+        fields: [
+          { name: "title", label: "EOT request title *", type: "text", required: true },
+          { name: "daysRequested", label: "Days requested *", type: "number", required: true },
+          { name: "reason", label: "Reason / justification", type: "textarea", fullWidth: true },
+          { name: "supportingDocUrl", label: "Supporting document URL", type: "text" },
+        ],
+      },
+    ],
+    onSave: async (data) => {
+      try {
+        const urlCheck = validateUrl(data.supportingDocUrl);
+        if (!urlCheck.ok) {
+          showToast(urlCheck.message, "error");
+          throw new Error("validation");
         }
         const id = await create(`${GOV_PATHS.eotRequests}/${state.selectedProjectId}`, {
           ...governanceBase(state.selectedProjectId),
-          title: fd.get("title"),
-          daysRequested: Number(fd.get("daysRequested")) || 0,
-          reason: fd.get("reason") || "",
-          supportingDocUrl: fd.get("supportingDocUrl") || "",
+          title: data.title,
+          daysRequested: Number(data.daysRequested) || 0,
+          reason: data.reason || "",
+          supportingDocUrl: data.supportingDocUrl || "",
           originalCompletion: project?.completionDate || null,
         });
         await auditProject(state, {
           entityType: "eotRequest",
           entityId: id,
           action: "create",
-          diffSummary: `EOT: ${fd.get("title")} (${fd.get("daysRequested")} days)`,
+          diffSummary: `EOT: ${data.title} (${data.daysRequested} days)`,
         });
-        eotForm.reset();
         showToast("EOT request created");
       } catch (err) {
-        showToast(err.message, "error");
+        if (err?.message !== "validation") showToast(err.message, "error");
+        throw err;
       }
-    };
-  }
+    },
+  });
+}
 
-  let eotTable = null;
-  if (gov) {
-    const eotRows = state.eotRequests || [];
-    eotTable = document.createElement("div");
-    eotTable.className = "table-wrap";
-    eotTable.innerHTML = `
-      <h4 class="r3-subhead">Time extension (EOT)</h4>
-      <table class="dash-table">
-        <thead><tr><th>Title</th><th>Requested</th><th>Approved</th><th>Revised date</th><th>Status</th><th>Actions</th></tr></thead>
-        <tbody>
-          ${eotRows.length ? eotRows.map((r) => {
-            const path = `${GOV_PATHS.eotRequests}/${state.selectedProjectId}/${r.id}`;
-            return `<tr>
-              <td>${escapeHtml(r.title)}</td>
-              <td>${r.daysRequested || 0}</td>
-              <td>${r.daysApproved || 0}</td>
-              <td>${r.revisedCompletion || "-"}</td>
-              <td>${statusChip(r.status)}</td>
-              <td>${workflowButtonsHtml(r, path, "eotRequest")}</td>
-            </tr>`;
-          }).join("") : '<tr class="empty-row"><td colspan="6">No EOT requests</td></tr>'}
-        </tbody>
-      </table>
-    `;
+export function buildContractsTab(state) {
+  const root = document.createElement("div");
+  root.className = "proj-contracts-tab";
+  const project = state.projects.find((p) => p.id === state.selectedProjectId);
+  const gov = isGovProject(project);
+  if (!state.selectedProjectId) {
+    root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+    return root;
   }
-
-  const claimForm = document.createElement("form");
-  claimForm.className = "form-grid proj-form";
-  claimForm.innerHTML = `
-    <input name="title" placeholder="Claim title *" required />
-    <input name="amount" type="number" placeholder="Claim amount (BDT) *" required />
-    <input name="basis" placeholder="Basis / description" />
-    <input name="attachmentUrl" placeholder="Attachment URL" />
-    <button type="submit" class="btn btn-secondary btn-sm">Add claim</button>
-  `;
-  claimForm.onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      guardAction("create_claim");
-      const fd = new FormData(claimForm);
-      const urlCheck = validateUrl(fd.get("attachmentUrl"));
-      if (!urlCheck.ok) {
-        showToast(urlCheck.message, "error");
-        return;
-      }
-      const id = await create(`${R3_PATHS.contractClaims}/${state.selectedProjectId}`, {
-        ...governanceBase(state.selectedProjectId),
-        title: fd.get("title"),
-        amount: Number(fd.get("amount")) || 0,
-        basis: fd.get("basis") || "",
-        attachmentUrl: fd.get("attachmentUrl") || "",
-        settlementStatus: "open",
-      });
-      await auditProject(state, {
-        entityType: "contractClaim",
-        entityId: id,
-        action: "create",
-        diffSummary: `Contract claim: ${fd.get("title")}`,
-      });
-      claimForm.reset();
-      showToast("Claim added");
-    } catch (err) {
-      showToast(err.message, "error");
-    }
-  };
 
   const coRows = state.changeOrders || [];
-  const coTable = document.createElement("div");
-  coTable.className = "table-wrap";
-  coTable.innerHTML = `
-    <h4 class="r3-subhead">${gov ? "Variation orders" : "Change orders"}</h4>
-    <table class="dash-table">
-      <thead><tr><th>Title</th><th>${gov ? "VO #" : "Var #"}</th><th>Impact</th><th>Status</th><th>Actions</th></tr></thead>
+  const claimRows = state.contractClaims || [];
+  const eotRows = state.eotRequests || [];
+  const openCos = coRows.filter((r) => isWorkflowOpen(r.status)).length;
+  const openClaims = claimRows.filter((r) => (r.settlementStatus || "open") !== "settled").length;
+
+  const metricsSection = document.createElement("section");
+  metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-contracts-metrics";
+  metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Variations & claims overview</h4>`;
+
+  if (gov) {
+    const ld = computeLiquidatedDamages(project, eotRows);
+    const pendingEot = eotRows.filter((r) => isWorkflowOpen(r.status)).length;
+    metricsSection.appendChild(
+      renderBoqStatGrid([
+        {
+          label: "LD exposure",
+          value: `${formatBDT(ld.amount)} · ${ld.days}d`,
+          attention: ld.amount > 0,
+        },
+        { label: "Pending EOT", value: pendingEot, attention: pendingEot > 0 },
+        { label: "Open VOs", value: openCos, attention: openCos > 0 },
+        { label: "Open claims", value: openClaims, attention: openClaims > 0 },
+      ])
+    );
+  } else {
+    const { variations, revised } = computeRevisedContractValue(project, coRows);
+    metricsSection.appendChild(
+      renderBoqStatGrid([
+        { label: "Revised contract", value: formatBDT(revised) },
+        { label: "Open change orders", value: openCos, attention: openCos > 0 },
+        { label: "Open claims", value: openClaims, attention: openClaims > 0 },
+        { label: "Variation total", value: formatBDT(variations) },
+      ])
+    );
+  }
+  const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+  if (statGrid) statGrid.classList.add("proj-contracts-stat-grid");
+
+  const coTitle = gov ? "Variation orders" : "Change orders";
+  const coAddLabel = gov ? "Add variation order" : "Add change order";
+  const coCountLabel =
+    coRows.length === 1
+      ? "Showing 1 of 1 order"
+      : `Showing ${coRows.length} of ${coRows.length} orders`;
+  const coEmpty = gov
+    ? "No variation orders — click Add variation order"
+    : "No change orders — click Add change order";
+
+  const coTableWrap = document.createElement("div");
+  coTableWrap.className = "reports-table-wrap proj-contracts-table proj-contracts-co-shell";
+  coTableWrap.innerHTML = `
+    <div class="proj-contracts-table-head-row">
+      <h4 class="proj-boq-section-title proj-contracts-table-head">${escapeHtml(coTitle)}</h4>
+      <button type="button" class="btn btn-primary btn-sm proj-co-add-btn">${escapeHtml(coAddLabel)}</button>
+    </div>
+    <table class="dash-table projects-table">
+      <colgroup>
+        <col class="proj-contracts-co-col-title" />
+        <col class="proj-contracts-co-col-equal" />
+        <col class="proj-contracts-co-col-equal" />
+        <col class="proj-contracts-co-col-equal" />
+        <col class="proj-contracts-co-col-actions" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>${gov ? "VO #" : "Var #"}</th>
+          <th>Impact</th>
+          <th>Status</th>
+          <th class="rep-col-actions">Actions</th>
+        </tr>
+      </thead>
       <tbody>
-        ${coRows
-          .map((r) => {
-            const path = `${R3_PATHS.changeOrders}/${state.selectedProjectId}/${r.id}`;
-            return `<tr>
-              <td>${escapeHtml(r.title)}</td>
-              <td>${escapeHtml(r.voNumber || r.variationNo || "-")}</td>
+        ${
+          coRows.length
+            ? coRows
+                .map((r) => {
+                  const path = `${R3_PATHS.changeOrders}/${state.selectedProjectId}/${r.id}`;
+                  return `<tr data-co-id="${escapeHtml(r.id)}">
+              <td><strong class="proj-contracts-co-title">${escapeHtml(r.title)}</strong></td>
+              <td>${escapeHtml(r.voNumber || r.variationNo || "—")}</td>
               <td>${formatBDT(r.financialImpact || 0)}</td>
               <td>${statusChip(r.status)}</td>
-              <td>${workflowButtonsHtml(r, path, "changeOrder")}</td>
+              <td class="rep-col-actions proj-row-actions-cell">${workflowButtonsHtml(r, path, "changeOrder")}</td>
             </tr>`;
-          })
-          .join("") || `<tr><td colspan="5" class="proj-empty">No change orders</td></tr>`}
+                })
+                .join("")
+            : `<tr class="empty-row"><td colspan="5">${escapeHtml(coEmpty)}</td></tr>`
+        }
       </tbody>
     </table>
+    <div class="reports-widget-foot">
+      <span class="reports-widget-foot-meta">${escapeHtml(coCountLabel)}</span>
+    </div>
   `;
 
-  const claimRows = state.contractClaims || [];
-  const claimTable = document.createElement("div");
-  claimTable.className = "table-wrap";
-  claimTable.innerHTML = `
-    <h4 class="r3-subhead">Contract claims</h4>
-    <table class="dash-table">
-      <thead><tr><th>Title</th><th>Amount</th><th>Settlement</th><th>Status</th><th>Actions</th></tr></thead>
-      <tbody>
-        ${claimRows
-          .map((r) => {
-            const path = `${R3_PATHS.contractClaims}/${state.selectedProjectId}/${r.id}`;
-            return `<tr data-claim-id="${r.id}">
-              <td>${escapeHtml(r.title)}</td>
-              <td>${formatBDT(r.amount || 0)}</td>
-              <td>${escapeHtml(r.settlementStatus || "open")}</td>
-              <td>${statusChip(r.status)}</td>
-              <td>${workflowButtonsHtml(r, path, "contractClaim")} ${r.settlementStatus !== "settled" ? `<button type="button" class="btn btn-ghost btn-sm claim-settle-btn" data-id="${r.id}">Settle</button>` : ""}</td>
-            </tr>`;
-          })
-          .join("") || `<tr><td colspan="5" class="proj-empty">No claims</td></tr>`}
-      </tbody>
-    </table>
-  `;
+  root.append(metricsSection, coTableWrap);
 
-  if (ldBanner) body.insertAdjacentHTML("afterbegin", ldBanner);
-  if (revisedBanner) body.insertAdjacentHTML("afterbegin", revisedBanner);
-  body.append(coForm, coTable, claimForm, claimTable);
-  if (eotForm) body.insertBefore(eotForm, claimForm);
-  if (eotTable) body.insertBefore(eotTable, claimForm);
+  coTableWrap.querySelector(".proj-co-add-btn")?.addEventListener("click", () =>
+    openAddChangeOrderDialog(state, gov)
+  );
 
-  claimTable.querySelectorAll(".claim-settle-btn").forEach((btn) => {
-    btn.onclick = async () => {
-      const row = claimRows.find((x) => x.id === btn.dataset.id);
-      if (!row) return;
-      try {
-        await updatePath(`${R3_PATHS.contractClaims}/${state.selectedProjectId}/${row.id}`, {
-          ...row,
-          settlementStatus: "settled",
-          status: "closed",
-          updatedAt: Date.now(),
-        });
-        showToast("Claim marked settled");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
+  wireWorkflowButtons(coTableWrap, (btn) => {
+    const row = coRows.find((x) => x.id === btn.dataset.id);
+    return {
+      projectId: state.selectedProjectId,
+      entityType: "changeOrder",
+      title: row?.title,
+      skipQueue: !gov,
+      onApproved: async (co) => {
+        await postChangeOrderExpense(state.selectedProjectId, { ...row, ...co });
+        if (!gov) await syncMilestoneAmounts(state.selectedProjectId);
+      },
     };
   });
 
-  if (eotTable) {
-    wireWorkflowButtons(eotTable, (btn) => {
-      const row = (state.eotRequests || []).find((x) => x.id === btn.dataset.id);
+  let eotTableWrap = null;
+  if (gov) {
+    const eotCountLabel =
+      eotRows.length === 1
+        ? "Showing 1 of 1 request"
+        : `Showing ${eotRows.length} of ${eotRows.length} requests`;
+    eotTableWrap = document.createElement("div");
+    eotTableWrap.className = "reports-table-wrap proj-contracts-table proj-contracts-eot-shell";
+    eotTableWrap.innerHTML = `
+      <div class="proj-contracts-table-head-row">
+        <h4 class="proj-boq-section-title proj-contracts-table-head">Time extension (EOT)</h4>
+        <button type="button" class="btn btn-primary btn-sm proj-eot-add-btn">Submit EOT request</button>
+      </div>
+      <table class="dash-table projects-table">
+        <colgroup>
+          <col class="proj-contracts-eot-col-title" />
+          <col class="proj-contracts-eot-col-equal" />
+          <col class="proj-contracts-eot-col-equal" />
+          <col class="proj-contracts-eot-col-equal" />
+          <col class="proj-contracts-eot-col-equal" />
+          <col class="proj-contracts-eot-col-actions" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Requested</th>
+            <th>Approved</th>
+            <th>Revised date</th>
+            <th>Status</th>
+            <th class="rep-col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${
+            eotRows.length
+              ? eotRows
+                  .map((r) => {
+                    const path = `${GOV_PATHS.eotRequests}/${state.selectedProjectId}/${r.id}`;
+                    return `<tr data-eot-id="${escapeHtml(r.id)}">
+              <td><strong class="proj-contracts-co-title">${escapeHtml(r.title)}</strong></td>
+              <td>${r.daysRequested || 0}</td>
+              <td>${r.daysApproved || 0}</td>
+              <td>${escapeHtml(r.revisedCompletion || "—")}</td>
+              <td>${statusChip(r.status)}</td>
+              <td class="rep-col-actions proj-row-actions-cell">${workflowButtonsHtml(r, path, "eotRequest")}</td>
+            </tr>`;
+                  })
+                  .join("")
+              : '<tr class="empty-row"><td colspan="6">No EOT requests — click Submit EOT request</td></tr>'
+          }
+        </tbody>
+      </table>
+      <div class="reports-widget-foot">
+        <span class="reports-widget-foot-meta">${escapeHtml(eotCountLabel)}</span>
+      </div>
+    `;
+    root.appendChild(eotTableWrap);
+    eotTableWrap.querySelector(".proj-eot-add-btn")?.addEventListener("click", () =>
+      openAddEotDialog(state, project)
+    );
+    wireWorkflowButtons(eotTableWrap, (btn) => {
+      const row = eotRows.find((x) => x.id === btn.dataset.id);
       return {
         projectId: state.selectedProjectId,
         entityType: "eotRequest",
@@ -831,22 +1259,22 @@ export function buildContractsTab(state) {
                 let days = Number(vals.daysApproved) || 0;
                 if (days < 0) days = 0;
                 if (days > requested) days = requested;
-                let revised = project?.completionDate;
-                if (revised && days) {
-                  const d = new Date(revised);
+                let revisedDate = project?.completionDate;
+                if (revisedDate && days) {
+                  const d = new Date(revisedDate);
                   d.setDate(d.getDate() + days);
-                  revised = d.toISOString().slice(0, 10);
+                  revisedDate = d.toISOString().slice(0, 10);
                 }
                 await updatePath(`${GOV_PATHS.eotRequests}/${state.selectedProjectId}/${row.id}`, {
                   ...row,
                   daysApproved: days,
-                  revisedCompletion: revised,
+                  revisedCompletion: revisedDate,
                   updatedAt: Date.now(),
                 });
-                if (revised && project) {
+                if (revisedDate && project) {
                   await updatePath(`projects/${project.id}`, {
                     ...project,
-                    completionDate: revised,
+                    completionDate: revisedDate,
                     updatedAt: Date.now(),
                   });
                 }
@@ -860,23 +1288,95 @@ export function buildContractsTab(state) {
     });
   }
 
-  wireWorkflowButtons(coTable, (btn) => {
-    const row = coRows.find((x) => x.id === btn.dataset.id);
-    return {
-      projectId: state.selectedProjectId,
-      entityType: "changeOrder",
-      title: row?.title,
-      skipQueue: !gov,
-      onApproved: async (co) => {
-        await postChangeOrderExpense(state.selectedProjectId, { ...row, ...co });
-        if (!gov) await syncMilestoneAmounts(state.selectedProjectId);
-      },
+  const claimCountLabel =
+    claimRows.length === 1
+      ? "Showing 1 of 1 claim"
+      : `Showing ${claimRows.length} of ${claimRows.length} claims`;
+
+  const claimTableWrap = document.createElement("div");
+  claimTableWrap.className = "reports-table-wrap proj-contracts-table proj-contracts-claims-shell";
+  claimTableWrap.innerHTML = `
+    <div class="proj-contracts-table-head-row">
+      <h4 class="proj-boq-section-title proj-contracts-table-head">Contract claims</h4>
+      <button type="button" class="btn btn-primary btn-sm proj-claim-add-btn">Add claim</button>
+    </div>
+    <table class="dash-table projects-table">
+      <colgroup>
+        <col class="proj-contracts-claim-col-title" />
+        <col class="proj-contracts-claim-col-equal" />
+        <col class="proj-contracts-claim-col-equal" />
+        <col class="proj-contracts-claim-col-equal" />
+        <col class="proj-contracts-claim-col-actions" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Amount</th>
+          <th>Settlement</th>
+          <th>Status</th>
+          <th class="rep-col-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${
+          claimRows.length
+            ? claimRows
+                .map((r) => {
+                  const path = `${R3_PATHS.contractClaims}/${state.selectedProjectId}/${r.id}`;
+                  const settleBtn =
+                    r.settlementStatus !== "settled"
+                      ? `<button type="button" class="btn btn-ghost btn-sm claim-settle-btn" data-id="${escapeHtml(r.id)}">Settle</button>`
+                      : "";
+                  return `<tr data-claim-id="${escapeHtml(r.id)}">
+              <td><strong class="proj-contracts-co-title">${escapeHtml(r.title)}</strong></td>
+              <td>${formatBDT(r.amount || 0)}</td>
+              <td>${escapeHtml(r.settlementStatus || "open")}</td>
+              <td>${statusChip(r.status)}</td>
+              <td class="rep-col-actions proj-row-actions-cell">
+                ${workflowButtonsHtml(r, path, "contractClaim")}
+                ${settleBtn}
+              </td>
+            </tr>`;
+                })
+                .join("")
+            : '<tr class="empty-row"><td colspan="5">No claims — click Add claim</td></tr>'
+        }
+      </tbody>
+    </table>
+    <div class="reports-widget-foot">
+      <span class="reports-widget-foot-meta">${escapeHtml(claimCountLabel)}</span>
+    </div>
+  `;
+
+  root.appendChild(claimTableWrap);
+
+  claimTableWrap.querySelector(".proj-claim-add-btn")?.addEventListener("click", () =>
+    openAddClaimDialog(state)
+  );
+
+  claimTableWrap.querySelectorAll(".claim-settle-btn").forEach((btn) => {
+    btn.onclick = async () => {
+      const row = claimRows.find((x) => x.id === btn.dataset.id);
+      if (!row) return;
+      try {
+        await updatePath(`${R3_PATHS.contractClaims}/${state.selectedProjectId}/${row.id}`, {
+          ...row,
+          settlementStatus: "settled",
+          status: "closed",
+          updatedAt: Date.now(),
+        });
+        showToast("Claim marked settled");
+      } catch (err) {
+        showToast(err.message, "error");
+      }
     };
   });
-  wireWorkflowButtons(claimTable, (btn) => ({
+
+  wireWorkflowButtons(claimTableWrap, (btn) => ({
     projectId: state.selectedProjectId,
     entityType: "contractClaim",
     title: claimRows.find((x) => x.id === btn.dataset.id)?.title,
   }));
-  return card;
+
+  return root;
 }

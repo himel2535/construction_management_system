@@ -24,6 +24,7 @@ import {
 } from "./svc_govProject.js";
 import { milestoneVariance } from "./svc_workflow.js";
 import { auditProject, openEditDialog } from "./cmp_projectTab.js";
+import { renderBoqStatGrid } from "./page_projects_r2.js";
 
 export const GOV_TAB_IDS = ["contract", "compliance", "home", "measurement", "retention"];
 
@@ -116,101 +117,116 @@ function govBase() {
   };
 }
 
+function govBlockShell(title, innerHtml) {
+  const shell = document.createElement("div");
+  shell.className = "reports-table-wrap proj-contract-gov-block-shell";
+  shell.innerHTML = `
+    <h4 class="proj-boq-section-title proj-contract-gov-block-head">${escapeHtml(title)}</h4>
+    <div class="proj-contract-gov-stat-grid">${innerHtml}</div>
+  `;
+  return shell;
+}
+
+function govStatCell(label, valueHtml) {
+  return `<div class="proj-contract-gov-stat"><span class="cust-detail-label">${escapeHtml(label)}</span><strong>${valueHtml}</strong></div>`;
+}
+
 export function buildContractTab(state, opts = {}) {
+  const root = document.createElement("div");
+  root.className = "proj-contract-tab proj-contract-tab--gov";
   const project = state.projects.find((p) => p.id === state.selectedProjectId);
-  const card = sectionCard("Contract", "Read-only contract summary — edit details in project profile");
-  const body = card.querySelector(".section-card-body");
   if (!project) {
-    body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-    return card;
+    root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+    return root;
   }
 
   const certified = (state.ipcBills || [])
     .filter((b) => b.status === "approved" || b.status === "certified")
     .reduce((max, b) => Math.max(max, Number(b.cumulativeCertified || 0)), 0);
   const cv = Number(project.contractValue || 0);
+  const certPct = cv > 0 ? Math.round((certified / cv) * 100) : 0;
   const { balance: retentionBalance } = computeRetentionBalance(state.retentionLedger || []);
   const tenderDoc = project.tenderDocUrl
     ? `<a href="${escapeHtml(project.tenderDocUrl)}" target="_blank" rel="noopener">Open tender document</a>`
     : "—";
 
-  const tenderBlock = document.createElement("div");
-  tenderBlock.className = "gov-tender-block";
-  tenderBlock.innerHTML = `
-    <h4 class="r3-subhead">Tender / e-GP</h4>
-    <div class="r2-budget-summary gov-contract-summary">
-      <div class="r2-stat"><span class="cust-detail-label">Tender ref</span><strong>${escapeHtml(project.tenderRef || "—")}</strong></div>
-      <div class="r2-stat"><span class="cust-detail-label">Notice date</span><strong>${escapeHtml(project.tenderNoticeDate || "—")}</strong></div>
-      <div class="r2-stat"><span class="cust-detail-label">Submission deadline</span><strong>${escapeHtml(project.tenderSubmissionDeadline || "—")}</strong></div>
-      <div class="r2-stat"><span class="cust-detail-label">Document</span><strong>${tenderDoc}</strong></div>
-    </div>
-  `;
+  const metricsSection = document.createElement("section");
+  metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-contract-metrics";
+  metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Contract overview</h4>`;
+  metricsSection.appendChild(
+    renderBoqStatGrid([
+      { label: "Contract value", value: formatBDT(cv) },
+      { label: "Certified to date", value: formatBDT(certified) },
+      { label: "Certified %", value: `${certPct}%` },
+      { label: "Retention held", value: formatBDT(retentionBalance) },
+    ])
+  );
+  const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+  if (statGrid) statGrid.classList.add("proj-contracts-stat-grid");
 
-  const woBlock = document.createElement("div");
-  woBlock.className = "gov-wo-block";
-  woBlock.innerHTML = `
-    <h4 class="r3-subhead">Work order (কার্যাদেশ)</h4>
-    <div class="r2-budget-summary gov-contract-summary">
-      <div class="r2-stat"><span class="cust-detail-label">Reference</span><strong>${escapeHtml(project.workOrderNo || "—")}</strong></div>
-      <div class="r2-stat"><span class="cust-detail-label">Issue date</span><strong>${escapeHtml(project.workOrderIssueDate || "—")}</strong></div>
-    </div>
-    ${project.workOrderScope ? `<p class="gov-wo-scope">${escapeHtml(project.workOrderScope)}</p>` : ""}
-  `;
+  const agencyBanner = document.createElement("p");
+  agencyBanner.className = "proj-contract-client-banner text-muted";
+  agencyBanner.innerHTML = `Employer: <strong>${escapeHtml(project.employerAgency || "—")}</strong> · Completion: ${escapeHtml(project.completionDate || "—")} · Compliance: ${complianceChip(project.complianceStatus)}`;
 
-  const summaryFixed = document.createElement("div");
-  summaryFixed.className = "r2-budget-summary gov-contract-summary";
-  summaryFixed.innerHTML = `
-    <div class="r2-stat"><span class="cust-detail-label">Employer agency</span><strong>${escapeHtml(project.employerAgency || "—")}</strong></div>
-    <div class="r2-stat"><span class="cust-detail-label">Contract value</span><strong>${formatBDT(cv)}</strong></div>
-    <div class="r2-stat"><span class="cust-detail-label">Certified to date</span><strong>${formatBDT(certified)}</strong></div>
-    <div class="r2-stat"><span class="cust-detail-label">Certified %</span><strong>${cv > 0 ? Math.round((certified / cv) * 100) : 0}%</strong></div>
-    <div class="r2-stat"><span class="cust-detail-label">Retention held</span><strong>${formatBDT(retentionBalance)}</strong></div>
-    <div class="r2-stat"><span class="cust-detail-label">Compliance</span><strong>${complianceChip(project.complianceStatus)}</strong></div>
-    <div class="r2-stat"><span class="cust-detail-label">Completion</span><strong>${escapeHtml(project.completionDate || "—")}</strong></div>
-  `.replace(/<\/?motion/g, (m) => m.replace("motion", "div"));
+  const tenderShell = govBlockShell(
+    "Tender / e-GP",
+    [
+      govStatCell("Tender ref", escapeHtml(project.tenderRef || "—")),
+      govStatCell("Notice date", escapeHtml(project.tenderNoticeDate || "—")),
+      govStatCell("Submission deadline", escapeHtml(project.tenderSubmissionDeadline || "—")),
+      govStatCell("Document", tenderDoc),
+    ].join("")
+  );
 
-  const pgBlock = document.createElement("div");
-  pgBlock.className = "gov-pg-block";
-  pgBlock.innerHTML = `
-    <h4 class="r3-subhead">Performance guarantee</h4>
-    <div class="r2-budget-summary gov-contract-summary">
-      <div class="r2-stat"><span class="cust-detail-label">Amount</span><strong>${formatBDT(project.performanceGuaranteeAmount || 0)}</strong></div>
-    </div>
-  `;
+  const woInner = [
+    govStatCell("Reference", escapeHtml(project.workOrderNo || "—")),
+    govStatCell("Issue date", escapeHtml(project.workOrderIssueDate || "—")),
+  ].join("");
+  const woShell = govBlockShell("Work order (কার্যাদেশ)", woInner);
+  if (project.workOrderScope) {
+    woShell.insertAdjacentHTML(
+      "beforeend",
+      `<p class="proj-contract-gov-scope text-muted">${escapeHtml(project.workOrderScope)}</p>`
+    );
+  }
+
+  const pgShell = govBlockShell(
+    "Performance guarantee",
+    govStatCell("Amount", escapeHtml(formatBDT(project.performanceGuaranteeAmount || 0)))
+  );
 
   const bgLabel = BG_TYPES.find((t) => t.id === project.bgType)?.label || project.bgType || "—";
-  const bgBlock = document.createElement("div");
-  bgBlock.className = "gov-bg-block";
-  bgBlock.innerHTML = `
-    <h4 class="r3-subhead">Bank guarantee</h4>
-    <div class="r2-budget-summary gov-contract-summary">
-      <div class="r2-stat"><span class="cust-detail-label">Type</span><strong>${escapeHtml(bgLabel)}</strong></div>
-      <div class="r2-stat"><span class="cust-detail-label">Amount</span><strong>${formatBDT(project.bgAmount || 0)}</strong></div>
-      <div class="r2-stat"><span class="cust-detail-label">Bank</span><strong>${escapeHtml(project.bgBank || "—")}</strong></div>
-      <div class="r2-stat"><span class="cust-detail-label">Expiry</span><strong>${escapeHtml(project.bgExpiryDate || "—")}</strong></div>
-      <div class="r2-stat"><span class="cust-detail-label">Status</span><strong>${statusChip(project.bgStatus || "active")}</strong></div>
-    </div>
-  `.replace(/<\/?motion/g, (m) => m.replace("motion", "div"));
+  const bgShell = govBlockShell(
+    "Bank guarantee",
+    [
+      govStatCell("Type", escapeHtml(bgLabel)),
+      govStatCell("Amount", escapeHtml(formatBDT(project.bgAmount || 0))),
+      govStatCell("Bank", escapeHtml(project.bgBank || "—")),
+      govStatCell("Expiry", escapeHtml(project.bgExpiryDate || "—")),
+      govStatCell("Status", statusChip(project.bgStatus || "active")),
+    ].join("")
+  );
 
-  const note = document.createElement("p");
-  note.className = "text-muted proj-contract-note";
-  note.textContent = "Contract fields are maintained in the project profile to avoid duplicate entry.";
-
+  const foot = document.createElement("div");
+  foot.className = "proj-contract-gov-foot";
+  foot.innerHTML = `<p class="text-muted proj-contract-note">Contract fields are maintained in the project profile to avoid duplicate entry.</p>`;
   const editBtn = document.createElement("button");
   editBtn.type = "button";
   editBtn.className = "btn btn-primary btn-sm";
   editBtn.textContent = "Edit profile";
   editBtn.onclick = () => opts.onEditMaster?.();
-
   const complianceBtn = document.createElement("button");
   complianceBtn.type = "button";
   complianceBtn.className = "btn btn-ghost btn-sm";
   complianceBtn.textContent = "View compliance checklist →";
   complianceBtn.onclick = () => opts.onNavigateTab?.("compliance");
+  const footActions = document.createElement("div");
+  footActions.className = "proj-contract-gov-foot-actions";
+  footActions.append(editBtn, complianceBtn);
+  foot.appendChild(footActions);
 
-  body.innerHTML = "";
-  body.append(tenderBlock, woBlock, summaryFixed, pgBlock, bgBlock, note, editBtn, complianceBtn);
-  return card;
+  root.append(metricsSection, agencyBanner, tenderShell, woShell, pgShell, bgShell, foot);
+  return root;
 }
 
 export function buildDashboardTab(state, opts = {}) {
@@ -555,15 +571,12 @@ function buildBoqCompareTable(state) {
 }
 
 export function buildGovBillingTab(state, opts = {}) {
+  const root = document.createElement("div");
+  root.className = "proj-billing-tab proj-billing-tab--gov";
   const project = state.projects.find((p) => p.id === state.selectedProjectId);
-  const card = sectionCard(
-    "Government billing (IPC)",
-    "Running account bills from Measurement Book — certify on Measurement tab"
-  );
-  const body = card.querySelector(".section-card-body");
   if (!project) {
-    body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-    return card;
+    root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+    return root;
   }
 
   const ipcRows = [...(state.ipcBills || [])].sort(
@@ -572,45 +585,88 @@ export function buildGovBillingTab(state, opts = {}) {
   const totalNet = ipcRows.reduce((a, r) => a + (Number(r.netPayable) || 0), 0);
   const pendingCert = ipcRows.filter((r) => (r.status || "draft") !== "certified").length;
 
-  const summary = document.createElement("div");
-  summary.className = "gov-billing-summary r2-budget-summary";
-  summary.innerHTML = `
-    <div class="r2-stat"><span class="cust-detail-label">IPC bills</span><strong>${ipcRows.length}</strong></div>
-    <div class="r2-stat"><span class="cust-detail-label">Pending certification</span><strong>${pendingCert}</strong></div>
-    <div class="r2-stat"><span class="cust-detail-label">Total net payable</span><strong>${formatBDT(totalNet)}</strong></div>
-  `;
+  const metricsSection = document.createElement("section");
+  metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-billing-metrics";
+  metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Billing overview</h4>`;
+  metricsSection.appendChild(
+    renderBoqStatGrid([
+      { label: "IPC bills", value: ipcRows.length },
+      { label: "Pending certification", value: pendingCert, attention: pendingCert > 0 },
+      { label: "Total net payable", value: formatBDT(totalNet) },
+    ])
+  );
+  const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+  if (statGrid) statGrid.classList.add("proj-billing-stat-grid");
 
-  const navBtn = document.createElement("button");
-  navBtn.type = "button";
-  navBtn.className = "btn btn-secondary btn-sm";
-  navBtn.textContent = "Open Measurement Book & IPC";
-  navBtn.onclick = () => opts.onNavigateTab?.("measurement");
+  const countLabel =
+    ipcRows.length === 1
+      ? "Showing 1 of 1 bill"
+      : `Showing ${ipcRows.length} of ${ipcRows.length} bills`;
 
-  const table = document.createElement("div");
-  table.className = "table-wrap gov-billing-table";
-  table.innerHTML = `
-    <table class="dash-table">
-      <thead><tr><th>Bill</th><th>Type</th><th>Date</th><th class="text-right">This bill</th><th class="text-right">Net payable</th><th>Stage</th><th>Status</th></tr></thead>
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "reports-table-wrap proj-billing-table proj-billing-ipc-shell";
+  tableWrap.innerHTML = `
+    <div class="proj-billing-table-head-row">
+      <h4 class="proj-boq-section-title proj-billing-table-head">IPC bills</h4>
+    </div>
+    <table class="dash-table projects-table">
+      <colgroup>
+        <col class="proj-billing-ipc-col-bill" />
+        <col class="proj-billing-ipc-col-equal" />
+        <col class="proj-billing-ipc-col-equal" />
+        <col class="proj-billing-ipc-col-amount" />
+        <col class="proj-billing-ipc-col-amount" />
+        <col class="proj-billing-ipc-col-equal" />
+        <col class="proj-billing-ipc-col-equal" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Bill</th>
+          <th>Type</th>
+          <th>Date</th>
+          <th class="text-right">This bill</th>
+          <th class="text-right">Net payable</th>
+          <th>Stage</th>
+          <th>Status</th>
+        </tr>
+      </thead>
       <tbody>
-        ${ipcRows.length ? ipcRows.map((r) => {
-          const stage = CERT_STAGES.find((s) => s.id === r.certificationStage)?.label || r.certificationStage;
-          const typeLabel = (r.billType || "running") === "final" ? "Final" : "Running";
-          return `<tr>
-            <td><strong>${escapeHtml(r.billNo || r.id)}</strong></td>
-            <td>${typeLabel}</td>
-            <td>${r.billDate || "—"}</td>
+        ${
+          ipcRows.length
+            ? ipcRows
+                .map((r) => {
+                  const stage =
+                    CERT_STAGES.find((s) => s.id === r.certificationStage)?.label ||
+                    r.certificationStage;
+                  const typeLabel = (r.billType || "running") === "final" ? "Final" : "Running";
+                  return `<tr>
+            <td><strong class="proj-billing-desc">${escapeHtml(r.billNo || r.id)}</strong></td>
+            <td>${escapeHtml(typeLabel)}</td>
+            <td>${escapeHtml(r.billDate || "—")}</td>
             <td class="text-right">${formatBDT(r.thisBill)}</td>
             <td class="text-right">${formatBDT(r.netPayable)}</td>
             <td>${escapeHtml(stage || "—")}</td>
             <td>${statusChip(r.status)}</td>
           </tr>`;
-        }).join("") : '<tr class="empty-row"><td colspan="7">No IPC bills — generate from Measurement tab</td></tr>'}
+                })
+                .join("")
+            : '<tr class="empty-row"><td colspan="7">No IPC bills — generate from Measurement tab</td></tr>'
+        }
       </tbody>
     </table>
+    <div class="reports-widget-foot proj-billing-ipc-foot">
+      <span class="reports-widget-foot-meta">${escapeHtml(countLabel)}</span>
+      <button type="button" class="btn btn-ghost btn-sm proj-billing-measurement-link">Open Measurement Book & IPC</button>
+    </div>
   `;
 
-  body.append(summary, navBtn, table);
-  return card;
+  root.append(metricsSection, tableWrap);
+
+  tableWrap.querySelector(".proj-billing-measurement-link")?.addEventListener("click", () => {
+    opts.onNavigateTab?.("measurement");
+  });
+
+  return root;
 }
 
 export function buildMeasurementTab(state, opts = {}) {

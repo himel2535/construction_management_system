@@ -1,6 +1,7 @@
 /** Shared UI + helpers for project tab panels */
 
 import { getCurrentUserId, getCurrentUserName } from "./svc_auth.js";
+import { readRef } from "./svc_data.js";
 import { writeAuditLog } from "./svc_workflow.js";
 import { renderFormField } from "./cmp_projectForm.js";
 import { icon } from "./cmp_icons.js";
@@ -23,6 +24,9 @@ export function escAttr(s) {
 export function resolveManagerLabel(managerId) {
   if (!managerId) return "—";
   if (managerId === getCurrentUserId()) return getCurrentUserName();
+  const roleRow = readRef(`roles/${managerId}`);
+  const fromRole = roleRow?.displayName || roleRow?.name;
+  if (fromRole?.trim()) return fromRole.trim();
   return String(managerId)
     .split(/[-_]/)
     .filter(Boolean)

@@ -7,7 +7,7 @@ import { guardAction, canPerformAction } from "./svc_governance.js";
 import { updateClientInvoiceStatus } from "./svc_operations.js";
 import { formatBDT } from "./util_format.js";
 import { showToast } from "./cmp_toast.js";
-import { sectionCard, statusChip } from "./cmp_ui.js";
+import { statusChip } from "./cmp_ui.js";
 import {
   PRIVATE_PATHS,
   computeRevisedContractValue,
@@ -19,7 +19,8 @@ import {
   createInvoiceFromMilestone,
   syncMilestoneAmounts,
 } from "./svc_privateProject.js";
-import { auditProject } from "./cmp_projectTab.js";
+import { auditProject, openCustFormDialog } from "./cmp_projectTab.js";
+import { renderBoqStatGrid } from "./page_projects_r2.js";
 
 export const PRIVATE_TAB_IDS = ["contract", "billing", "home", "contracts"];
 
@@ -96,16 +97,76 @@ function privateBase() {
   };
 }
 
-export function buildPrivateContractTab(state, opts = {}) {
+function openAddPaymentMilestoneDialog(state, opts = {}) {
+  if (!state.selectedProjectId) {
+    showToast("Select a project first", "error");
+    return;
+  }
   const project = state.projects.find((p) => p.id === state.selectedProjectId);
-  const card = sectionCard(
-    "Client Contract",
-    "Contract value, payment milestones, and approved variations"
-  );
-  const body = card.querySelector(".section-card-body");
+  const changeOrders = state.changeOrders || [];
+  const { revised } = computeRevisedContractValue(project, changeOrders);
+
+  openCustFormDialog({
+    title: "Add payment milestone",
+    subtitle: "Schedule a billable milestone as a percent of the revised contract value.",
+    submitLabel: "Add payment milestone",
+    modalClass: "proj-pay-ms-modal",
+    values: {
+      description: "",
+      percent: "",
+      dueDate: "",
+    },
+    sections: [
+      {
+        title: "Milestone",
+        fields: [
+          { name: "description", label: "Description *", type: "text", required: true },
+          {
+            name: "percent",
+            label: "Percent of contract *",
+            type: "number",
+            step: "0.01",
+            required: true,
+          },
+          { name: "dueDate", label: "Due date", type: "date" },
+        ],
+      },
+    ],
+    onSave: async (data) => {
+      try {
+        guardAction("create_change_order");
+        const percent = Number(data.percent) || 0;
+        const amount = computeMilestoneAmount(revised, percent);
+        const id = await create(`${PRIVATE_PATHS.paymentMilestones}/${state.selectedProjectId}`, {
+          ...privateBase(),
+          description: data.description,
+          percent,
+          dueDate: data.dueDate || "",
+          amount,
+        });
+        await auditProject(state, {
+          entityType: "paymentMilestone",
+          entityId: id,
+          action: "create",
+          diffSummary: `Payment milestone: ${data.description}`,
+        });
+        showToast("Payment milestone added");
+        opts.onRefresh?.();
+      } catch (err) {
+        showToast(err.message, "error");
+        throw err;
+      }
+    },
+  });
+}
+
+export function buildPrivateContractTab(state, opts = {}) {
+  const root = document.createElement("div");
+  root.className = "proj-contract-tab";
+  const project = state.projects.find((p) => p.id === state.selectedProjectId);
   if (!project || !state.selectedProjectId) {
-    body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-    return card;
+    root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+    return root;
   }
 
   const changeOrders = state.changeOrders || [];
@@ -119,85 +180,104 @@ export function buildPrivateContractTab(state, opts = {}) {
     (a, b) => String(a.dueDate || "").localeCompare(String(b.dueDate || ""))
   );
 
-  const summary = document.createElement("div");
-  summary.className = "r2-budget-summary private-contract-summary";
-  summary.innerHTML = `
-    <div class="r2-stat"><span class="cust-detail-label">Original contract</span><strong>${formatBDT(base)}</strong></div>
-    <div class="r2-stat"><span class="cust-detail-label">Approved variations</span><strong>${formatBDT(variations)}</strong></div>
-    <div class="r2-stat"><span class="cust-detail-label">Revised contract</span><strong>${formatBDT(revised)}</strong></div>
-    <div class="r2-stat"><span class="cust-detail-label">Billed</span><strong>${formatBDT(kpis.billed)}</strong></div>
-    <div class="r2-stat"><span class="cust-detail-label">Collected</span><strong>${formatBDT(kpis.collected)}</strong></div>
-    <div class="r2-stat"><span class="cust-detail-label">Outstanding</span><strong>${formatBDT(kpis.outstanding)}</strong></div>
-  `;
+  const metricsSection = document.createElement("section");
+  metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-contract-metrics";
+  metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Commercial overview</h4>`;
+  metricsSection.appendChild(
+    renderBoqStatGrid([
+      { label: "Original contract", value: formatBDT(base) },
+      { label: "Approved variations", value: formatBDT(variations) },
+      { label: "Revised contract", value: formatBDT(revised) },
+      { label: "Billed", value: formatBDT(kpis.billed) },
+      { label: "Collected", value: formatBDT(kpis.collected) },
+      {
+        label: "Outstanding",
+        value: formatBDT(kpis.outstanding),
+        attention: kpis.outstanding > 0,
+      },
+    ])
+  );
+  const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+  if (statGrid) statGrid.classList.add("proj-contract-stat-grid");
 
-  const clientLine = document.createElement("p");
-  clientLine.className = "private-contract-client text-muted";
-  clientLine.textContent = `Client: ${project.clientName || "—"}`;
+  const clientBanner = document.createElement("p");
+  clientBanner.className = "proj-contract-client-banner text-muted";
+  clientBanner.textContent = `Client: ${project.clientName || "—"}`;
 
-  const msForm = document.createElement("form");
-  msForm.className = "form-grid proj-form private-ms-form";
-  msForm.innerHTML = `
-    <input name="description" placeholder="Milestone description *" required />
-    <input name="percent" type="number" step="0.01" min="0" max="100" placeholder="Percent of contract *" required />
-    <input name="dueDate" type="date" placeholder="Due date" />
-    <button type="submit" class="btn btn-primary btn-sm">Add payment milestone</button>
-  `;
-  msForm.onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      guardAction("create_change_order");
-      const fd = new FormData(msForm);
-      const percent = Number(fd.get("percent")) || 0;
-      const amount = computeMilestoneAmount(revised, percent);
-      const id = await create(`${PRIVATE_PATHS.paymentMilestones}/${state.selectedProjectId}`, {
-        ...privateBase(),
-        description: fd.get("description"),
-        percent,
-        dueDate: fd.get("dueDate") || "",
-        amount,
-      });
-      await auditProject(state, {
-        entityType: "paymentMilestone",
-        entityId: id,
-        action: "create",
-        diffSummary: `Payment milestone: ${fd.get("description")}`,
-      });
-      msForm.reset();
-      showToast("Payment milestone added");
-      opts.onRefresh?.();
-    } catch (err) {
-      showToast(err.message, "error");
-    }
-  };
+  const countLabel =
+    milestones.length === 1
+      ? "Showing 1 of 1 milestone"
+      : `Showing ${milestones.length} of ${milestones.length} milestones`;
 
-  const msTable = document.createElement("div");
-  msTable.className = "table-wrap private-ms-table";
-  msTable.innerHTML = `
-    <h4 class="r3-subhead">Payment milestones</h4>
-    <table class="dash-table">
-      <thead><tr>
-        <th>Description</th><th class="text-right">%</th><th class="text-right">Amount</th>
-        <th>Due</th><th>Status</th><th>Actions</th>
-      </tr></thead>
+  const msTableWrap = document.createElement("div");
+  msTableWrap.className = "reports-table-wrap proj-contract-table proj-contract-ms-shell";
+  msTableWrap.innerHTML = `
+    <div class="proj-contract-table-head-row">
+      <h4 class="proj-boq-section-title proj-contract-table-head">Payment milestones</h4>
+      <button type="button" class="btn btn-primary btn-sm proj-pay-ms-add-btn">Add payment milestone</button>
+    </div>
+    <table class="dash-table projects-table">
+      <colgroup>
+        <col class="proj-contract-ms-col-desc" />
+        <col class="proj-contract-ms-col-num" />
+        <col class="proj-contract-ms-col-num" />
+        <col class="proj-contract-ms-col-equal" />
+        <col class="proj-contract-ms-col-equal" />
+        <col class="proj-contract-ms-col-actions" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="text-right">%</th>
+          <th class="text-right">Amount</th>
+          <th>Due</th>
+          <th>Status</th>
+          <th class="rep-col-actions">Actions</th>
+        </tr>
+      </thead>
       <tbody>
-        ${milestones.length ? milestones.map((m) => `
-          <tr data-ms-id="${m.id}">
-            <td>${escapeHtml(m.description || "—")}</td>
+        ${
+          milestones.length
+            ? milestones
+                .map(
+                  (m) => `
+          <tr data-ms-id="${escapeHtml(m.id)}">
+            <td><strong class="proj-contract-ms-desc">${escapeHtml(m.description || "—")}</strong></td>
             <td class="text-right">${Number(m.percent || 0)}%</td>
             <td class="text-right">${formatBDT(m.amount || 0)}</td>
             <td>${escapeHtml(m.dueDate || "—")}</td>
             <td>${milestoneStatusChip(m.status)}</td>
-            <td class="proj-row-actions-cell">
-              ${m.status === "pending" ? `<button type="button" class="btn btn-ghost btn-sm ms-bill-btn" data-id="${m.id}">Create bill</button>` : ""}
-              ${m.status === "pending" ? `<button type="button" class="btn btn-ghost btn-sm ms-del-btn" data-id="${m.id}">Remove</button>` : "—"}
+            <td class="rep-col-actions proj-row-actions-cell">
+              ${
+                m.status === "pending"
+                  ? `<button type="button" class="btn btn-ghost btn-sm ms-bill-btn" data-id="${escapeHtml(m.id)}">Create bill</button>
+              <button type="button" class="btn btn-ghost btn-sm ms-del-btn" data-id="${escapeHtml(m.id)}">Remove</button>`
+                  : "—"
+              }
             </td>
-          </tr>
-        `).join("") : '<tr class="empty-row"><td colspan="6">No payment milestones — add above or set contract value on create</td></tr>'}
+          </tr>`
+                )
+                .join("")
+            : '<tr class="empty-row"><td colspan="6">No payment milestones — click Add payment milestone</td></tr>'
+        }
       </tbody>
     </table>
+    <div class="reports-widget-foot proj-contract-ms-foot">
+      <span class="reports-widget-foot-meta">${escapeHtml(countLabel)}</span>
+      <div class="proj-contract-ms-foot-actions">
+        <button type="button" class="btn btn-ghost btn-sm proj-contract-sync-btn">Recalculate amounts</button>
+        <button type="button" class="btn btn-ghost btn-sm proj-contract-billing-link">Open Billing tab →</button>
+      </div>
+    </div>
   `;
 
-  msTable.querySelectorAll(".ms-bill-btn").forEach((btn) => {
+  root.append(metricsSection, clientBanner, msTableWrap);
+
+  msTableWrap.querySelector(".proj-pay-ms-add-btn")?.addEventListener("click", () =>
+    openAddPaymentMilestoneDialog(state, opts)
+  );
+
+  msTableWrap.querySelectorAll(".ms-bill-btn").forEach((btn) => {
     btn.onclick = async () => {
       const row = milestones.find((x) => x.id === btn.dataset.id);
       if (!row) return;
@@ -213,7 +293,7 @@ export function buildPrivateContractTab(state, opts = {}) {
     };
   });
 
-  msTable.querySelectorAll(".ms-del-btn").forEach((btn) => {
+  msTableWrap.querySelectorAll(".ms-del-btn").forEach((btn) => {
     btn.onclick = async () => {
       const row = milestones.find((x) => x.id === btn.dataset.id);
       if (!row || row.status !== "pending") return;
@@ -227,11 +307,7 @@ export function buildPrivateContractTab(state, opts = {}) {
     };
   });
 
-  const syncBtn = document.createElement("button");
-  syncBtn.type = "button";
-  syncBtn.className = "btn btn-ghost btn-sm";
-  syncBtn.textContent = "Recalculate amounts";
-  syncBtn.onclick = async () => {
+  msTableWrap.querySelector(".proj-contract-sync-btn")?.addEventListener("click", async () => {
     try {
       await syncMilestoneAmounts(state.selectedProjectId);
       showToast("Milestone amounts updated");
@@ -239,129 +315,220 @@ export function buildPrivateContractTab(state, opts = {}) {
     } catch (err) {
       showToast(err.message, "error");
     }
-  };
+  });
 
-  const navBilling = document.createElement("button");
-  navBilling.type = "button";
-  navBilling.className = "btn btn-ghost btn-sm";
-  navBilling.textContent = "Open Billing tab →";
-  navBilling.onclick = () => opts.onNavigateTab?.("billing");
+  msTableWrap.querySelector(".proj-contract-billing-link")?.addEventListener("click", () => {
+    opts.onNavigateTab?.("billing");
+  });
 
-  const actions = document.createElement("div");
-  actions.className = "private-contract-actions";
-  actions.append(syncBtn, navBilling);
+  return root;
+}
 
-  body.innerHTML = "";
-  body.append(summary, clientLine, msForm, msTable, actions);
-  return card;
+const BILL_TYPE_OPTIONS = [
+  { value: "milestone", label: "Milestone bill" },
+  { value: "progress", label: "Progress / RA bill" },
+  { value: "final", label: "Final bill" },
+];
+
+function milestoneBillOptions(state) {
+  const pendingMs = (state.paymentMilestones || []).filter((m) => m.status === "pending");
+  return [
+    { value: "", label: "Create bill from milestone (optional)" },
+    ...pendingMs.map((m) => ({
+      value: m.id,
+      label: `${m.description} — ${formatBDT(m.amount || 0)}`,
+    })),
+  ];
+}
+
+function openCreateBillDialog(state, opts = {}) {
+  if (!state.selectedProjectId) {
+    showToast("Select a project first", "error");
+    return;
+  }
+  const project = state.projects.find((p) => p.id === state.selectedProjectId);
+  if (!project) return;
+  const pendingMs = (state.paymentMilestones || []).filter((m) => m.status === "pending");
+  const today = new Date().toISOString().slice(0, 10);
+
+  openCustFormDialog({
+    title: "Create draft bill",
+    subtitle: "Create from a pending milestone or enter a manual client bill.",
+    submitLabel: "Create draft bill",
+    modalClass: "proj-billing-modal",
+    values: {
+      milestoneId: "",
+      billType: "milestone",
+      amount: "",
+      billDate: today,
+      description: "",
+    },
+    sections: [
+      {
+        title: "Bill source",
+        fields: [
+          {
+            name: "milestoneId",
+            label: "From milestone",
+            type: "select",
+            options: milestoneBillOptions(state),
+          },
+          { name: "billType", label: "Bill type", type: "select", options: BILL_TYPE_OPTIONS },
+        ],
+      },
+      {
+        title: "Bill details",
+        fields: [
+          { name: "amount", label: "Bill amount (BDT) *", type: "number", step: "0.01" },
+          { name: "billDate", label: "Bill date", type: "date" },
+          { name: "description", label: "Description / bill ref", type: "text", fullWidth: true },
+        ],
+      },
+    ],
+    onSave: async (data) => {
+      try {
+        guardAction("submit_billing");
+        const milestoneId = data.milestoneId || "";
+        if (milestoneId) {
+          const ms = pendingMs.find((m) => m.id === milestoneId);
+          if (ms) {
+            await createInvoiceFromMilestone(state.selectedProjectId, ms);
+            showToast("Bill created from milestone");
+            opts.onRefresh?.();
+            return;
+          }
+        }
+        const { createClientInvoice } = await import("./svc_operations.js");
+        const amount = Number(data.amount);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          showToast("Enter a valid bill amount", "error");
+          throw new Error("validation");
+        }
+        await createClientInvoice({
+          client: { id: project.clientId || "", name: project.clientName || "Client" },
+          project: { id: project.id, name: project.name },
+          billType: data.billType || "milestone",
+          amount,
+          paidAmount: 0,
+          billDate: data.billDate || today,
+          description: data.description || "",
+        });
+        showToast("Draft bill created");
+        opts.onRefresh?.();
+      } catch (err) {
+        if (err?.message !== "validation") showToast(err.message, "error");
+        throw err;
+      }
+    },
+  });
 }
 
 export function buildPrivateBillingTab(state, opts = {}) {
+  const root = document.createElement("div");
+  root.className = "proj-billing-tab";
   const project = state.projects.find((p) => p.id === state.selectedProjectId);
-  const card = sectionCard(
-    "Billing",
-    "Project-scoped client bills — draft → submitted → approved → paid"
-  );
-  const body = card.querySelector(".section-card-body");
   if (!project || !state.selectedProjectId) {
-    body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-    return card;
+    root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+    return root;
   }
 
   const invoices = [...(state.clientInvoices || [])].sort(
     (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
   );
-  const pendingMs = (state.paymentMilestones || []).filter((m) => m.status === "pending");
-  const msOpts = pendingMs
-    .map((m) => `<option value="${m.id}">${escapeHtml(m.description)} — ${formatBDT(m.amount || 0)}</option>`)
-    .join("");
+  const kpis = computePrivateKpis(project, {
+    paymentMilestones: state.paymentMilestones,
+    clientInvoices: state.clientInvoices,
+    changeOrders: state.changeOrders || [],
+  });
 
-  const createForm = document.createElement("form");
-  createForm.className = "form-grid proj-form private-billing-form";
-  createForm.innerHTML = `
-    <select name="milestoneId" aria-label="From milestone">
-      <option value="">Create bill from milestone (optional)</option>
-      ${msOpts}
-    </select>
-    <select name="billType" aria-label="Bill type">
-      <option value="milestone">Milestone bill</option>
-      <option value="progress">Progress / RA bill</option>
-      <option value="final">Final bill</option>
-    </select>
-    <input name="amount" type="number" step="0.01" min="0" placeholder="Bill amount (BDT) *" required />
-    <input name="billDate" type="date" />
-    <input name="description" placeholder="Description / bill ref" />
-    <button type="submit" class="btn btn-primary btn-sm">Create draft bill</button>
-  `;
-  createForm.billDate.value = new Date().toISOString().slice(0, 10);
+  const metricsSection = document.createElement("section");
+  metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-billing-metrics";
+  metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Billing overview</h4>`;
+  metricsSection.appendChild(
+    renderBoqStatGrid([
+      { label: "Billed", value: formatBDT(kpis.billed) },
+      { label: "Collected", value: formatBDT(kpis.collected) },
+      {
+        label: "Outstanding",
+        value: formatBDT(kpis.outstanding),
+        attention: kpis.outstanding > 0,
+      },
+      {
+        label: "Uninvoiced milestones",
+        value: kpis.uninvoicedMilestones,
+        attention: kpis.overdueMilestoneCount > 0,
+      },
+    ])
+  );
+  const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+  if (statGrid) statGrid.classList.add("proj-billing-stat-grid");
 
-  createForm.onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      guardAction("submit_billing");
-      const fd = new FormData(createForm);
-      const milestoneId = fd.get("milestoneId");
-      if (milestoneId) {
-        const ms = pendingMs.find((m) => m.id === milestoneId);
-        if (ms) {
-          await createInvoiceFromMilestone(state.selectedProjectId, ms);
-          createForm.reset();
-          createForm.billDate.value = new Date().toISOString().slice(0, 10);
-          showToast("Bill created from milestone");
-          opts.onRefresh?.();
-          return;
-        }
-      }
-      const { createClientInvoice } = await import("./svc_operations.js");
-      const amount = Number(fd.get("amount"));
-      if (!Number.isFinite(amount) || amount <= 0) {
-        showToast("Enter a valid bill amount", "error");
-        return;
-      }
-      await createClientInvoice({
-        client: { id: project.clientId || "", name: project.clientName || "Client" },
-        project: { id: project.id, name: project.name },
-        billType: fd.get("billType") || "milestone",
-        amount,
-        paidAmount: 0,
-        billDate: fd.get("billDate") || new Date().toISOString().slice(0, 10),
-        description: fd.get("description") || "",
-      });
-      createForm.reset();
-      createForm.billDate.value = new Date().toISOString().slice(0, 10);
-      showToast("Draft bill created");
-      opts.onRefresh?.();
-    } catch (err) {
-      showToast(err.message, "error");
-    }
-  };
+  const countLabel =
+    invoices.length === 1
+      ? "Showing 1 of 1 bill"
+      : `Showing ${invoices.length} of ${invoices.length} bills`;
 
-  const tableHost = document.createElement("div");
-  tableHost.className = "table-wrap private-billing-table";
-  tableHost.innerHTML = `
-    <h4 class="r3-subhead">Client bills for this project</h4>
-    <table class="dash-table">
-      <thead><tr>
-        <th>Type</th><th class="text-right">Amount</th><th class="text-right">Paid</th>
-        <th>Date</th><th>Description</th><th>Status</th><th>Actions</th>
-      </tr></thead>
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "reports-table-wrap proj-billing-table proj-billing-invoices-shell";
+  tableWrap.innerHTML = `
+    <div class="proj-billing-table-head-row">
+      <h4 class="proj-boq-section-title proj-billing-table-head">Client bills</h4>
+      <button type="button" class="btn btn-primary btn-sm proj-billing-create-btn">Create draft bill</button>
+    </div>
+    <table class="dash-table projects-table">
+      <colgroup>
+        <col class="proj-billing-col-type" />
+        <col class="proj-billing-col-amount" />
+        <col class="proj-billing-col-amount" />
+        <col class="proj-billing-col-date" />
+        <col class="proj-billing-col-desc" />
+        <col class="proj-billing-col-status" />
+        <col class="proj-billing-col-actions" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th class="proj-billing-col-amount-h">Amount</th>
+          <th class="proj-billing-col-amount-h">Paid</th>
+          <th>Date</th>
+          <th>Description</th>
+          <th class="rep-col-status">Status</th>
+          <th class="rep-col-actions">Actions</th>
+        </tr>
+      </thead>
       <tbody>
-        ${invoices.length ? invoices.map((row) => `
-          <tr>
+        ${
+          invoices.length
+            ? invoices
+                .map(
+                  (row) => `
+          <tr data-bill-id="${escapeHtml(row.id)}">
             <td>${escapeHtml(row.billType || "milestone")}</td>
-            <td class="text-right">${formatBDT(row.amount)}</td>
-            <td class="text-right">${formatBDT(row.paidAmount || 0)}</td>
+            <td class="proj-billing-col-amount-cell">${formatBDT(row.amount)}</td>
+            <td class="proj-billing-col-amount-cell">${formatBDT(row.paidAmount || 0)}</td>
             <td>${escapeHtml(row.billDate || "—")}</td>
-            <td>${escapeHtml(row.description || "—")}</td>
-            <td>${statusChip(row.status || "draft")}</td>
-            <td class="proj-row-actions-cell">${billActions(row)}</td>
-          </tr>
-        `).join("") : '<tr class="empty-row"><td colspan="7">No bills for this project yet</td></tr>'}
+            <td><span class="proj-billing-desc">${escapeHtml(row.description || "—")}</span></td>
+            <td class="rep-col-status">${statusChip(row.status || "draft")}</td>
+            <td class="rep-col-actions proj-row-actions-cell"><span class="proj-billing-actions">${billActions(row)}</span></td>
+          </tr>`
+                )
+                .join("")
+            : '<tr class="empty-row"><td colspan="7">No bills for this project — click Create draft bill</td></tr>'
+        }
       </tbody>
     </table>
+    <div class="reports-widget-foot">
+      <span class="reports-widget-foot-meta">${escapeHtml(countLabel)}</span>
+    </div>
   `;
 
-  tableHost.querySelectorAll(".bill-act").forEach((btn) => {
+  root.append(metricsSection, tableWrap);
+
+  tableWrap.querySelector(".proj-billing-create-btn")?.addEventListener("click", () =>
+    openCreateBillDialog(state, opts)
+  );
+
+  tableWrap.querySelectorAll(".bill-act").forEach((btn) => {
     btn.onclick = async () => {
       const row = invoices.find((x) => x.id === btn.dataset.id);
       if (!row) return;
@@ -401,7 +568,5 @@ export function buildPrivateBillingTab(state, opts = {}) {
     };
   });
 
-  body.innerHTML = "";
-  body.append(createForm, tableHost);
-  return card;
+  return root;
 }

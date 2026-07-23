@@ -76,6 +76,48 @@ function renderReportMoneyValue(amount, { compact = false } = {}) {
   return compact ? formatCompactBDTPlain(amount) : formatBDTNumber(amount);
 }
 
+/**
+ * Shared dash KPI card (Reports + Project hub).
+ * @param {{ label: string, value?: string, icon?: string, footLeft?: string, extraClass?: string, spark?: string, tab?: string }} c
+ */
+export function renderDashKpiCard(c) {
+  const clickable = Boolean(c.tab);
+  const tag = clickable ? "button" : "div";
+  const attrs = clickable
+    ? ` type="button" data-kpi-tab="${escapeHtml(c.tab)}" class="dash-kpi-card card cust-kpi-card dash-kpi-card--link ${c.extraClass || ""}"`
+    : ` class="dash-kpi-card card cust-kpi-card ${c.extraClass || ""}"`;
+  return `<${tag}${attrs}>
+      <div class="cust-kpi-spark">${c.spark || ""}</div>
+      <div class="dash-kpi-head">
+        <div class="dash-kpi-icon dash-kpi-icon--flat">${reportKpiIcon(c.icon)}</div>
+        <div class="dash-kpi-main">
+          <span class="dash-kpi-label">${escapeHtml(c.label)}</span>
+          <div class="dash-kpi-value">${escapeHtml(c.value ?? "")}</div>
+        </div>
+      </div>
+      <div class="dash-kpi-foot">
+        <div class="dash-kpi-foot-left">${escapeHtml(c.footLeft || "")}</div>
+      </div>
+    </${tag}>`;
+}
+
+/** @param {Array<object>} cards */
+export function renderDashKpiRow(cards) {
+  return (cards || []).map(renderDashKpiCard).join("");
+}
+
+export function buildDashSparkline(values, tone = "green") {
+  return reportSparklineSvg(values, tone);
+}
+
+export function buildDashSparkFromAmount(amount) {
+  return scaleSparkFromAmount(amount);
+}
+
+export function buildDashSparkFromCount(n) {
+  return countSpark(n);
+}
+
 /** @param {{ totalBilled: number, clientReceivable: number, subcontractOutstanding: number, monthExpense: number }} stats */
 export function renderReportsKpiRow(stats) {
   const { totalBilled = 0, clientReceivable = 0, subcontractOutstanding = 0, monthExpense = 0 } = stats || {};
@@ -116,23 +158,12 @@ export function renderReportsKpiRow(stats) {
       spark: reportSparklineSvg(scaleSparkFromAmount(monthExpense), "yellow"),
     },
   ];
-  return cards.map(renderReportKpiCard).join("");
+  return renderDashKpiRow(cards);
 }
 
+/** @deprecated Use renderDashKpiCard */
 function renderReportKpiCard(c) {
-  return `<div class="dash-kpi-card card cust-kpi-card ${c.extraClass || ""}">
-      <div class="cust-kpi-spark">${c.spark}</div>
-      <div class="dash-kpi-head">
-        <div class="dash-kpi-icon dash-kpi-icon--flat">${reportKpiIcon(c.icon)}</div>
-        <div class="dash-kpi-main">
-          <span class="dash-kpi-label">${escapeHtml(c.label)}</span>
-          <div class="dash-kpi-value">${escapeHtml(c.value ?? "")}</div>
-        </div>
-      </div>
-      <div class="dash-kpi-foot">
-        <div class="dash-kpi-foot-left">${escapeHtml(c.footLeft)}</div>
-      </div>
-    </div>`;
+  return renderDashKpiCard(c);
 }
 
 function countSpark(n) {

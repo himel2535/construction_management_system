@@ -23,7 +23,13 @@ import {
   resolveBudgetTotal,
   healthLabel,
 } from "./util_projectCore.js";
-import { bindR2Subs, buildBoqTab, buildProgressTab, buildResourcesTab } from "./page_projects_r2.js";
+import {
+  bindR2Subs,
+  buildBoqTab,
+  buildProgressTab,
+  buildResourcesTab,
+  renderBoqStatGrid,
+} from "./page_projects_r2.js";
 import {
   bindR3Subs,
   buildQualityTab,
@@ -48,7 +54,7 @@ import {
 import { bindTeamSubs, buildTeamTab } from "./page_projects_team.js";
 import { bindMessagesSubs, buildMessagesTab } from "./page_projects_messages.js";
 import { delayCauseLabel, delayCauseOptions } from "./util_milestone.js";
-import { isGovProject, PROJECT_TYPES, EMPLOYER_AGENCIES, defaultProjectType } from "./util_govProject.js";
+import { isGovProject, PROJECT_TYPES, EMPLOYER_AGENCIES, defaultProjectType, projectTypeLabel } from "./util_govProject.js";
 import { setupGovProjectOnCreate } from "./svc_govProject.js";
 import { setupPrivateProjectOnCreate, syncProjectProgress } from "./svc_projectSetup.js";
 import { syncMilestoneAmounts } from "./svc_privateProject.js";
@@ -82,12 +88,21 @@ import { ERP_SELECT_PROJECT_KEY, hasStoredProjectDraft, readGovFieldsFromForm } 
 import {
   tabsWithGroups,
   groupForTabId,
-  renderProjectHeader,
-  renderGroupedTabNav,
-  renderProfileDefinitionList,
+  renderProjectHubToolbar,
+  renderProjectHubKpiRow,
+  renderProjectHubTabNav,
+  wrapProjectHubTabPanel,
+  renderProfileGlanceRows,
   renderProfileDescription,
 } from "./cmp_projectHub.js";
-import { auditProject, openEditDialog, validateUrl, validatePositiveNumber, renderTabToolbar, resolveManagerLabel } from "./cmp_projectTab.js";
+import {
+  auditProject,
+  openCustFormDialog,
+  openEditDialog,
+  validateUrl,
+  validatePositiveNumber,
+  resolveManagerLabel,
+} from "./cmp_projectTab.js";
 import { computeProjectSupplierOutstanding, mergeSupplierLists } from "./svc_supplier.js";
 import { renderProjectTimeline } from "./cmp_projectTimeline.js";
 import { navigateTo, getRouteQuery } from "./util_route.js";
@@ -506,6 +521,27 @@ export function mountProjects(container) {
     root.classList.toggle("projects-page--hub", state.hubMode);
   }
 
+  function applyProjectsListChrome() {
+    setPageChrome({
+      title: "Projects",
+      subtitle: "Manage projects, BOQ, progress, and contracts",
+      showDateRange: false,
+      quickActionLabel: "+ New Project",
+      onQuickAction: () => {
+        navigateTo("/projects/new");
+      },
+    });
+  }
+
+  function applyProjectHubChrome() {
+    applyProjectsListChrome();
+    const backBtn = document.getElementById("page-chrome-back");
+    if (backBtn && state.hubMode) {
+      backBtn.style.display = "inline-flex";
+      backBtn.onclick = () => exitProjectHub();
+    }
+  }
+
   function enterProjectHub(id) {
     closeProjectDetail();
     state.hubMode = true;
@@ -515,6 +551,7 @@ export function mountProjects(container) {
     applyHubLayout();
     bindProjectSubs();
     renderProjectDirectory();
+    applyProjectHubChrome();
     renderTabContent();
   }
 
@@ -527,6 +564,7 @@ export function mountProjects(container) {
     applyHubLayout();
     bindProjectSubs();
     if (tabHost) tabHost.innerHTML = "";
+    applyProjectsListChrome();
     renderProjectDirectory();
   }
 
@@ -934,77 +972,185 @@ export function mountProjects(container) {
     });
   }
 
-  function buildPhasesTab() {
-    const card = sectionCard("Phases / Blocks", "Project structure baseline");
-    const body = card.querySelector(".section-card-body");
-    if (!state.selectedProjectId) {
-      body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-      return card;
-    }
-    const form = document.createElement("form");
-    form.className = "form-grid proj-form-inline";
-    form.innerHTML = `
-      <input name="name" placeholder="Phase name *" required />
-      <input name="sequence" type="number" placeholder="Sequence" value="1" />
-      <input name="plannedStart" type="date" />
-      <input name="plannedEnd" type="date" />
-      <select name="status">
-        <option value="draft">draft</option>
-        <option value="submitted">submitted</option>
-        <option value="approved">approved</option>
-      </select>
-      <button type="submit" class="btn btn-primary btn-sm">Add phase</button>
-    `;
-    const list = document.createElement("div");
-    list.className = "proj-phase-list";
-    const sorted = [...state.phases].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
-    if (!sorted.length) list.innerHTML = `<p class="proj-empty">No phases yet</p>`;
-    else {
-      list.innerHTML = sorted
-        .map(
-          (ph) => `
-        <div class="proj-phase-row">
-          <div><strong>${escapeHtml(ph.name)}</strong> <span class="text-muted">#${ph.sequence || 0}</span></div>
-          <div>${statusChip(ph.status || "draft")}</div>
-          <div class="text-muted">${escapeHtml(ph.plannedStart || "—")} — ${escapeHtml(ph.plannedEnd || "—")}</div>
-          ${workflowButtons("phase", ph, `projectPhases/${state.selectedProjectId}/${ph.id}`)}
-          <div class="proj-row-actions">
-            <button type="button" class="btn btn-ghost btn-sm phase-edit-btn" data-id="${ph.id}">Edit</button>
-            ${(ph.status || "draft") === "draft" ? `<button type="button" class="btn btn-ghost btn-sm phase-del-btn" data-id="${ph.id}">Delete</button>` : ""}
-          </div>
-        </div>`
-        )
-        .join("");
-    }
-    body.append(form, list);
+  function phasePlannedCell(start, end) {
+    const range = formatDateRange(start, end);
+    if (!range) return '<span class="text-muted">—</span>';
+    return `<span class="proj-home-timeline-pill">${escapeHtml(range)}</span>`;
+  }
 
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const now = Date.now();
-      try {
-        const id = await create(`projectPhases/${state.selectedProjectId}`, {
-          name: form.name.value.trim(),
-          sequence: Number(form.sequence.value) || 1,
-          plannedStart: form.plannedStart.value,
-          plannedEnd: form.plannedEnd.value,
-          status: form.status.value,
-          createdAt: now,
-          updatedAt: now,
-        });
-        await auditProject(state, {
-          entityType: "phase",
-          entityId: id,
-          action: "create",
-          diffSummary: `Phase ${form.name.value} created`,
-        });
-        form.reset();
-        showToast("Phase added");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    };
-    wireWorkflowButtons(list, "phase");
-    list.querySelectorAll(".phase-edit-btn").forEach((btn) => {
+  function openAddPhaseDialog() {
+    if (!state.selectedProjectId) {
+      showToast("Select a project first", "error");
+      return;
+    }
+    const phases = state.phases || [];
+    const nextSeq =
+      phases.length === 0
+        ? 1
+        : Math.max(...phases.map((p) => Number(p.sequence) || 0), 0) + 1;
+    const statusOptions = [
+      { value: "draft", label: "Draft" },
+      { value: "submitted", label: "Submitted" },
+      { value: "approved", label: "Approved" },
+    ];
+
+    openCustFormDialog({
+      title: "Add phase",
+      subtitle: "WBS phase name, sequence, and planned dates.",
+      submitLabel: "Add phase",
+      modalClass: "proj-phase-modal",
+      values: {
+        name: "",
+        sequence: String(nextSeq),
+        status: "draft",
+        plannedStart: "",
+        plannedEnd: "",
+      },
+      sections: [
+        {
+          title: "Phase details",
+          fields: [
+            { name: "name", label: "Name *", type: "text", required: true },
+            { name: "sequence", label: "Sequence", type: "number", min: 1 },
+            { name: "status", label: "Status", type: "select", options: statusOptions },
+          ],
+        },
+        {
+          title: "Schedule",
+          fields: [
+            { name: "plannedStart", label: "Planned start", type: "date" },
+            { name: "plannedEnd", label: "Planned end", type: "date" },
+          ],
+        },
+      ],
+      onSave: async (data) => {
+        const name = String(data.name || "").trim();
+        if (!name) {
+          showToast("Phase name is required", "error");
+          throw new Error("validation");
+        }
+        const now = Date.now();
+        try {
+          const id = await create(`projectPhases/${state.selectedProjectId}`, {
+            name,
+            sequence: Number(data.sequence) || 1,
+            plannedStart: data.plannedStart || "",
+            plannedEnd: data.plannedEnd || "",
+            status: data.status || "draft",
+            createdAt: now,
+            updatedAt: now,
+          });
+          await auditProject(state, {
+            entityType: "phase",
+            entityId: id,
+            action: "create",
+            diffSummary: `Phase ${name} created`,
+          });
+          showToast("Phase added");
+        } catch (err) {
+          if (err?.message !== "validation") showToast(err.message, "error");
+          throw err;
+        }
+      },
+    });
+  }
+
+  function buildPhasesTab() {
+    const root = document.createElement("div");
+    root.className = "proj-phases-tab";
+    if (!state.selectedProjectId) {
+      root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+      return root;
+    }
+
+    const sorted = [...state.phases].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+    const countByStatus = (status) =>
+      sorted.filter((p) => (p.status || "draft") === status).length;
+    const submittedCount = countByStatus("submitted");
+
+    const metricsSection = document.createElement("section");
+    metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-phases-metrics";
+    metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Phase overview</h4>`;
+    metricsSection.appendChild(
+      renderBoqStatGrid([
+        { label: "Total phases", value: sorted.length },
+        { label: "Approved", value: countByStatus("approved") },
+        {
+          label: "In review",
+          value: submittedCount,
+          review: submittedCount > 0,
+        },
+        { label: "Draft", value: countByStatus("draft") },
+      ])
+    );
+    const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+    if (statGrid) statGrid.classList.add("proj-phases-stat-grid");
+
+    const phaseCountLabel =
+      sorted.length === 1
+        ? "Showing 1 of 1 phase"
+        : `Showing ${sorted.length} of ${sorted.length} phases`;
+
+    const tableWrap = document.createElement("div");
+    tableWrap.className = "reports-table-wrap proj-phases-table proj-phases-table-shell";
+    tableWrap.innerHTML = `
+      <div class="proj-phases-table-head-row">
+        <h4 class="proj-boq-section-title proj-phases-table-head">Phase schedule</h4>
+        <button type="button" class="btn btn-primary btn-sm proj-phase-add-btn">Add phase</button>
+      </div>
+      <table class="dash-table projects-table">
+        <colgroup>
+          <col class="proj-phases-col-name" />
+          <col class="proj-phases-col-equal" />
+          <col class="proj-phases-col-equal" />
+          <col class="proj-phases-col-equal" />
+          <col class="proj-phases-col-equal" />
+          <col class="proj-phases-col-equal" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Phase</th>
+            <th class="proj-phases-col-seq">Seq</th>
+            <th>Status</th>
+            <th>Planned</th>
+            <th>Workflow</th>
+            <th class="rep-col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${
+            sorted.length
+              ? sorted
+                  .map(
+                    (ph) => `
+            <tr>
+              <td><strong>${escapeHtml(ph.name)}</strong></td>
+              <td class="proj-phases-col-seq">${ph.sequence || 0}</td>
+              <td>${statusChip(ph.status || "draft")}</td>
+              <td>${phasePlannedCell(ph.plannedStart, ph.plannedEnd)}</td>
+              <td>${workflowButtons("phase", ph, `projectPhases/${state.selectedProjectId}/${ph.id}`)}</td>
+              <td class="rep-col-actions proj-row-actions-cell">
+                <button type="button" class="btn btn-ghost btn-sm phase-edit-btn" data-id="${ph.id}">Edit</button>
+                ${(ph.status || "draft") === "draft" ? `<button type="button" class="btn btn-ghost btn-sm phase-del-btn" data-id="${ph.id}">Delete</button>` : ""}
+              </td>
+            </tr>`
+                  )
+                  .join("")
+              : '<tr class="empty-row"><td colspan="6">No phases yet — click Add phase</td></tr>'
+          }
+        </tbody>
+      </table>
+      <div class="reports-widget-foot">
+        <span class="reports-widget-foot-meta">${escapeHtml(phaseCountLabel)}</span>
+      </div>
+    `;
+
+    root.append(metricsSection, tableWrap);
+
+    tableWrap.querySelector(".proj-phase-add-btn")?.addEventListener("click", () => openAddPhaseDialog());
+
+    wireWorkflowButtons(tableWrap, "phase");
+    tableWrap.querySelectorAll(".phase-edit-btn").forEach((btn) => {
       btn.onclick = () => {
         const ph = sorted.find((x) => x.id === btn.dataset.id);
         if (!ph) return;
@@ -1030,7 +1176,7 @@ export function mountProjects(container) {
         );
       };
     });
-    list.querySelectorAll(".phase-del-btn").forEach((btn) => {
+    tableWrap.querySelectorAll(".phase-del-btn").forEach((btn) => {
       btn.onclick = async () => {
         if (!(await confirmAction({ title: "Delete phase?", message: "Delete this draft phase?", confirmLabel: "Delete", variant: "danger" }))) return;
         try {
@@ -1041,7 +1187,7 @@ export function mountProjects(container) {
         }
       };
     });
-    return card;
+    return root;
   }
 
   function workflowButtons(entityType, row, path) {
@@ -1120,136 +1266,262 @@ export function mountProjects(container) {
     });
   }
 
-  function buildMilestonesTab() {
-    const card = sectionCard("Milestones", "Planning baseline with owner, role, and deadline");
-    const body = card.querySelector(".section-card-body");
-    if (!state.selectedProjectId) {
-      body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-      return card;
-    }
-    const phaseOpts = state.phases
-      .map((ph) => `<option value="${ph.id}">${escapeHtml(ph.name)}</option>`)
-      .join("");
-    const roleUsers = listRoleUsers();
-    const roleOpts = RESPONSIBLE_ROLES.map(
-      (r) => `<option value="${r}">${escapeHtml(roleLabel(r))}</option>`
-    ).join("");
-    const userOpts = roleUsers
-      .map(
-        (u) =>
-          `<option value="${u.id}">${escapeHtml(u.displayName || u.email || u.id)} (${escapeHtml(roleLabel(u.role))})</option>`
-      )
-      .join("");
-    const defaultOwner = getCurrentUserId();
-    const dependsOpts = state.milestones
-      .map((m) => `<option value="${m.id}">${escapeHtml(m.title)}</option>`)
-      .join("");
-    const form = document.createElement("form");
-    form.className = "form-grid proj-form";
-    form.innerHTML = `
-      <input name="title" placeholder="Milestone title *" required />
-      <select name="phaseId"><option value="">No phase</option>${phaseOpts}</select>
-      <label>Deadline <input name="plannedDate" type="date" required /></label>
-      <select name="dependsOnId" aria-label="Depends on milestone">
-        <option value="">Depends on (optional)</option>
-        ${dependsOpts}
-      </select>
-      <select name="responsibleRole" aria-label="Responsible role">
-        <option value="">Responsible role</option>
-        ${roleOpts}
-      </select>
-      <select name="ownerId" aria-label="Assigned user">
-        <option value="">Assigned user</option>
-        ${userOpts}
-      </select>
-      <input name="actualDate" type="date" />
-      <select name="status">
-        <option value="pending">pending</option>
-        <option value="in_progress">in_progress</option>
-        <option value="completed">completed</option>
-      </select>
-      <input name="remarks" placeholder="Remarks" />
-      <button type="submit" class="btn btn-primary btn-sm">Add milestone</button>
-    `;
-    if (form.ownerId && !form.ownerId.value) form.ownerId.value = defaultOwner;
-    const tableHost = document.createElement("div");
-    tableHost.className = "table-wrap";
-    body.append(form, tableHost);
+  function milestoneDeadlineCell(plannedDate) {
+    if (!plannedDate) return '<span class="text-muted">—</span>';
+    const label = formatDate(plannedDate);
+    if (!label) return `<span class="text-muted">${escapeHtml(plannedDate)}</span>`;
+    return `<span class="proj-home-timeline-pill">${escapeHtml(label)}</span>`;
+  }
 
+  function openAddMilestoneDialog() {
+    if (!state.selectedProjectId) {
+      showToast("Select a project first", "error");
+      return;
+    }
+    const milestones = state.milestones || [];
+    const roleUsers = listRoleUsers();
+    const defaultOwner = getCurrentUserId();
+    const phaseOptions = [
+      { value: "", label: "No phase" },
+      ...state.phases.map((ph) => ({ value: ph.id, label: ph.name })),
+    ];
+    const dependsOptions = [
+      { value: "", label: "Depends on (optional)" },
+      ...milestones.map((m) => ({ value: m.id, label: m.title })),
+    ];
+    const roleOptions = [
+      { value: "", label: "Responsible role" },
+      ...RESPONSIBLE_ROLES.map((r) => ({ value: r, label: roleLabel(r) })),
+    ];
+    const userOptions = [
+      { value: "", label: "Assigned user" },
+      ...roleUsers.map((u) => ({
+        value: u.id,
+        label: `${u.displayName || u.email || u.id} (${roleLabel(u.role)})`,
+      })),
+    ];
+    const statusOptions = [
+      { value: "pending", label: "Pending" },
+      { value: "in_progress", label: "In progress" },
+      { value: "completed", label: "Completed" },
+    ];
+
+    openCustFormDialog({
+      title: "Add milestone",
+      subtitle: "Set delivery deadline, owner, and optional dependencies for this project.",
+      submitLabel: "Add milestone",
+      modalClass: "proj-ms-modal",
+      values: {
+        title: "",
+        phaseId: "",
+        plannedDate: "",
+        dependsOnId: "",
+        responsibleRole: "",
+        ownerId: defaultOwner,
+        status: "pending",
+        actualDate: "",
+        remarks: "",
+      },
+      sections: [
+        {
+          title: "Milestone details",
+          fields: [
+            { name: "title", label: "Title *", type: "text", required: true },
+            { name: "phaseId", label: "Phase", type: "select", options: phaseOptions },
+            { name: "plannedDate", label: "Deadline *", type: "date", required: true },
+            { name: "dependsOnId", label: "Depends on", type: "select", options: dependsOptions },
+          ],
+        },
+        {
+          title: "Schedule & ownership",
+          fields: [
+            { name: "responsibleRole", label: "Responsible role", type: "select", options: roleOptions },
+            { name: "ownerId", label: "Assigned user", type: "select", options: userOptions },
+            { name: "status", label: "Status", type: "select", options: statusOptions },
+            { name: "actualDate", label: "Actual date (optional)", type: "date" },
+            { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true },
+          ],
+        },
+      ],
+      onReady: ({ form }) => {
+        if (form.ownerId && !form.ownerId.value) form.ownerId.value = defaultOwner;
+      },
+      onSave: async (data) => {
+        const now = Date.now();
+        const title = String(data.title || "").trim();
+        if (!title) {
+          showToast("Title is required", "error");
+          throw new Error("validation");
+        }
+        if (!data.plannedDate) {
+          showToast("Deadline is required", "error");
+          throw new Error("validation");
+        }
+        try {
+          const id = await create(`projectMilestones/${state.selectedProjectId}`, {
+            title,
+            phaseId: data.phaseId || "",
+            plannedDate: data.plannedDate,
+            actualDate: data.actualDate || "",
+            dependsOnId: data.dependsOnId || "",
+            status: data.status || "pending",
+            ownerId: data.ownerId || defaultOwner,
+            responsibleRole: data.responsibleRole || "",
+            remarks: String(data.remarks || "").trim(),
+            workflowStatus: "draft",
+            createdAt: now,
+            updatedAt: now,
+          });
+          await syncProjectProgress(state.selectedProjectId);
+          await auditProject(state, {
+            entityType: "milestone",
+            entityId: id,
+            action: "create",
+            diffSummary: `Milestone ${title}`,
+          });
+          showToast("Milestone added");
+        } catch (err) {
+          if (err?.message !== "validation") showToast(err.message, "error");
+          throw err;
+        }
+      },
+    });
+  }
+
+  function buildMilestonesTab() {
+    const root = document.createElement("div");
+    root.className = "proj-milestones-tab";
+    if (!state.selectedProjectId) {
+      root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+      return root;
+    }
+
+    const milestones = state.milestones || [];
+    const isOverdue = (m) => {
+      const v = milestoneVariance(m);
+      return v.key === "delayed" && m.status !== "completed";
+    };
+    const pendingApproval = milestones.filter(
+      (m) => (m.workflowStatus || "draft") === "submitted"
+    ).length;
+
+    const metricsSection = document.createElement("section");
+    metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-milestones-metrics";
+    metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Milestone overview</h4>`;
+    metricsSection.appendChild(
+      renderBoqStatGrid([
+        { label: "Total", value: milestones.length },
+        {
+          label: "Completed",
+          value: milestones.filter((m) => m.status === "completed").length,
+        },
+        {
+          label: "Overdue",
+          value: milestones.filter(isOverdue).length,
+          attention: milestones.filter(isOverdue).length > 0,
+        },
+        {
+          label: "Pending approval",
+          value: pendingApproval,
+          review: pendingApproval > 0,
+        },
+      ])
+    );
+    const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+    if (statGrid) statGrid.classList.add("proj-milestones-stat-grid");
+
+    const roleUsers = listRoleUsers();
     const userName = (id) => roleUsers.find((u) => u.id === id)?.displayName || id || "—";
 
-    const rows = state.milestones.map((m) => {
+    const rows = milestones.map((m) => {
       const v = milestoneVariance(m);
       const phase = state.phases.find((p) => p.id === m.phaseId);
+      const delaySub = m.delayCause
+        ? `<span class="chip delay-cause--${escapeHtml(m.delayCause)}">${escapeHtml(delayCauseLabel(m.delayCause))}</span>`
+        : "";
       return {
         ...m,
         _phase: phase?.name || "—",
         _variance: varianceChip(v.key, v.label),
         _owner: userName(m.ownerId),
-        _role: m.responsibleRole ? roleLabel(m.responsibleRole) : "—",
-        _delayCause: m.delayCause ? `<span class="chip delay-cause--${escapeHtml(m.delayCause)}">${escapeHtml(delayCauseLabel(m.delayCause))}</span>` : "—",
+        _delaySub: delaySub,
       };
     });
 
-    tableHost.innerHTML = `
-      <table class="dash-table">
-        <thead><tr><th>Milestone</th><th>Phase</th><th>Deadline</th><th>Owner</th><th>Role</th><th>Variance</th><th>Delay cause</th><th>Status</th><th>Approval</th><th></th></tr></thead>
+    const countLabel =
+      rows.length === 1
+        ? "Showing 1 of 1 milestone"
+        : `Showing ${rows.length} of ${rows.length} milestones`;
+
+    const tableWrap = document.createElement("div");
+    tableWrap.className = "reports-table-wrap proj-milestones-table proj-milestones-table-shell";
+    tableWrap.innerHTML = `
+      <div class="proj-milestones-table-head-row">
+        <h4 class="proj-boq-section-title proj-milestones-table-head">Milestone schedule</h4>
+        <button type="button" class="btn btn-primary btn-sm proj-ms-add-btn">Add milestone</button>
+      </div>
+      <table class="dash-table projects-table">
+        <colgroup>
+          <col class="proj-milestones-col-name" />
+          <col class="proj-milestones-col-equal" />
+          <col class="proj-milestones-col-equal" />
+          <col class="proj-milestones-col-equal" />
+          <col class="proj-milestones-col-equal" />
+          <col class="proj-milestones-col-equal" />
+          <col class="proj-milestones-col-equal" />
+          <col class="proj-milestones-col-equal" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Milestone</th>
+            <th>Phase</th>
+            <th>Deadline</th>
+            <th>Owner</th>
+            <th>Variance</th>
+            <th>Status</th>
+            <th>Workflow</th>
+            <th class="rep-col-actions">Actions</th>
+          </tr>
+        </thead>
         <tbody>
-          ${rows.length ? rows.map((m) => {
-            const wfPath = `projectMilestones/${state.selectedProjectId}/${m.id}`;
-            const wfRow = { ...m, status: m.workflowStatus || "draft" };
-            return `
+          ${
+            rows.length
+              ? rows
+                  .map((m) => {
+                    const wfPath = `projectMilestones/${state.selectedProjectId}/${m.id}`;
+                    const wfRow = { ...m, status: m.workflowStatus || "draft" };
+                    const titleCell = m._delaySub
+                      ? `<strong>${escapeHtml(m.title)}</strong><div class="proj-milestones-milestone-sub">${m._delaySub}</div>`
+                      : `<strong>${escapeHtml(m.title)}</strong>`;
+                    return `
             <tr>
-              <td><strong>${escapeHtml(m.title)}</strong></td>
+              <td>${titleCell}</td>
               <td>${escapeHtml(m._phase)}</td>
-              <td>${m.plannedDate || "—"}</td>
-              <td>${escapeHtml(m._owner)}</td>
-              <td>${escapeHtml(m._role)}</td>
+              <td>${milestoneDeadlineCell(m.plannedDate)}</td>
+              <td class="proj-milestones-owner">${escapeHtml(m._owner)}</td>
               <td>${m._variance}</td>
-              <td>${m._delayCause}</td>
               <td>${statusChip(m.status)}</td>
               <td>${workflowButtons("milestone", wfRow, wfPath)}</td>
-              <td><button type="button" class="btn btn-ghost btn-sm ms-edit-btn" data-id="${m.id}">Edit</button></td>
+              <td class="rep-col-actions proj-row-actions-cell">
+                <button type="button" class="btn btn-ghost btn-sm ms-edit-btn" data-id="${m.id}">Edit</button>
+              </td>
             </tr>`;
-          }).join("") : '<tr class="empty-row"><td colspan="10">No milestones</td></tr>'}
+                  })
+                  .join("")
+              : '<tr class="empty-row"><td colspan="8">No milestones yet — click Add milestone</td></tr>'
+          }
         </tbody>
       </table>
+      <div class="reports-widget-foot">
+        <span class="reports-widget-foot-meta">${escapeHtml(countLabel)}</span>
+      </div>
     `;
 
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const now = Date.now();
-      try {
-        const id = await create(`projectMilestones/${state.selectedProjectId}`, {
-          title: form.title.value.trim(),
-          phaseId: form.phaseId.value,
-          plannedDate: form.plannedDate.value,
-          actualDate: form.actualDate.value,
-          dependsOnId: form.dependsOnId?.value || "",
-          status: form.status.value,
-          ownerId: form.ownerId.value || defaultOwner,
-          responsibleRole: form.responsibleRole.value,
-          remarks: form.remarks.value.trim(),
-          workflowStatus: "draft",
-          createdAt: now,
-          updatedAt: now,
-        });
-        await syncProjectProgress(state.selectedProjectId);
-        await auditProject(state, {
-          entityType: "milestone",
-          entityId: id,
-          action: "create",
-          diffSummary: `Milestone ${form.title.value}`,
-        });
-        form.reset();
-        if (form.ownerId) form.ownerId.value = defaultOwner;
-        showToast("Milestone added");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    };
+    root.append(metricsSection, tableWrap);
 
-    tableHost.querySelectorAll(".ms-edit-btn").forEach((btn) => {
+    tableWrap.querySelector(".proj-ms-add-btn")?.addEventListener("click", () => openAddMilestoneDialog());
+
+    tableWrap.querySelectorAll(".ms-edit-btn").forEach((btn) => {
       btn.onclick = () => {
         const m = rows.find((x) => x.id === btn.dataset.id);
         if (!m) return;
@@ -1277,7 +1549,7 @@ export function mountProjects(container) {
               type: "select",
               options: [
                 { value: "", label: "—" },
-                ...state.milestones
+                ...milestones
                   .filter((x) => x.id !== m.id)
                   .map((x) => ({ value: x.id, label: x.title })),
               ],
@@ -1322,35 +1594,218 @@ export function mountProjects(container) {
         );
       };
     });
-    wireMilestoneWorkflow(tableHost);
-    return card;
+    wireMilestoneWorkflow(tableWrap);
+    return root;
   }
 
   function buildTimelineTab() {
-    const card = sectionCard("Timeline", "Phase and milestone schedule with dependencies");
-    const body = card.querySelector(".section-card-body");
+    const root = document.createElement("div");
+    root.className = "proj-timeline-tab";
     if (!state.selectedProjectId) {
-      body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-      return card;
+      root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+      return root;
     }
+
     const p = getSelected();
-    body.appendChild(renderProjectTimeline(p, state.phases, state.milestones));
-    return card;
+    const phases = state.phases || [];
+    const milestones = state.milestones || [];
+    const isOverdue = (m) => {
+      const v = milestoneVariance(m);
+      return v.key === "delayed" && m.status !== "completed";
+    };
+    const overdueCount = milestones.filter(isOverdue).length;
+
+    const metricsSection = document.createElement("section");
+    metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-timeline-metrics";
+    metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Schedule overview</h4>`;
+    metricsSection.appendChild(
+      renderBoqStatGrid([
+        { label: "Phases", value: phases.length },
+        { label: "Milestones", value: milestones.length },
+        {
+          label: "Completed",
+          value: milestones.filter((m) => m.status === "completed").length,
+        },
+        {
+          label: "Overdue",
+          value: overdueCount,
+          attention: overdueCount > 0,
+        },
+      ])
+    );
+    const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+    if (statGrid) statGrid.classList.add("proj-timeline-stat-grid");
+
+    const ganttShell = document.createElement("div");
+    ganttShell.className = "proj-timeline-gantt-shell";
+    ganttShell.innerHTML = `
+      <div class="proj-timeline-gantt-head-row">
+        <h4 class="proj-boq-section-title proj-timeline-gantt-head">Gantt schedule</h4>
+        <div class="proj-timeline-legend" aria-hidden="true">
+          <span class="proj-timeline-legend-item"><span class="proj-timeline-legend-swatch proj-timeline-legend-swatch--phase"></span>Phase</span>
+          <span class="proj-timeline-legend-item"><span class="proj-timeline-legend-swatch proj-timeline-legend-swatch--scheduled"></span>Scheduled</span>
+          <span class="proj-timeline-legend-item"><span class="proj-timeline-legend-swatch proj-timeline-legend-swatch--done"></span>Completed</span>
+        </div>
+      </div>
+      <div class="proj-timeline-gantt-body"></div>
+    `;
+
+    const ganttBody = ganttShell.querySelector(".proj-timeline-gantt-body");
+
+    if (!phases.length && !milestones.length) {
+      ganttBody.innerHTML = `
+        <div class="proj-timeline-empty">
+          <p class="proj-empty">Add phases and milestones to build your schedule.</p>
+          <div class="proj-timeline-empty-actions">
+            <button type="button" class="btn btn-ghost btn-sm" data-go-tab="phases">Go to Phases</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-go-tab="milestones">Go to Milestones</button>
+          </div>
+        </div>
+      `;
+      ganttBody.querySelectorAll("[data-go-tab]").forEach((btn) => {
+        btn.addEventListener("click", () => navigateProjectTab(btn.dataset.goTab));
+      });
+    } else {
+      ganttBody.appendChild(renderProjectTimeline(p, phases, milestones, { hub: true }));
+    }
+
+    root.append(metricsSection, ganttShell);
+    return root;
+  }
+
+  function openAddDocumentDialog() {
+    if (!state.selectedProjectId) {
+      showToast("Select a project first", "error");
+      return;
+    }
+    const typeOptions = DOCUMENT_TYPES.map((t) => ({ value: t, label: t }));
+
+    openCustFormDialog({
+      title: "Add document",
+      subtitle:
+        "Paste a shareable HTTPS link (Drive, SharePoint, etc.). File upload is not stored in ERP yet.",
+      submitLabel: "Add document",
+      modalClass: "proj-doc-modal",
+      values: { title: "", type: "Drawing", fileUrl: "", expiryDate: "" },
+      sections: [
+        {
+          title: "Document details",
+          fields: [
+            { name: "title", label: "Title *", type: "text", required: true },
+            { name: "type", label: "Type", type: "select", options: typeOptions },
+            {
+              name: "fileUrl",
+              label: "Document link *",
+              type: "text",
+              required: true,
+              hint: "Use a shareable HTTPS link only. Uploaded files are not stored in ERP yet.",
+            },
+          ],
+        },
+        {
+          title: "Compliance",
+          fields: [{ name: "expiryDate", label: "Expiry date *", type: "date", hidden: true }],
+        },
+      ],
+      onReady: ({ form }) => {
+        const typeSel = form.querySelector('[name="type"]');
+        const expiryInput = form.querySelector('[name="expiryDate"]');
+        const expiryWrap = expiryInput?.closest(".cust-form-field");
+        const syncExpiryField = () => {
+          const show = requiresExpiry(typeSel?.value || "");
+          if (expiryWrap) expiryWrap.hidden = !show;
+          if (expiryInput) expiryInput.required = show;
+        };
+        typeSel?.addEventListener("change", syncExpiryField);
+        syncExpiryField();
+      },
+      onSave: async (data) => {
+        const title = String(data.title || "").trim();
+        if (!title) {
+          showToast("Title is required", "error");
+          throw new Error("validation");
+        }
+        const fileUrl = String(data.fileUrl || "").trim();
+        const urlCheck = validateUrl(fileUrl);
+        if (!urlCheck.ok) {
+          showToast(urlCheck.message, "error");
+          throw new Error("validation");
+        }
+        const docType = data.type || "Drawing";
+        const expiryDate = String(data.expiryDate || "");
+        if (requiresExpiry(docType) && !expiryDate) {
+          showToast("Expiry date required for Permit/License documents", "error");
+          throw new Error("validation");
+        }
+        try {
+          await createProjectDocument({
+            projectId: state.selectedProjectId,
+            title,
+            type: docType,
+            fileUrl,
+            expiryDate,
+          });
+          showToast("Document added");
+        } catch (err) {
+          if (err?.message !== "validation") showToast(err.message, "error");
+          throw err;
+        }
+      },
+    });
   }
 
   function buildDocumentsTab() {
-    const card = sectionCard("Documents", "Central repository — paste HTTPS links (Drive, SharePoint, etc.); file upload is not enabled yet.");
-    const body = card.querySelector(".section-card-body");
+    const root = document.createElement("div");
+    root.className = "proj-documents-tab";
     if (!state.selectedProjectId) {
-      body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-      return card;
+      root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+      return root;
     }
 
-    const expiryAlerts = listDocumentExpiryAlerts(state.documents);
+    const docs = state.documents || [];
+    const pendingApproval = docs.filter((d) => (d.status || "draft") === "submitted").length;
+    let expiringSoon = 0;
+    let expired = 0;
+    for (const d of docs) {
+      const dtype = documentDisplayType(d);
+      if (!requiresExpiry(dtype)) continue;
+      const lvl = expiryAlertLevel(d.expiryDate);
+      if (lvl === "warn") expiringSoon++;
+      if (lvl === "critical") expired++;
+    }
+
+    const metricsSection = document.createElement("section");
+    metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-documents-metrics";
+    metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Document overview</h4>`;
+    metricsSection.appendChild(
+      renderBoqStatGrid([
+        { label: "Total", value: docs.length },
+        {
+          label: "Pending approval",
+          value: pendingApproval,
+          review: pendingApproval > 0,
+        },
+        {
+          label: "Expiring soon",
+          value: expiringSoon,
+          attention: expiringSoon > 0,
+        },
+        {
+          label: "Expired",
+          value: expired,
+          attention: expired > 0,
+        },
+      ])
+    );
+    const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+    if (statGrid) statGrid.classList.add("proj-documents-stat-grid");
+
+    const expiryAlerts = listDocumentExpiryAlerts(docs);
+    let expiryBanner = null;
     if (expiryAlerts.length) {
-      const banner = document.createElement("div");
-      banner.className = "doc-expiry-banner";
-      banner.innerHTML = expiryAlerts
+      expiryBanner = document.createElement("div");
+      expiryBanner.className = "proj-documents-expiry-banner doc-expiry-banner";
+      expiryBanner.innerHTML = expiryAlerts
         .map(({ doc, level }) => {
           const cls = level === "critical" ? "doc-expiry-critical" : "doc-expiry-warn";
           const days = daysUntilExpiry(doc.expiryDate);
@@ -1361,110 +1816,105 @@ export function mountProjects(container) {
           return `<div class="doc-expiry-chip ${cls}">${msg}</div>`;
         })
         .join("");
-      body.appendChild(banner);
     }
 
-    const form = document.createElement("form");
-    form.className = "form-grid proj-form doc-form";
-    form.innerHTML = `
-      <input name="title" placeholder="Document title *" required />
-      <select name="type" aria-label="Document type">
-        ${DOCUMENT_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("")}
-      </select>
-      <input name="fileUrl" placeholder="https://… document link" required />
-      <p class="form-hint text-muted proj-doc-link-hint">Use a shareable HTTPS link only. Uploaded files are not stored in ERP yet.</p>
-      <input name="expiryDate" type="date" class="doc-expiry-field" hidden aria-label="Expiry date" />
-      <button type="submit" class="btn btn-primary btn-sm">Add document</button>
-    `;
-    const typeSel = form.type;
-    const expiryField = form.expiryDate;
-    const syncExpiryField = () => {
-      const show = requiresExpiry(typeSel.value);
-      expiryField.hidden = !show;
-      expiryField.required = show;
-    };
-    typeSel.onchange = syncExpiryField;
-    syncExpiryField();
+    const countLabel =
+      docs.length === 1
+        ? "Showing 1 of 1 document"
+        : `Showing ${docs.length} of ${docs.length} documents`;
 
-    const list = document.createElement("div");
-    list.className = "table-wrap doc-table-wrap";
-    const docs = state.documents || [];
-    list.innerHTML = `
-      <table class="dash-table">
-        <thead><tr>
-          <th>Title</th><th>Type</th><th>Ver</th><th>Expiry</th><th>File</th><th>Status</th><th>Actions</th>
-        </tr></thead>
+    const tableWrap = document.createElement("div");
+    tableWrap.className = "reports-table-wrap proj-documents-table proj-documents-table-shell";
+    tableWrap.innerHTML = `
+      <div class="proj-documents-table-head-row">
+        <h4 class="proj-boq-section-title proj-documents-table-head">Project documents</h4>
+        <button type="button" class="btn btn-primary btn-sm proj-documents-add-btn">Add document</button>
+      </div>
+      <table class="dash-table projects-table">
+        <colgroup>
+          <col class="proj-documents-col-equal" />
+          <col class="proj-documents-col-equal" />
+          <col class="proj-documents-col-equal" />
+          <col class="proj-documents-col-equal" />
+          <col class="proj-documents-col-equal" />
+          <col class="proj-documents-col-equal" />
+          <col class="proj-documents-col-equal" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Type</th>
+            <th>Ver</th>
+            <th>Expiry</th>
+            <th>File</th>
+            <th>Status</th>
+            <th class="rep-col-actions">Actions</th>
+          </tr>
+        </thead>
         <tbody>
-          ${docs.length ? docs.map((d) => {
-            const path = `projectDocuments/${state.selectedProjectId}/${d.id}`;
-            const dtype = documentDisplayType(d);
-            const ver = documentVersion(d);
-            const expLvl = requiresExpiry(dtype) ? expiryAlertLevel(d.expiryDate) : null;
-            const expCell = d.expiryDate
-              ? `<span class="doc-expiry-chip doc-expiry-${expLvl || "ok"}">${formatDate(d.expiryDate)}</span>`
-              : "—";
-            const link = d.fileUrl
-              ? `<a href="${escapeHtml(d.fileUrl)}" target="_blank" rel="noopener">Open</a>`
-              : '<span class="text-muted">—</span>';
-            const hist = Array.isArray(d.revisionHistory) ? d.revisionHistory : [];
-            const histRow = hist.length
-              ? `<tr class="doc-revision-history-row"><td colspan="7">
+          ${
+            docs.length
+              ? docs
+                  .map((d) => {
+                    const path = `projectDocuments/${state.selectedProjectId}/${d.id}`;
+                    const dtype = documentDisplayType(d);
+                    const ver = documentVersion(d);
+                    const expLvl = requiresExpiry(dtype) ? expiryAlertLevel(d.expiryDate) : null;
+                    const expCell = d.expiryDate
+                      ? `<span class="doc-expiry-chip doc-expiry-${expLvl || "ok"}">${formatDate(d.expiryDate)}</span>`
+                      : "—";
+                    const link = d.fileUrl
+                      ? `<a href="${escapeHtml(d.fileUrl)}" target="_blank" rel="noopener">Open</a>`
+                      : '<span class="text-muted">—</span>';
+                    const hist = Array.isArray(d.revisionHistory) ? d.revisionHistory : [];
+                    const histRow = hist.length
+                      ? `<tr class="doc-revision-history-row"><td colspan="7">
                   <div class="doc-revision-history">
                     <strong>Revision history</strong>
                     <ul>${hist.map((h) => `<li>v${h.version} ${escapeHtml(h.revisionLabel || "")} — ${escapeHtml(h.fileUrl || "no file")}</li>`).join("")}</ul>
                   </div>
                 </td></tr>`
-              : "";
-            return `<tr data-doc-id="${d.id}">
-              <td><strong>${escapeHtml(d.title)}</strong><br><small class="text-muted">${escapeHtml(d.revision || `Rev ${ver}`)}</small></td>
+                      : "";
+                    return `<tr data-doc-id="${escapeHtml(d.id)}">
+              <td>
+                <strong class="proj-documents-title-main">${escapeHtml(d.title)}</strong>
+                <div class="proj-documents-title-sub text-muted">${escapeHtml(d.revision || `Rev ${ver}`)}</div>
+              </td>
               <td>${escapeHtml(dtype)}</td>
               <td>${ver}</td>
               <td>${expCell}</td>
               <td>${link}</td>
               <td>${statusChip(d.status || "draft")}</td>
-              <td class="proj-row-actions-cell">
+              <td class="rep-col-actions proj-row-actions-cell">
                 ${workflowButtonsHtml(d, path, "document")}
-                <button type="button" class="btn btn-ghost btn-sm doc-rev-btn" data-id="${d.id}">New revision</button>
+                <button type="button" class="btn btn-ghost btn-sm doc-rev-btn" data-id="${escapeHtml(d.id)}">New revision</button>
               </td>
             </tr>${histRow}`;
-          }).join("") : '<tr class="empty-row"><td colspan="7">No documents</td></tr>'}
+                  })
+                  .join("")
+              : '<tr class="empty-row"><td colspan="7">No documents — click Add document</td></tr>'
+          }
         </tbody>
       </table>
+      <div class="reports-widget-foot">
+        <span class="reports-widget-foot-meta">${escapeHtml(countLabel)}</span>
+      </div>
     `;
 
-    body.append(form, list);
+    if (expiryBanner) root.append(metricsSection, expiryBanner, tableWrap);
+    else root.append(metricsSection, tableWrap);
 
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const fileUrl = form.fileUrl.value.trim();
-      const urlCheck = validateUrl(fileUrl);
-      if (!urlCheck.ok) {
-        showToast(urlCheck.message, "error");
-        return;
-      }
-      try {
-        await createProjectDocument({
-          projectId: state.selectedProjectId,
-          title: form.title.value.trim(),
-          type: form.type.value,
-          fileUrl,
-          expiryDate: form.expiryDate.value,
-        });
-        form.reset();
-        syncExpiryField();
-        showToast("Document added");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    };
+    tableWrap.querySelector(".proj-documents-add-btn")?.addEventListener("click", () =>
+      openAddDocumentDialog()
+    );
 
-    wireGovWorkflowButtons(list, (btn) => ({
+    wireGovWorkflowButtons(tableWrap, (btn) => ({
       projectId: state.selectedProjectId,
       entityType: "document",
       title: docs.find((x) => x.id === btn.dataset.id)?.title,
     }));
 
-    list.querySelectorAll(".doc-rev-btn").forEach((btn) => {
+    tableWrap.querySelectorAll(".doc-rev-btn").forEach((btn) => {
       btn.onclick = () => {
         const doc = docs.find((x) => x.id === btn.dataset.id);
         if (!doc) return;
@@ -1479,7 +1929,7 @@ export function mountProjects(container) {
             const urlCheck = validateUrl(vals.fileUrl);
             if (!urlCheck.ok) {
               showToast(urlCheck.message, "error");
-              return;
+              throw new Error("validation");
             }
             await uploadDocumentRevision(state.selectedProjectId, doc.id, {
               fileUrl: vals.fileUrl,
@@ -1491,77 +1941,182 @@ export function mountProjects(container) {
       };
     });
 
-    return card;
+    return root;
   }
 
-  function buildActivityTab() {
-    const card = sectionCard("Audit Activity", "Recent changes for this project");
-    const body = card.querySelector(".section-card-body");
-    const entityLabels = {
-      project: "Project",
-      unit: "Unit",
-      phase: "Phase",
-      milestone: "Milestone",
-      document: "Document",
-      boq: "BOQ",
-      progress: "Progress",
-      qualityCheck: "Quality",
-      safetyIncident: "Safety",
-      ncrReport: "NCR",
-      changeOrder: "Change order",
-      contractClaim: "Claim",
-      measurementEntry: "Measurement",
-      ipcBill: "IPC bill",
-      eotRequest: "EOT",
-    };
-    const actionLabels = {
-      create: "Created",
-      update: "Updated",
-      status_change: "Status changed",
-      contract_update: "Contract updated",
-    };
-    const logs = state.auditLogs
+  const PROJECT_ACTIVITY_ENTITY_LABELS = {
+    project: "Project",
+    unit: "Unit",
+    phase: "Phase",
+    milestone: "Milestone",
+    document: "Document",
+    boq: "BOQ",
+    progress: "Progress",
+    qualityCheck: "Quality",
+    safetyIncident: "Safety",
+    ncrReport: "NCR",
+    changeOrder: "Change order",
+    contractClaim: "Claim",
+    measurementEntry: "Measurement",
+    ipcBill: "IPC bill",
+    eotRequest: "EOT",
+    paymentMilestone: "Payment",
+  };
+
+  const PROJECT_ACTIVITY_ACTION_LABELS = {
+    create: "Created",
+    update: "Updated",
+    status_change: "Status changed",
+    contract_update: "Contract updated",
+  };
+
+  function activityEntityTypeClass(entityType) {
+    return String(entityType || "project")
+      .replace(/([A-Z])/g, "-$1")
+      .toLowerCase()
+      .replace(/^-/, "");
+  }
+
+  function getProjectActivityLogs(projectState, limit, { requireProject = false } = {}) {
+    const pid = projectState.selectedProjectId;
+    if (requireProject && !pid) return [];
+    return (projectState.auditLogs || [])
       .filter((l) => {
-        if (!state.selectedProjectId) return true;
-        const pid = state.selectedProjectId;
+        if (!pid) return true;
         return l.projectId === pid || l.entityId === pid;
       })
       .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-      .slice(0, 50);
-    if (!logs.length) {
-      body.innerHTML = `<p class="proj-empty">No audit entries for this project yet</p>`;
-      return card;
+      .slice(0, limit);
+  }
+
+  function buildActivityTimelineHtml(logs, { variant = "hub" } = {}) {
+    const entityLabels = PROJECT_ACTIVITY_ENTITY_LABELS;
+    const actionLabels = PROJECT_ACTIVITY_ACTION_LABELS;
+    const ulClass =
+      variant === "hub"
+        ? "proj-activity-timeline proj-activity-timeline--hub"
+        : "proj-activity-timeline";
+    const itemHtml = (l) => {
+      const action = escapeHtml(actionLabels[l.action] || l.action);
+      const badge = escapeHtml(entityLabels[l.entityType] || l.entityType);
+      const badgeClass = escapeHtml(activityEntityTypeClass(l.entityType));
+      const summary = escapeHtml(l.diffSummary || "");
+      const when = formatDate(l.timestamp);
+      if (variant === "hub") {
+        return `
+          <li class="proj-activity-item">
+            <div class="proj-activity-main">
+              <div class="proj-activity-head">
+                <div class="proj-activity-head-start">
+                  <span class="proj-activity-action">${action}</span>
+                  <span class="proj-activity-badge proj-activity-badge--${badgeClass}">${badge}</span>
+                </div>
+                <time class="proj-activity-time">${when}</time>
+              </div>
+              <p class="proj-activity-summary">${summary}</p>
+            </div>
+          </li>`;
+      }
+      return `
+          <li class="proj-activity-item">
+            <span class="proj-activity-dot" aria-hidden="true"></span>
+            <div class="proj-activity-main">
+              <div class="proj-activity-head">
+                <span class="proj-activity-action">${action}</span>
+                <span class="proj-activity-badge proj-activity-badge--${badgeClass}">${badge}</span>
+              </div>
+              <p class="proj-activity-summary">${summary}</p>
+            </div>
+            <time class="proj-activity-time">${when}</time>
+          </li>`;
+    };
+    return `<ul class="${ulClass}">
+        ${logs.map((l) => itemHtml(l)).join("")}
+      </ul>`;
+  }
+
+  function renderActivityEmptyBlock() {
+    const wrap = document.createElement("div");
+    wrap.className = "proj-activity-empty";
+    wrap.innerHTML = `
+          <span class="proj-activity-empty-icon" aria-hidden="true">${icon("activity", { size: 28, className: "icon" })}</span>
+          <p class="proj-activity-empty-title">No activity yet</p>
+          <p class="proj-activity-empty-hint">Changes to BOQ, billing, and quality will show up here.</p>`;
+    return wrap;
+  }
+
+  function buildActivityTab() {
+    const root = document.createElement("div");
+    root.className = "proj-activity-tab";
+    if (!state.selectedProjectId) {
+      root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+      return root;
     }
-    body.innerHTML = `
-      <ul class="proj-audit-list">
-        ${logs
-          .map(
-            (l) => `
-          <li>
-            <span class="proj-audit-action">${escapeHtml(actionLabels[l.action] || l.action)}</span>
-            <span class="proj-audit-entity">${escapeHtml(entityLabels[l.entityType] || l.entityType)}</span>
-            <p>${escapeHtml(l.diffSummary || "")}</p>
-            <time>${formatDate(l.timestamp)}</time>
-          </li>`
-          )
-          .join("")}
-      </ul>
-    `;
-    return card;
+
+    const logs = getProjectActivityLogs(state, 50);
+    const createCount = logs.filter((l) => l.action === "create").length;
+    const statusCount = logs.filter((l) => l.action === "status_change").length;
+    const updateCount = logs.filter(
+      (l) => l.action === "update" || l.action === "contract_update"
+    ).length;
+
+    const metricsSection = document.createElement("section");
+    metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-activity-metrics";
+    metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Activity overview</h4>`;
+    metricsSection.appendChild(
+      renderBoqStatGrid([
+        { label: "Entries shown", value: logs.length },
+        { label: "Created", value: createCount },
+        { label: "Status changes", value: statusCount, attention: statusCount > 0 },
+        { label: "Updates", value: updateCount },
+      ])
+    );
+    const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+    if (statGrid) statGrid.classList.add("proj-activity-stat-grid");
+
+    const feedShell = document.createElement("div");
+    feedShell.className = "reports-table-wrap proj-activity-feed-shell";
+    const head = document.createElement("div");
+    head.className = "proj-activity-feed-head-row";
+    head.innerHTML = `<h4 class="proj-boq-section-title proj-activity-feed-head">Project activity</h4>`;
+    feedShell.appendChild(head);
+
+    const body = document.createElement("div");
+    body.className = "proj-activity-feed-body";
+    if (logs.length) {
+      body.innerHTML = buildActivityTimelineHtml(logs);
+    } else {
+      body.appendChild(renderActivityEmptyBlock());
+    }
+    feedShell.appendChild(body);
+
+    const foot = document.createElement("div");
+    foot.className = "reports-widget-foot";
+    const countLabel =
+      logs.length === 0
+        ? "No entries"
+        : logs.length === 1
+          ? "Showing 1 of 1 entry (latest 50)"
+          : `Showing ${logs.length} of ${logs.length} entries (latest 50)`;
+    foot.innerHTML = `<span class="reports-widget-foot-meta">${escapeHtml(countLabel)}</span>`;
+    feedShell.appendChild(foot);
+
+    root.append(metricsSection, feedShell);
+    return root;
   }
 
   function buildProfileDefItems(p) {
     const timeline = formatDateRange(p.startDate, p.endDate);
     const items = [
-      { label: "Client", value: p.clientName || "—" },
-      { label: "Project manager", value: resolveManagerLabel(p.projectManagerId) },
-      { label: "Timeline", value: timeline },
+      { label: "Client", value: p.clientName || "—", icon: "users" },
+      { label: "Project manager", value: resolveManagerLabel(p.projectManagerId), icon: "userCheck" },
+      { label: "Timeline", value: timeline, icon: "calendar", isTimeline: true },
     ];
     if (isGovProject(p)) {
       items.push(
-        { label: "Employer agency", value: p.employerAgency || "—" },
-        { label: "Tender ref", value: p.tenderRef || "—" },
-        { label: "Work order", value: p.workOrderNo || "—" }
+        { label: "Employer agency", value: p.employerAgency || "—", icon: "landmark" },
+        { label: "Tender ref", value: p.tenderRef || "—", icon: "fileText" },
+        { label: "Work order", value: p.workOrderNo || "—", icon: "fileText" }
       );
     } else {
       const boqCount = state.boqItems.filter(
@@ -1570,67 +2125,23 @@ export function mountProjects(container) {
       items.push({
         label: "BOQ lines",
         value: String(boqCount),
+        icon: "layers",
       });
     }
     return items;
   }
 
   function renderRecentActivityBlock(limit = 5) {
-    const entityLabels = {
-      project: "Project",
-      unit: "Unit",
-      phase: "Phase",
-      milestone: "Milestone",
-      document: "Document",
-      boq: "BOQ",
-      progress: "Progress",
-      qualityCheck: "Quality",
-      safetyIncident: "Safety",
-      ncrReport: "NCR",
-      changeOrder: "Change order",
-      contractClaim: "Claim",
-      measurementEntry: "Measurement",
-      ipcBill: "IPC bill",
-      eotRequest: "EOT",
-    };
-    const actionLabels = {
-      create: "Created",
-      update: "Updated",
-      status_change: "Status changed",
-      contract_update: "Contract updated",
-    };
-    const logs = state.auditLogs
-      .filter((l) => {
-        if (!state.selectedProjectId) return false;
-        const pid = state.selectedProjectId;
-        return l.projectId === pid || l.entityId === pid;
-      })
-      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-      .slice(0, limit);
+    const logs = getProjectActivityLogs(state, limit, { requireProject: true });
 
     const section = document.createElement("div");
     section.className = "proj-home-activity";
-    section.innerHTML = `<h4 class="proj-home-section-title">Recent activity</h4>`;
     if (!logs.length) {
-      section.innerHTML += `<p class="proj-empty">No activity yet</p>`;
+      section.appendChild(renderActivityEmptyBlock());
       return section;
     }
-    section.innerHTML += `
-      <ul class="proj-audit-list proj-audit-list--compact">
-        ${logs
-          .map(
-            (l) => `
-          <li>
-            <span class="proj-audit-action">${escapeHtml(actionLabels[l.action] || l.action)}</span>
-            <span class="proj-audit-entity">${escapeHtml(entityLabels[l.entityType] || l.entityType)}</span>
-            <p>${escapeHtml(l.diffSummary || "")}</p>
-            <time>${formatDate(l.timestamp)}</time>
-          </li>`
-          )
-          .join("")}
-      </ul>
-    `;
-  const viewAll = document.createElement("button");
+    section.innerHTML = buildActivityTimelineHtml(logs, { variant: "home" });
+    const viewAll = document.createElement("button");
     viewAll.type = "button";
     viewAll.className = "btn btn-ghost btn-sm proj-home-view-all";
     viewAll.textContent = "View all activity →";
@@ -1642,19 +2153,18 @@ export function mountProjects(container) {
   function renderQuickActions(p) {
     const wrap = document.createElement("div");
     wrap.className = "proj-home-actions";
-    wrap.innerHTML = `<h4 class="proj-home-section-title">Quick actions</h4>`;
     const actions = document.createElement("div");
-    actions.className = "proj-home-action-btns";
+    actions.className = "proj-home-action-grid";
     const btns = [
-      { label: "Add BOQ line", onclick: () => navigateProjectTab("boq") },
-      { label: "Log progress", onclick: () => navigateProjectTab("progress") },
-      { label: "New document", onclick: () => navigateProjectTab("documents") },
+      { label: "Add BOQ line", icon: "layers", onclick: () => navigateProjectTab("boq") },
+      { label: "Log progress", icon: "activity", onclick: () => navigateProjectTab("progress") },
+      { label: "New document", icon: "folder", onclick: () => navigateProjectTab("documents") },
     ];
     for (const b of btns) {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "btn btn-ghost btn-sm";
-      btn.textContent = b.label;
+      btn.className = "proj-home-action-tile";
+      btn.innerHTML = `<span class="proj-home-action-tile-icon" aria-hidden="true">${icon(b.icon, { size: 20, className: "icon" })}</span><span class="proj-home-action-tile-label">${escapeHtml(b.label)}</span>`;
       btn.onclick = b.onclick;
       actions.appendChild(btn);
     }
@@ -1666,19 +2176,20 @@ export function mountProjects(container) {
     const pid = p.id;
     const boqCount = state.boqItems.filter((b) => !b.projectId || b.projectId === pid).length;
     const phases = state.phases.filter((ph) => !ph.projectId || ph.projectId === pid).length;
-    const docs = state.documents.length;
+    const docs = (state.documents || []).filter((d) => !d.projectId || d.projectId === pid).length;
     const strip = document.createElement("div");
-    strip.className = "proj-home-health-strip";
+    strip.className = "proj-home-stat-grid";
     const widgets = [
-      { label: "BOQ lines", value: String(boqCount), tab: "boq" },
-      { label: "Phases", value: String(phases), tab: "phases" },
-      { label: "Documents", value: String(docs), tab: "documents" },
+      { label: "BOQ lines", value: String(boqCount), tab: "boq", icon: "layers" },
+      { label: "Phases", value: String(phases), tab: "phases", icon: "calendar" },
+      { label: "Documents", value: String(docs), tab: "documents", icon: "folder" },
     ];
     strip.innerHTML = widgets
       .map(
-        (w) => `<button type="button" class="proj-home-widget" data-tab="${w.tab}">
-        <span class="proj-home-widget-label">${escapeHtml(w.label)}</span>
-        <span class="proj-home-widget-value">${escapeHtml(w.value)}</span>
+        (w) => `<button type="button" class="proj-home-stat-tile" data-tab="${w.tab}">
+        <span class="proj-home-stat-tile-icon" aria-hidden="true">${icon(w.icon, { size: 18, className: "icon" })}</span>
+        <span class="proj-home-stat-tile-value">${escapeHtml(w.value)}</span>
+        <span class="proj-home-stat-tile-label">${escapeHtml(w.label)}</span>
       </button>`
       )
       .join("");
@@ -1699,9 +2210,9 @@ export function mountProjects(container) {
     grid.className = "proj-home-grid";
 
     const glance = document.createElement("section");
-    glance.className = "proj-home-col proj-home-glance";
-    glance.appendChild(renderTabToolbar("At a glance"));
-    glance.appendChild(renderProfileDefinitionList(buildProfileDefItems(p)));
+    glance.className = "proj-home-col proj-home-col--elevated proj-home-glance";
+    glance.innerHTML = `<h4 class="proj-home-section-title">At a glance</h4>`;
+    glance.appendChild(renderProfileGlanceRows(buildProfileDefItems(p)));
     const desc = renderProfileDescription(p.description, { clamp: true });
     if (desc) glance.appendChild(desc);
     if (isGovProject(p)) {
@@ -1714,7 +2225,8 @@ export function mountProjects(container) {
     }
 
     const healthCol = document.createElement("section");
-    healthCol.className = "proj-home-col proj-home-health";
+    healthCol.className = "proj-home-col proj-home-col--elevated proj-home-health";
+    healthCol.innerHTML = `<h4 class="proj-home-section-title">${isGovProject(p) ? "Health snapshot" : "Project stats"}</h4>`;
     if (isGovProject(p)) {
       const health = renderGovHomeHealthStrip(state, navigateProjectTab);
       if (health) healthCol.appendChild(health);
@@ -1736,8 +2248,13 @@ export function mountProjects(container) {
     }
 
     const nextCol = document.createElement("section");
-    nextCol.className = "proj-home-col proj-home-next";
+    nextCol.className = "proj-home-col proj-home-col--elevated proj-home-next";
+    nextCol.innerHTML = `<h4 class="proj-home-section-title">Quick actions</h4>`;
     nextCol.appendChild(renderQuickActions(p));
+    const actHead = document.createElement("h4");
+    actHead.className = "proj-home-section-title proj-home-section-title--sub";
+    actHead.textContent = "Recent activity";
+    nextCol.appendChild(actHead);
     nextCol.appendChild(renderRecentActivityBlock());
 
     grid.append(glance, healthCol, nextCol);
@@ -1811,38 +2328,46 @@ export function mountProjects(container) {
     tabHost.innerHTML = "";
 
     if (p) {
-      const workspace = document.createElement("div");
-      workspace.className = "proj-workspace";
+      applyProjectHubChrome();
+      syncHubUrl();
 
-      const header = renderProjectHeader(p, state, {
-        onBack: () => exitProjectHub(),
-        onEdit: () => {
-          navigateTo(`/projects/new?edit=${encodeURIComponent(p.id)}`);
-        },
-        onKpiNavigate: navigateProjectTab,
-        showArchive: normalizeRole(getCurrentRole()) === "owner",
-        onArchive: () => archiveProject(p),
-      });
-      workspace.appendChild(header);
+      const shell = document.createElement("div");
+      shell.className = "proj-hub-shell";
 
-      const tabNav = renderGroupedTabNav(
-        tabList,
-        state.activeTab,
-        state.activeTabGroup,
-        ({ tab, group }) => {
-          state.activeTab = tab;
-          state.activeTabGroup = group;
-          renderTabContent();
-        }
+      shell.appendChild(
+        renderProjectHubToolbar(p, {
+          onBack: () => exitProjectHub(),
+          onEdit: () => {
+            navigateTo(`/projects/new?edit=${encodeURIComponent(p.id)}`);
+          },
+          showArchive: normalizeRole(getCurrentRole()) === "owner",
+          onArchive: () => archiveProject(p),
+        })
       );
-      workspace.appendChild(tabNav);
 
-      const panel = document.createElement("div");
-      panel.className = "proj-tab-panel";
-      panel.appendChild(buildActiveTabCard());
-      workspace.appendChild(panel);
+      shell.appendChild(
+        renderProjectHubKpiRow(p, state, { onNavigate: navigateProjectTab })
+      );
 
-      tabHost.appendChild(workspace);
+      shell.appendChild(
+        renderProjectHubTabNav(
+          tabList,
+          state.activeTab,
+          state.activeTabGroup,
+          ({ tab, group }) => {
+            state.activeTab = tab;
+            state.activeTabGroup = group;
+            renderTabContent();
+          }
+        )
+      );
+
+      const contentHost = document.createElement("div");
+      contentHost.className = "rep-content-host proj-hub-content-host";
+      contentHost.appendChild(buildActiveTabCard());
+      shell.appendChild(contentHost);
+
+      tabHost.appendChild(shell);
       return;
     }
   }
@@ -1932,7 +2457,9 @@ export function mountProjects(container) {
       default:
         card = buildProjectHomeTab();
     }
-    return card;
+    if (!card) card = document.createElement("div");
+    const proj = getSelected();
+    return wrapProjectHubTabPanel(state.activeTab, proj, card);
   }
 
   function ensureLayout() {

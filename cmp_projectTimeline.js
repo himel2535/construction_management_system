@@ -1,7 +1,7 @@
 /** Lightweight project timeline — phases, milestones, dependencies (§2.1) */
 
 import { statusChip } from "./cmp_ui.js";
-import { formatDate } from "./util_format.js";
+import { formatDate, formatDateRange } from "./util_format.js";
 
 function escapeHtml(s) {
   return String(s)
@@ -41,14 +41,35 @@ function pctInRange(ms, start, span) {
   return Math.min(100, Math.max(0, ((ms - start) / span) * 100));
 }
 
+function barStatusClass(status) {
+  if (status === "completed") return " is-done";
+  if (status === "in_progress") return " is-in-progress";
+  return " is-pending";
+}
+
+function phaseLabelHtml(phase, hub) {
+  const name = escapeHtml(phase.name);
+  if (!hub) {
+    return `<span class="proj-timeline-label">${name}</span>`;
+  }
+  const range = formatDateRange(phase.plannedStart, phase.plannedEnd);
+  const sub =
+    range && range !== "Not set"
+      ? `<span class="proj-timeline-label-sub text-muted">${escapeHtml(range)}</span>`
+      : "";
+  return `<span class="proj-timeline-label proj-timeline-label-col"><span class="proj-timeline-label-main">${name}</span>${sub}</span>`;
+}
+
 /**
  * @param {object} project
  * @param {object[]} phases
  * @param {object[]} milestones
+ * @param {{ hub?: boolean }} [opts]
  */
-export function renderProjectTimeline(project, phases = [], milestones = []) {
+export function renderProjectTimeline(project, phases = [], milestones = [], opts = {}) {
+  const hub = !!opts.hub;
   const wrap = document.createElement("div");
-  wrap.className = "proj-timeline-wrap";
+  wrap.className = hub ? "proj-timeline-wrap proj-timeline-wrap--hub" : "proj-timeline-wrap";
 
   if (!milestones.length && !phases.length) {
     wrap.innerHTML = `<p class="proj-empty">Add phases and milestones to see the timeline.</p>`;
@@ -58,6 +79,11 @@ export function renderProjectTimeline(project, phases = [], milestones = []) {
   const { start, end, span } = resolveRange(project, milestones);
   const startLabel = formatDate(new Date(start).toISOString().slice(0, 10));
   const endLabel = formatDate(new Date(end).toISOString().slice(0, 10));
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayMs = dateToMs(todayStr);
+  const todayPct =
+    todayMs != null && todayMs >= start && todayMs <= end ? pctInRange(todayMs, start, span) : null;
 
   const sortedPhases = [...phases].sort(
     (a, b) => (a.sortOrder || a.sequence || 0) - (b.sortOrder || b.sequence || 0)
@@ -86,37 +112,48 @@ export function renderProjectTimeline(project, phases = [], milestones = []) {
   let rowIndex = 0;
   const rowHtml = rows
     .map(({ phase, milestones: msList }) => {
-      const phaseRow = `<div class="proj-timeline-row proj-timeline-row--phase"><span class="proj-timeline-label">${escapeHtml(phase.name)}</span><div class="proj-timeline-track"></div></div>`;
+      const phaseRowFixed = `<div class="proj-timeline-row proj-timeline-row--phase">${phaseLabelHtml(phase, hub)}<div class="proj-timeline-track proj-timeline-track--phase"></div><span class="proj-timeline-status"></span></div>`;
       const msRows = msList
         .map((m) => {
           const planned = dateToMs(m.plannedDate);
           const left = pctInRange(planned, start, span);
-          const done = m.status === "completed";
+          const st = m.status || "pending";
           const barId = `tl-bar-${m.id}`;
           barPositions.set(m.id, { left, rowIndex, barId });
           rowIndex += 1;
+          const dateLabel = formatDate(m.plannedDate) || "—";
+          const statusCell = hub
+            ? `<span class="proj-timeline-status"><span class="proj-timeline-date">${escapeHtml(dateLabel)}</span>${statusChip(st)}</span>`
+            : `<span class="proj-timeline-status">${statusChip(st)}</span>`;
           return `
           <div class="proj-timeline-row" data-ms-id="${escapeHtml(m.id)}">
-            <span class="proj-timeline-label" title="${escapeHtml(m.title)}">${escapeHtml(m.title)}</span>
+            <span class="proj-timeline-label" title="${escapeHtml(m.title)} — ${escapeHtml(dateLabel)}">${escapeHtml(m.title)}</span>
             <div class="proj-timeline-track">
-              <div class="proj-timeline-bar${done ? " is-done" : ""}" id="${barId}" style="left:${left}%;width:8%;" title="${escapeHtml(m.plannedDate || "—")}">
-                <span class="proj-timeline-bar-tip">${escapeHtml(formatDate(m.plannedDate) || "—")}</span>
+              <div class="proj-timeline-bar${barStatusClass(st)}" id="${barId}" style="left:${left}%;width:8%;" title="${escapeHtml(m.plannedDate || "—")}">
+                <span class="proj-timeline-bar-tip">${escapeHtml(dateLabel)}</span>
               </div>
             </div>
-            <span class="proj-timeline-status">${statusChip(m.status || "pending")}</span>
+            ${statusCell}
           </div>`;
         })
         .join("");
-      return phaseRow + msRows;
+      return phaseRowFixed + msRows;
     })
     .join("");
 
+  const todayMarker =
+    hub && todayPct != null
+      ? `<div class="proj-timeline-today" style="--today-pct:${todayPct}" title="Today"></div>`
+      : "";
+
   wrap.innerHTML = `
     <div class="proj-timeline-axis">
-      <span>${escapeHtml(startLabel)}</span>
-      <span>${escapeHtml(endLabel)}</span>
+      <div class="proj-timeline-axis-inner">
+        <span>${escapeHtml(startLabel)}</span>
+        <span>${escapeHtml(endLabel)}</span>
+      </div>
     </div>
-    <div class="proj-timeline-body">${rowHtml}</div>
+    <div class="proj-timeline-body">${todayMarker}${rowHtml}</div>
     <svg class="proj-timeline-deps" aria-hidden="true"></svg>
   `;
 

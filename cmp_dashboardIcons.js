@@ -138,6 +138,12 @@ export function reportKpiIcon(type, className = "dash-color-icon cust-kpi-flat-i
     receivable: DASH_ICONS.kpi.receivable,
     subcontract: DASH_ICONS.kpi.contract,
     expense: DASH_ICONS.kpi.expense,
+    contract: DASH_ICONS.kpi.contract,
+    budget: DASH_ICONS.kpi.taka,
+    progress: DASH_ICONS.kpi.projects,
+    health: DASH_ICONS.kpi.receivable,
+    ipc: DASH_ICONS.kpi.expense,
+    outstanding: DASH_ICONS.kpi.receivable,
   };
   const file = map[type] || DASH_ICONS.kpi.taka;
   return `<img class="${className}" src="${ICON_PATH}/${file}.svg" width="38" height="38" alt="" decoding="async" />`;
