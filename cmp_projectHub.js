@@ -168,10 +168,10 @@ export function renderSidebarProjectItem(p, selected, opts = {}) {
  * Unified project header — hero + inline KPIs in one strip.
  * @param {object} p
  * @param {object} hubState
- * @param {{ onEdit?: () => void, onKpiNavigate?: (tabId: string) => void }} [opts]
+ * @param {{ onEdit?: () => void, onKpiNavigate?: (tabId: string) => void, onArchive?: () => void, showArchive?: boolean }} [opts]
  */
 export function renderProjectHeader(p, hubState, opts = {}) {
-  const { onEdit, onKpiNavigate, onBack } = opts;
+  const { onEdit, onKpiNavigate, onBack, onArchive, showArchive } = opts;
   const header = document.createElement("div");
   const pt = p.projectType || defaultProjectType();
   header.className = `proj-header card proj-header--${pt}`;
@@ -220,6 +220,11 @@ export function renderProjectHeader(p, hubState, opts = {}) {
       </div>
       <div class="proj-header-actions">
         ${statusChip(p.status || "ongoing")}
+        ${
+          showArchive && (p.status || "") !== "archived"
+            ? `<button type="button" class="btn btn-ghost btn-sm" id="proj-header-archive">Archive</button>`
+            : ""
+        }
         <button type="button" class="btn btn-primary btn-sm" id="proj-header-edit">Edit profile</button>
       </div>
     </div>
@@ -233,6 +238,7 @@ export function renderProjectHeader(p, hubState, opts = {}) {
   `;
 
   header.querySelector("#proj-header-edit")?.addEventListener("click", () => onEdit?.());
+  header.querySelector("#proj-header-archive")?.addEventListener("click", () => onArchive?.());
   header.querySelector("#proj-header-back")?.addEventListener("click", () => onBack?.());
   header.querySelectorAll("[data-kpi-tab]").forEach((el) => {
     el.addEventListener("click", () => onKpiNavigate?.(el.dataset.kpiTab));

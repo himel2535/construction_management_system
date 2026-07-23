@@ -1,9 +1,9 @@
 import { icon } from "./cmp_icons.js";
-import { PROJECT_TYPES, EMPLOYER_AGENCIES, defaultProjectType, BG_TYPES } from "./util_govProject.js";
+import { normalizeRole } from "./util_roles.js";
+import { PROJECT_TYPES, EMPLOYER_AGENCIES, defaultProjectType, BG_TYPES, projectTypeLabel } from "./util_govProject.js";
 import { PROJECT_STATUSES } from "./svc_workflow.js";
 import { statusChip } from "./cmp_ui.js";
 import { formatBDT, formatDateRange } from "./util_format.js";
-import { projectTypeLabel } from "./util_govProject.js";
 
 const TYPE_META = {
   government_civil: { icon: "landmark", tone: "type-gov", desc: "Tender, work order, measurement book, bank guarantee, IPC" },
@@ -331,4 +331,90 @@ export function buildAgencyOptions(selected = "") {
   return EMPLOYER_AGENCIES.map(
     (a) => `<option value="${escapeHtml(a)}" ${selected === a ? "selected" : ""}>${escapeHtml(a)}</option>`
   ).join("");
+}
+
+/** Users eligible as project manager on create/edit. */
+export function projectManagerCandidates(roleUsers = []) {
+  const allowed = new Set(["owner", "project_manager"]);
+  return (roleUsers || []).filter((u) => u.active !== false && allowed.has(normalizeRole(u.role)));
+}
+
+export function buildClientSelectHtml(clients = [], { clientId = "", clientName = "" } = {}) {
+  const sorted = [...clients].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  const opts = [
+    `<option value="">— Select client / owner —</option>`,
+    ...sorted.map(
+      (c) =>
+        `<option value="${escapeHtml(c.id)}"${clientId === c.id ? " selected" : ""}>${escapeHtml(c.name || c.id)}</option>`
+    ),
+  ].join("");
+  const manualHidden = clientId ? "hidden" : "";
+  const manualVal = clientId ? "" : escapeHtml(clientName || "");
+  return `
+    <label class="cust-field cust-field--full proj-client-field">
+      <span class="cust-label">Client / owner</span>
+      <select name="clientId" class="cust-form-input">${opts}</select>
+      <input type="hidden" name="clientName" value="${escapeHtml(clientId ? sorted.find((c) => c.id === clientId)?.name || clientName : clientName)}" />
+    </label>
+    <label class="cust-field cust-field--full proj-client-manual" ${manualHidden ? 'hidden data-manual-client="1"' : 'data-manual-client="1"'}>
+      <span class="cust-label">Client name (if not listed)</span>
+      <input name="clientNameManual" class="cust-form-input" value="${manualVal}" placeholder="Optional display name" autocomplete="off" />
+    </label>
+  `;
+}
+
+export function buildProjectManagerSelectHtml(candidates = [], selectedId = "") {
+  const opts = candidates.length
+    ? candidates.map((u) => {
+        const label = u.displayName || u.name || u.email || u.id;
+        return `<option value="${escapeHtml(u.id)}"${selectedId === u.id ? " selected" : ""}>${escapeHtml(label)} (${escapeHtml(normalizeRole(u.role))})</option>`;
+      })
+    : [`<option value="">—</option>`];
+  return `
+    <label class="cust-field">
+      <span class="cust-label">Project manager</span>
+      <select name="projectManagerId" class="cust-form-input" required>${opts.join("")}</select>
+    </label>
+  `;
+}
+
+/** Sync clientName hidden field and manual row visibility. */
+export function wireProjectClientFields(form, clients = []) {
+  const sel = form.querySelector('[name="clientId"]');
+  const hidden = form.querySelector('[name="clientName"]');
+  const manualWrap = form.querySelector(".proj-client-manual");
+  const manual = form.querySelector('[name="clientNameManual"]');
+  if (!sel) return;
+  const sync = () => {
+    const id = sel.value || "";
+    if (id) {
+      const c = clients.find((x) => x.id === id);
+      if (hidden) hidden.value = c?.name || "";
+      if (manualWrap) manualWrap.hidden = true;
+    } else {
+      if (manualWrap) manualWrap.hidden = false;
+      if (hidden && manual) hidden.value = manual.value.trim();
+    }
+  };
+  sel.addEventListener("change", sync);
+  manual?.addEventListener("input", () => {
+    if (!sel.value && hidden) hidden.value = manual.value.trim();
+  });
+  sync();
+}
+
+/** Apply clientId + denormalized clientName onto payload from form. */
+export function readClientFieldsFromForm(form, clients = []) {
+  const clientId = form.clientId?.value || "";
+  let clientName = "";
+  if (clientId) {
+    const c = clients.find((x) => x.id === clientId);
+    clientName = c?.name || form.clientName?.value?.trim() || "";
+  } else {
+    clientName =
+      form.clientNameManual?.value?.trim() ||
+      form.clientName?.value?.trim() ||
+      "";
+  }
+  return { clientId, clientName };
 }

@@ -17,7 +17,7 @@ const TRANSITIONS = {
 };
 
 /** Project lifecycle statuses (master record) */
-export const PROJECT_STATUSES = ["planning", "ongoing", "on_hold", "completed", "closed"];
+export const PROJECT_STATUSES = ["planning", "ongoing", "on_hold", "completed", "closed", "archived"];
 
 /** Allowed project status transitions */
 export const PROJECT_STATUS_TRANSITIONS = {
@@ -94,6 +94,7 @@ export async function writeAuditLog({
  * @param {string} [today]
  */
 export function milestoneVariance(m, today = new Date().toISOString().slice(0, 10)) {
+  if (!m) return { key: "pending", label: "—" };
   if (!m.plannedDate) return { key: "pending", label: "No date" };
   if (m.status === "completed" || m.actualDate) {
     const actual = m.actualDate || today;

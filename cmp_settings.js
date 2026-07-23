@@ -155,14 +155,18 @@ const PERM_ROLE_TH_CLASS = {
   owner: "owner",
   project_manager: "pm",
   site_engineer: "engineer",
+  site_supervisor: "supervisor",
   accountant: "accountant",
+  procurement_officer: "procurement",
 };
 
 const PERM_ROLE_SHORT = {
   owner: { label: "Owner", title: "Owner / Admin" },
-  project_manager: { label: "Project Manager", title: "Project Manager" },
+  project_manager: { label: "PM", title: "Project Manager" },
   site_engineer: { label: "Engineer", title: "Site Engineer" },
+  site_supervisor: { label: "Supervisor", title: "Site Supervisor" },
   accountant: { label: "Finance", title: "Accountant / Finance" },
+  procurement_officer: { label: "Procure", title: "Procurement Officer" },
 };
 
 function renderPermRoleHeaders() {
@@ -201,7 +205,7 @@ function renderPermGroupTable(group) {
         <table class="dash-table projects-table settings-perm-table">
           <colgroup>
             <col class="settings-perm-col-name" />
-            <col span="4" class="settings-perm-col-role" />
+            <col span="${MATRIX_ROLES.length}" class="settings-perm-col-role" />
           </colgroup>
           <thead>
             <tr>
@@ -221,6 +225,11 @@ export function renderPermissionMatrixHtml() {
 
   return `
     <div class="settings-perm-matrix">
+      <p class="settings-perm-site-note text-muted">
+        <strong>Site In-charge</strong> is a per-project assignment (Site Management module), not a login role.
+        Field attendance and vouchers use the assigned site in-charge user; diary approval uses
+        <code>approve_site_diary</code> on PM / Engineer roles below.
+      </p>
       <div class="settings-perm-legend">
         <span class="settings-perm-legend-hint">Green check = role can perform the action</span>
         <div class="settings-perm-legend-badges">

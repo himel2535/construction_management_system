@@ -1,7 +1,6 @@
 import { listenList } from "./svc_data.js";
 import {
   applyQueueDecision,
-  canPerformAction,
   clearApprovalQueue,
   getCurrentRole,
   isApprovalQueueRowStale,
@@ -12,6 +11,7 @@ import {
   canRejectExpenseQueueRow,
   expenseQueueRowAwaitingLabel,
 } from "./svc_projectExpense.js";
+import { canRoleDecideQueueRow } from "./util_approvalQueue.js";
 import { formatDate } from "./util_format.js";
 import { showToast } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
@@ -26,17 +26,16 @@ function escapeHtml(s) {
 }
 
 function canActOnQueueRow(row) {
-  if (row.entityType === "projectExpense") {
-    return canApproveExpenseQueueRow(row);
-  }
-  return canPerformAction("approve");
+  return canRoleDecideQueueRow(row, getCurrentRole(), {
+    canApproveExpense: canApproveExpenseQueueRow,
+  });
 }
 
 function canRejectQueueRow(row) {
   if (row.entityType === "projectExpense") {
     return canRejectExpenseQueueRow(row);
   }
-  return canPerformAction("approve");
+  return canActOnQueueRow(row);
 }
 
 function queueRowActionHtml(q) {
@@ -126,10 +125,6 @@ export function mountApprovals(container) {
         ? "No items pending"
         : `Showing ${pending.length} pending`;
 
-    if (!canPerformAction("approve")) {
-      bodyEl.innerHTML = `<p class="proj-empty">Your role cannot approve items. Switch demo role in Settings seed or use owner.</p>`;
-      return;
-    }
     if (!pending.length) {
       bodyEl.innerHTML = `<p class="proj-empty">No pending approvals</p>`;
       return;

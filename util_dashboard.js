@@ -93,6 +93,7 @@ function milestoneCardMeta(category, health, projectName) {
 }
 
 function projectHealth(project, milestones = [], today = new Date().toISOString().slice(0, 10)) {
+  if (!project) return "on_track";
   const delayed = milestones.some((m) => milestoneVariance(m, today).key === "delayed");
   if (delayed || project.status === "on_hold") return "delayed";
   const progress = Number(project.progressPercent) || 0;
@@ -543,13 +544,14 @@ export function buildUpcomingMilestones(milestonesByProject = {}, projects = [],
 
   for (const [pid, list] of Object.entries(milestonesByProject || {})) {
     const proj = projectMap.get(pid);
-    const projectName = proj?.name || pid;
+    if (!proj) continue;
+    const projectName = proj.name || pid;
     const category = resolveProjectCategory(proj);
     const projHealth = projectHealth(proj, list || [], todayStr);
     const health = projHealth === "at_risk" || projHealth === "delayed" ? "at_risk" : "on_track";
     const { icon, iconTone } = milestoneCardMeta(category, health, projectName);
     for (const m of list || []) {
-      if (m.status === "completed") continue;
+      if (!m || m.status === "completed") continue;
       if (!m.plannedDate || m.plannedDate < todayStr || m.plannedDate > endStr) continue;
       items.push({
         title: m.title,

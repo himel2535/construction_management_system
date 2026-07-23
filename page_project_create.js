@@ -1,4 +1,4 @@
-import { create } from "./svc_data.js";
+import { create, listenList, propagateClientDenorm } from "./svc_data.js";
 import { readRef } from "./svc_tenant.js";
 import { getCurrentUserId } from "./svc_auth.js";
 import { writeAuditLog } from "./svc_workflow.js";
@@ -9,6 +9,7 @@ import { getRouteQuery, navigateTo } from "./util_route.js";
 import { setupGovProjectOnCreate } from "./svc_govProject.js";
 import { setupPrivateProjectOnCreate } from "./svc_projectSetup.js";
 import { seedPmTeamAssignment } from "./svc_projectTeam.js";
+import { listRoleUsers } from "./svc_governance.js";
 import {
   saveGovDetail,
   savePrivateDetail,
@@ -31,9 +32,17 @@ import {
   showFieldErrors,
   govContractFieldsHtml,
   buildAgencyOptions,
+  buildClientSelectHtml,
+  buildProjectManagerSelectHtml,
+  wireProjectClientFields,
+  readClientFieldsFromForm,
+  projectManagerCandidates,
 } from "./cmp_projectForm.js";
-import { resolveManagerLabel } from "./cmp_projectTab.js";
 import { PROJECT_STATUSES } from "./svc_workflow.js";
+
+function getClientIdFromRoute() {
+  return getRouteQuery().get("clientId") || "";
+}
 
 function getEditIdFromRoute() {
   return getRouteQuery().get("edit") || "";
@@ -96,6 +105,19 @@ export function mountProjectCreate(container) {
     ? projectDraftFromRecord(existingProject)
     : { ...emptyProjectDraft(), projectManagerId: getCurrentUserId() };
 
+  const routeClientId = getClientIdFromRoute();
+  if (!isEdit && routeClientId) {
+    initial.clientId = routeClientId;
+    const c = readRef(`clients/${routeClientId}`);
+    if (c?.name) initial.clientName = c.name;
+  }
+
+  let clients = [];
+  const pmCandidates = projectManagerCandidates(listRoleUsers());
+  if (pmCandidates.length && !pmCandidates.some((u) => u.id === initial.projectManagerId)) {
+    initial.projectManagerId = pmCandidates[0].id;
+  }
+
   setPageChrome({
     title: isEdit ? "Edit Project" : "Add Project",
     subtitle: isEdit
@@ -123,8 +145,6 @@ export function mountProjectCreate(container) {
     (s) => `<option value="${s}"${initial.status === s ? " selected" : ""}>${escapeHtml(s)}</option>`
   ).join("");
 
-  const pmLabel = resolveManagerLabel(initial.projectManagerId || getCurrentUserId());
-
   form.innerHTML = `
     <div class="cust-form-shell">
       <div class="cust-form-row cust-form-row--top">
@@ -142,7 +162,7 @@ export function mountProjectCreate(container) {
             <label class="cust-field"><span class="cust-label">Project name *</span><input name="name" required autocomplete="off" value="${escapeAttr(initial.name)}" /></label>
             <label class="cust-field"><span class="cust-label">Project code</span><input name="code" value="${escapeAttr(initial.code)}" /></label>
             <label class="cust-field"><span class="cust-label">Location *</span><input name="location" required value="${escapeAttr(initial.location)}" /></label>
-            <label class="cust-field"><span class="cust-label">Client name</span><input name="clientName" value="${escapeAttr(initial.clientName)}" /></label>
+            <div id="proj-client-host" class="cust-form-grid-span"></div>
             <label class="cust-field proj-form-status"><span class="cust-label">Status</span><select name="status">${statusOptions}</select></label>
           </div>
         </div>
@@ -153,11 +173,7 @@ export function mountProjectCreate(container) {
           <label class="cust-field"><span class="cust-label">Start date</span><input name="startDate" type="date" value="${escapeAttr(initial.startDate)}" /></label>
           <label class="cust-field"><span class="cust-label">End date</span><input name="endDate" type="date" value="${escapeAttr(initial.endDate)}" /></label>
           <label class="cust-field" id="proj-contract-field"><span class="cust-label">Contract value (BDT)</span><input name="contractValue" type="number" step="0.01" min="0" value="${escapeAttr(initial.contractValue || initial.budgetTotal || "")}" /></label>
-          <label class="cust-field">
-            <span class="cust-label">Project manager</span>
-            <input name="projectManagerId" type="hidden" value="${escapeAttr(initial.projectManagerId || getCurrentUserId())}" />
-            <input type="text" class="form-field-readonly" readonly value="${escapeAttr(pmLabel)}" />
-          </label>
+          <div id="proj-pm-host"></div>
         </div>
         <label class="cust-field cust-field--full"><span class="cust-label">Description</span><textarea name="description" rows="3">${escapeHtml(initial.description)}</textarea></label>
       </div>
@@ -177,6 +193,33 @@ export function mountProjectCreate(container) {
   root.appendChild(formCard);
   container.appendChild(root);
 
+  function mountClientPmFields() {
+    const clientHost = form.querySelector("#proj-client-host");
+    const pmHost = form.querySelector("#proj-pm-host");
+    if (clientHost) {
+      clientHost.innerHTML = buildClientSelectHtml(clients, {
+        clientId: initial.clientId || "",
+        clientName: initial.clientName || "",
+      });
+      wireProjectClientFields(form, clients);
+    }
+    if (pmHost) {
+      pmHost.innerHTML = buildProjectManagerSelectHtml(
+        pmCandidates,
+        form.projectManagerId?.value || initial.projectManagerId || getCurrentUserId()
+      );
+    }
+  }
+
+  mountClientPmFields();
+  const unsubClients = listenList("clients", (list) => {
+    clients = list;
+    const prevClient = form.clientId?.value || initial.clientId || "";
+    mountClientPmFields();
+    if (prevClient && form.clientId) form.clientId.value = prevClient;
+    wireProjectClientFields(form, clients);
+  });
+
   const typeHost = form.querySelector("#proj-type-host");
   typeHost.appendChild(
     renderTypeCards(initial.projectType || defaultProjectType(), () => {
@@ -191,7 +234,10 @@ export function mountProjectCreate(container) {
   let codeTouched = isEdit || !!String(initial.code || "").trim();
 
   function readPayload() {
-    return readProjectForm(form, { includeGov: true });
+    const payload = readProjectForm(form, { includeGov: true });
+    Object.assign(payload, readClientFieldsFromForm(form, clients));
+    payload.projectManagerId = form.projectManagerId?.value?.trim() || payload.projectManagerId;
+    return payload;
   }
 
   function syncGovVisibility() {
@@ -280,7 +326,14 @@ export function mountProjectCreate(container) {
     try {
       if (isEdit) {
         await migrateInlineDetailsIfNeeded(editId);
+        const prevPm = existingProject?.projectManagerId;
         await saveProjectWithDetails(editId, payload, { existing: existingProject });
+        if (payload.clientId && payload.clientName) {
+          await propagateClientDenorm(payload.clientId, payload.clientName);
+        }
+        if (payload.projectManagerId && payload.projectManagerId !== prevPm) {
+          await seedPmTeamAssignment(editId, payload.projectManagerId);
+        }
         if (payload.projectType !== "government_civil") {
           await syncMilestoneAmounts(editId);
         }
@@ -317,6 +370,9 @@ export function mountProjectCreate(container) {
         await setupPrivateProjectOnCreate(id);
       }
       await seedPmTeamAssignment(id, payload.projectManagerId || getCurrentUserId());
+      if (payload.clientId && payload.clientName) {
+        await propagateClientDenorm(payload.clientId, payload.clientName);
+      }
 
       await writeAuditLog({
         entityType: "project",
@@ -334,5 +390,9 @@ export function mountProjectCreate(container) {
     }
   };
 
-  return { unmount: () => {} };
+  return {
+    unmount: () => {
+      unsubClients();
+    },
+  };
 }

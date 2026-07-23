@@ -1,12 +1,12 @@
 /** Demo RBAC users — session switch (no separate login). */
 
-import { readRef } from "./svc_tenant.js";
-import { setCurrentUser, getCurrentUserId } from "./svc_auth.js";
-import { guardAction, invalidateRoleCache, canPerformAction } from "./svc_governance.js";
-import { refreshSidebarNav } from "./cmp_layout.js";
-import { syncHeaderUser } from "./cmp_header.js";
-import { defaultRouteForRole, roleLabel } from "./util_roles.js";
-import { navigateTo } from "./util_route.js";
+import { readRef, getActiveTenantId } from "./svc_tenant.js";
+import { setCurrentUser, getCurrentUser, getCurrentUserId } from "./svc_auth.js";
+import { invalidateRoleCache, listRoleUsers } from "./svc_governance.js";
+import { refreshSidebarNav, syncSidebarUserFoot } from "./cmp_layout.js";
+import { syncHeaderUser, applyRouteChrome } from "./cmp_header.js";
+import { defaultRouteForRole, roleLabel, canAccessRoute } from "./util_roles.js";
+import { navigateTo, getRoutePath } from "./util_route.js";
 import { showToast } from "./cmp_toast.js";
 
 export const DEMO_ROLE_USERS = [
@@ -32,6 +32,11 @@ export function listDemoRoleUsers() {
   });
 }
 
+/** All active employees for session switch (demo RBAC testing). */
+export function listSessionSwitchUsers() {
+  return listRoleUsers().filter((u) => u.active !== false && !u.deletedAt);
+}
+
 /**
  * Switch browser session to another demo user (Firebase roles/{id}).
  * @param {string} userId
@@ -39,29 +44,34 @@ export function listDemoRoleUsers() {
  */
 export function switchDemoUser(userId, opts = {}) {
   const { navigate = true, toast = true } = opts;
-  const targetIsDemo = isDemoUserId(userId);
-  const currentIsDemo = isDemoUserId(getCurrentUserId());
-  if (!targetIsDemo || (!currentIsDemo && !canPerformAction("manage_users"))) {
-    guardAction("manage_users");
-  }
+  const row = readRef(`roles/${userId}`);
+  if (!row || row.deletedAt) throw new Error("User not found");
+  if (row.active === false) throw new Error("User is not active");
 
   const def = DEMO_ROLE_USERS.find((u) => u.id === userId);
-  const row = readRef(`roles/${userId}`) || def;
-  if (!row) throw new Error("User not found");
-  if (row.active === false || row.deletedAt) throw new Error("User is not active");
-
-  const role = row.role || def?.role || "owner";
+  const role = row.role || def?.role || "viewer";
+  const prev = getCurrentUser();
   setCurrentUser({
     id: userId,
     name: row.displayName || def?.displayName || row.email || userId,
     email: row.email || def?.email || "",
     role,
+    clientId: row.clientId || def?.clientId || "",
+    tenantId: row.tenantId || prev?.tenantId || getActiveTenantId(),
   });
   invalidateRoleCache();
   refreshSidebarNav();
+  syncSidebarUserFoot();
   syncHeaderUser();
 
-  if (navigate) navigateTo(defaultRouteForRole(role));
+  if (navigate) {
+    const target = defaultRouteForRole(role);
+    const current = getRoutePath();
+    if (current === target && canAccessRoute(role, current)) {
+      applyRouteChrome();
+    }
+    navigateTo(target);
+  }
   if (toast) {
     showToast(`Switched to ${row.displayName || roleLabel(role)}`);
   }

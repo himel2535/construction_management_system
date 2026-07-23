@@ -89,6 +89,7 @@ export function readProjectForm(form, { includeGov = false } = {}) {
     code: form.code?.value?.trim() || "",
     location: form.location?.value?.trim() || "",
     clientName: form.clientName?.value?.trim() || "",
+    clientId: form.clientId?.value?.trim() || "",
     startDate: form.startDate?.value || "",
     endDate: form.endDate?.value || "",
     budgetTotal: form.budgetTotal?.value === "" || form.budgetTotal?.value == null
@@ -123,8 +124,11 @@ export function readProjectFormPatch(form, { includeGov = false } = {}) {
   const locEl = q("location");
   if (locEl) patch.location = locEl.value.trim();
 
-  const clientEl = q("clientName");
-  if (clientEl) patch.clientName = clientEl.value.trim();
+  const clientIdEl = q("clientId");
+  if (clientIdEl) patch.clientId = clientIdEl.value.trim();
+
+  const clientManualEl = q("clientNameManual");
+  if (clientManualEl && !patch.clientId) patch.clientName = clientManualEl.value.trim();
 
   const startEl = q("startDate");
   if (startEl) patch.startDate = startEl.value;
@@ -173,6 +177,7 @@ export function emptyProjectDraft() {
     code: "",
     location: "",
     clientName: "",
+    clientId: "",
     startDate: "",
     endDate: "",
     budgetTotal: "",

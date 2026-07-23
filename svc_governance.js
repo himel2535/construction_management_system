@@ -1,6 +1,6 @@
 import { create, updatePath, getRef } from "./svc_data.js";
 import { resolveRead, getActiveTenantId, getDeviceId } from "./svc_tenant.js";
-import { getCurrentUserId } from "./svc_auth.js";
+import { getCurrentUser, getCurrentUserId } from "./svc_auth.js";
 import { valToList } from "./svc_clientCache.js";
 import { canTransition, writeAuditLog, milestoneVariance } from "./svc_workflow.js";
 import { postProjectExpense, computeProjectBudgetSummary } from "./svc_projectCost.js";
@@ -21,121 +21,25 @@ export const R3_PATHS = {
 };
 
 import { normalizeRole, roleLabel, ALL_ROLES } from "./util_roles.js";
+import { ROLE_ACTIONS, R4_ACTIONS, roleHasAction } from "./util_roleActions.js";
+import { canRoleDecideQueueRow } from "./util_approvalQueue.js";
 
 export { ALL_ROLES, roleLabel, normalizeRole };
-
-/** Demo role permissions (action keys) */
-const ROLE_ACTIONS = {
-  owner: ["*"],
-  project_manager: [
-    "approve",
-    "submit",
-    "submit_billing",
-    "submit_site_diary",
-    "approve_site_diary",
-    "submit_material_request",
-    "create_quality",
-    "create_safety",
-    "create_change_order",
-    "create_claim",
-    "create_progress",
-    "post_expense",
-    "submit_expense",
-    "approve_expense",
-    "approve_supplier_bill",
-    "create_supplier_bill",
-    "manage_team",
-    "post_central_grn",
-    "issue_site_voucher",
-    "approve_central_requisition",
-    "submit_document",
-    "approve_document",
-  ],
-  site_engineer: [
-    "submit",
-    "submit_site_diary",
-    "approve_site_diary",
-    "submit_material_request",
-    "submit_expense",
-    "submit_document",
-    "create_quality",
-    "create_safety",
-    "create_progress",
-    "create_supplier_bill",
-  ],
-  site_supervisor: [
-    "submit",
-    "submit_site_diary",
-    "submit_material_request",
-    "create_progress",
-    "create_supplier_bill",
-  ],
-  accountant: [
-    "approve",
-    "approve_billing",
-    "submit_billing",
-    "post_expense",
-    "submit_expense",
-    "approve_expense",
-    "approve_supplier_bill",
-    "create_supplier_bill",
-    "pay_supplier",
-    "approve_document",
-  ],
-  procurement_officer: [
-    "create_supplier_bill",
-    "approve_supplier_bill",
-    "submit",
-    "post_central_grn",
-    "issue_site_voucher",
-    "approve_central_requisition",
-    "approve",
-  ],
-  client: [],
-  manager: [
-    "approve",
-    "submit",
-    "submit_site_diary",
-    "approve_site_diary",
-    "submit_material_request",
-    "create_quality",
-    "create_safety",
-    "create_change_order",
-    "create_claim",
-    "create_progress",
-    "post_expense",
-    "submit_expense",
-    "approve_expense",
-    "approve_supplier_bill",
-    "create_supplier_bill",
-    "post_central_grn",
-    "issue_site_voucher",
-    "approve_central_requisition",
-    "submit_document",
-    "approve_document",
-  ],
-  viewer: [],
-};
-
-/** Release 4 arbitration + tenant actions */
-const R4_ACTIONS = {
-  switch_tenant: ["owner", "project_manager", "manager"],
-  create_dispute: ["owner", "project_manager", "manager", "accountant"],
-  submit_dispute: ["owner", "project_manager", "manager", "accountant"],
-  create_arbitration_case: ["owner", "project_manager", "manager"],
-  arbitration_decide: ["owner", "project_manager", "manager"],
-  schedule_hearing: ["owner", "project_manager", "manager"],
-  resolve_sync_conflict: ["owner", "project_manager", "manager"],
-  replay_offline: ["owner", "project_manager", "manager", "site_engineer"],
-  manage_users: ["owner"],
-};
+export { ROLE_ACTIONS, R4_ACTIONS, roleHasAction };
 
 let cachedRole = "owner";
 
 /**
- * Load current user role from seed (demo: first role or owner).
+ * Load current user role — prefer session user.role, then roles cache.
  */
 export function getCurrentRole() {
+  const session = getCurrentUser();
+  if (session?.role) {
+    cachedRole = normalizeRole(session.role);
+    const entry = (getRef("roles") || {})[session.id || getCurrentUserId()];
+    if (entry?.active === false) return "viewer";
+    return cachedRole;
+  }
   const roles = getRef("roles") || {};
   const entry = roles[getCurrentUserId()];
   if (entry?.active === false) return "viewer";
@@ -224,15 +128,11 @@ export function canViewProject(projectId, userId = getCurrentUserId(), role = ge
 
 /**
  * @param {string} action
+ * @param {string} [roleOverride] optional role for matrix / tests
  */
-export function canPerformAction(action) {
-  const role = normalizeRole(getCurrentRole());
-  const allowed = ROLE_ACTIONS[role] || ROLE_ACTIONS.viewer;
-  if (allowed.includes("*")) return true;
-  if (allowed.includes(action)) return true;
-  const r4 = R4_ACTIONS[action];
-  if (r4) return r4.includes(role);
-  return false;
+export function canPerformAction(action, roleOverride) {
+  const role = normalizeRole(roleOverride ?? getCurrentRole());
+  return roleHasAction(role, action);
 }
 
 /**
@@ -241,6 +141,21 @@ export function canPerformAction(action) {
 export function guardAction(action) {
   if (!canPerformAction(action)) {
     throw new Error(`Permission denied for role "${getCurrentRole()}"`);
+  }
+}
+
+/** @param {object} row */
+export async function assertCanDecideApprovalQueueRow(row) {
+  const role = getCurrentRole();
+  let allowed = false;
+  if (row?.entityType === "projectExpense") {
+    const { canApproveExpenseQueueRow } = await import("./svc_projectExpense.js");
+    allowed = canApproveExpenseQueueRow(row, role);
+  } else {
+    allowed = canRoleDecideQueueRow(row, role);
+  }
+  if (!allowed) {
+    throw new Error(`Permission denied for role "${role}" on ${row?.entityType || "item"}`);
   }
 }
 
@@ -398,6 +313,8 @@ export async function applyEntityWorkflowTransition({
  */
 export async function applyQueueDecision({ row, decision }) {
   if (!row?.path) throw new Error("Queue entry missing path");
+
+  await assertCanDecideApprovalQueueRow(row);
 
   const isArbitration =
     row.workflowProfile === "arbitration" ||

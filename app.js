@@ -1,6 +1,6 @@
 ﻿import { APP_VERSION } from "./version.js";
 
-import { renderLayout, setActiveNav } from "./cmp_layout.js";
+import { renderLayout, setActiveNav, syncSidebarUserFoot } from "./cmp_layout.js";
 
 import { registerRoute, startRouter } from "./router.js";
 
@@ -11,6 +11,12 @@ import { setCurrentUser } from "./svc_auth.js";
 import { refreshProjectCostCache } from "./svc_operations.js";
 
 import { ensureFirebaseSeed } from "./svc_firebaseOps.js";
+
+import { get, listenValue } from "./svc_data.js";
+
+import { invalidateRoleCache } from "./svc_governance.js";
+
+import { syncHeaderUser } from "./cmp_header.js";
 
 import { DEMO_ACTOR_UID } from "./firebase.js";
 
@@ -226,6 +232,12 @@ function mountAppShell() {
     import("./svc_sync.js").then(({ processOfflineQueue }) => processOfflineQueue());
   });
 
+  listenValue("roles", () => {
+    invalidateRoleCache();
+    syncHeaderUser();
+    syncSidebarUserFoot();
+  });
+
   window.__ERP_BOOT_COMPLETE__ = true;
 
   startRouter();
@@ -244,6 +256,7 @@ async function boot() {
 
   try {
     await withTimeout(ensureFirebaseSeed(), 12000, "Firebase connection");
+    await get("roles");
     await initTenantContext();
     setCurrentUser({
       id: DEMO_ACTOR_UID,

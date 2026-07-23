@@ -2,7 +2,7 @@ import { create, listenList, listenProjectSub, listenValue, updatePath, removePa
 import { readRef } from "./svc_tenant.js";
 
 import { getCurrentUserId, getCurrentUserName } from "./svc_auth.js";
-import { renderFormField, renderStatusPills, govContractFieldsHtml, buildAgencyOptions } from "./cmp_projectForm.js";
+import { renderFormField, renderStatusPills, govContractFieldsHtml, buildAgencyOptions, buildClientSelectHtml, buildProjectManagerSelectHtml, wireProjectClientFields, readClientFieldsFromForm, projectManagerCandidates } from "./cmp_projectForm.js";
 import {
   canTransition,
   milestoneVariance,
@@ -33,7 +33,6 @@ import {
 import {
   bindGovSubs,
   buildContractTab,
-  buildDashboardTab,
   buildMeasurementTab,
   buildGovBillingTab,
   buildRetentionTab,
@@ -62,6 +61,9 @@ import {
 } from "./svc_projectDetails.js";
 import { splitProjectPayload, normalizeProjectType } from "./util_projectDetails.js";
 import { getCurrentRole, listRoleUsers, getAssignedProjectIds, workflowButtonsHtml, wireWorkflowButtons as wireGovWorkflowButtons } from "./svc_governance.js";
+import { seedPmTeamAssignment } from "./svc_projectTeam.js";
+import { propagateClientDenorm } from "./svc_data.js";
+import { normalizeRole } from "./util_roles.js";
 import {
   DOCUMENT_TYPES,
   requiresExpiry,
@@ -238,6 +240,7 @@ export function mountProjects(container) {
     filterClientId: pendingClientFilter,
     projects: [],
     projectsRaw: [],
+    clients: [],
     phases: [],
     milestones: [],
     documents: [],
@@ -671,6 +674,8 @@ export function mountProjects(container) {
     }
     if (state.filterStatus !== "all") {
       list = list.filter((p) => (p.status || "ongoing") === state.filterStatus);
+    } else {
+      list = list.filter((p) => (p.status || "ongoing") !== "archived");
     }
     const q = state.filterQuery.trim().toLowerCase();
     if (q) {
@@ -776,13 +781,14 @@ export function mountProjects(container) {
         `<input name="location" required value="${escAttr(p?.location || "")}" />`
       )
     );
-    form.appendChild(
-      renderFormField(
-        "clientName",
-        "Client name",
-        `<input name="clientName" value="${escAttr(p?.clientName || "")}" />`
-      )
-    );
+    const clientWrap = document.createElement("div");
+    clientWrap.className = "form-field form-field--full";
+    clientWrap.innerHTML = buildClientSelectHtml(state.clients, {
+      clientId: p?.clientId || "",
+      clientName: p?.clientName || "",
+    });
+    form.appendChild(clientWrap);
+    wireProjectClientFields(form, state.clients);
     form.appendChild(
       renderFormField("startDate", "Start date", `<input name="startDate" type="date" value="${p?.startDate || ""}" />`)
     );
@@ -805,14 +811,12 @@ export function mountProjects(container) {
     statusWrap.appendChild(renderStatusPills(p?.status || "planning"));
     form.appendChild(statusWrap);
 
-    form.appendChild(
-      renderFormField(
-        "projectManagerId",
-        "Project manager",
-        `<input name="projectManagerId" type="hidden" value="${escAttr(p?.projectManagerId || getCurrentUserId())}" />
-         <input type="text" class="form-field-readonly" readonly value="${escAttr(getCurrentUserName())}" />`
-      )
-    );
+    const pmWrap = document.createElement("div");
+    pmWrap.className = "form-field form-field--full";
+    const pmCandidates = projectManagerCandidates(listRoleUsers());
+    pmWrap.innerHTML = buildProjectManagerSelectHtml(pmCandidates, p?.projectManagerId || getCurrentUserId());
+    form.appendChild(pmWrap);
+
     form.appendChild(
       renderFormField(
         "description",
@@ -847,14 +851,14 @@ export function mountProjects(container) {
         projectType: form.projectType.value,
         code: form.code.value.trim(),
         location: form.location.value.trim(),
-        clientName: form.clientName.value.trim(),
         startDate: form.startDate.value,
         endDate: form.endDate.value,
         status: form.status.value,
-        projectManagerId: form.projectManagerId.value.trim() || getCurrentUserId(),
+        projectManagerId: form.projectManagerId?.value?.trim() || getCurrentUserId(),
         description: form.description.value.trim(),
         updatedAt: now,
       };
+      Object.assign(payload, readClientFieldsFromForm(form, state.clients));
       if (form.querySelector('[name="employerAgency"]')) {
         Object.assign(payload, readGovFieldsFromForm(form));
         payload.budgetTotal = Number(payload.contractValue) || 0;
@@ -868,8 +872,15 @@ export function mountProjects(container) {
       }
       try {
         if (existing) {
+          const prevPm = existing.projectManagerId;
           await migrateInlineDetailsIfNeeded(existing.id);
           await saveProjectWithDetails(existing.id, payload, { existing });
+          if (payload.clientId && payload.clientName) {
+            await propagateClientDenorm(payload.clientId, payload.clientName);
+          }
+          if (payload.projectManagerId && payload.projectManagerId !== prevPm) {
+            await seedPmTeamAssignment(existing.id, payload.projectManagerId);
+          }
           if (!isGovProject(payload)) {
             await syncMilestoneAmounts(existing.id);
           }
@@ -898,6 +909,10 @@ export function mountProjects(container) {
             await setupGovProjectOnCreate(id);
           } else {
             await setupPrivateProjectOnCreate(id);
+          }
+          await seedPmTeamAssignment(id, payload.projectManagerId || getCurrentUserId());
+          if (payload.clientId && payload.clientName) {
+            await propagateClientDenorm(payload.clientId, payload.clientName);
           }
           await auditProject(state, {
             entityType: "project",
@@ -1324,7 +1339,7 @@ export function mountProjects(container) {
   }
 
   function buildDocumentsTab() {
-    const card = sectionCard("Documents", "Central repository — version control, permits, and approval workflow (§2.8)");
+    const card = sectionCard("Documents", "Central repository — paste HTTPS links (Drive, SharePoint, etc.); file upload is not enabled yet.");
     const body = card.querySelector(".section-card-body");
     if (!state.selectedProjectId) {
       body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
@@ -1356,7 +1371,8 @@ export function mountProjects(container) {
       <select name="type" aria-label="Document type">
         ${DOCUMENT_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("")}
       </select>
-      <input name="fileUrl" placeholder="File URL (link)" />
+      <input name="fileUrl" placeholder="https://… document link" required />
+      <p class="form-hint text-muted proj-doc-link-hint">Use a shareable HTTPS link only. Uploaded files are not stored in ERP yet.</p>
       <input name="expiryDate" type="date" class="doc-expiry-field" hidden aria-label="Expiry date" />
       <button type="submit" class="btn btn-primary btn-sm">Add document</button>
     `;
@@ -1735,6 +1751,38 @@ export function mountProjects(container) {
     renderTabContent();
   }
 
+  async function archiveProject(p) {
+    if (!p?.id) return;
+    if (normalizeRole(getCurrentRole()) !== "owner") {
+      showToast("Only owner can archive projects", "error");
+      return;
+    }
+    const ok = await confirmAction({
+      title: "Archive project?",
+      message: `"${p.name}" will be hidden from the default directory list. You can still find it with status filter Archived.`,
+      confirmLabel: "Archive",
+      variant: "danger",
+    });
+    if (!ok) return;
+    try {
+      await updatePath(`projects/${p.id}`, {
+        ...readRef(`projects/${p.id}`),
+        status: "archived",
+        updatedAt: Date.now(),
+      });
+      await auditProject(state, {
+        entityType: "project",
+        entityId: p.id,
+        action: "status_change",
+        diffSummary: `Archived project ${p.name}`,
+      });
+      showToast("Project archived");
+      exitProjectHub();
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  }
+
   function renderTabContent() {
     if (!tabHost) return;
     tabHost.innerHTML = "";
@@ -1772,6 +1820,8 @@ export function mountProjects(container) {
           navigateTo(`/projects/new?edit=${encodeURIComponent(p.id)}`);
         },
         onKpiNavigate: navigateProjectTab,
+        showArchive: normalizeRole(getCurrentRole()) === "owner",
+        onArchive: () => archiveProject(p),
       });
       workspace.appendChild(header);
 
@@ -1810,10 +1860,7 @@ export function mountProjects(container) {
           card = buildContractTab(state, {
             onNavigateTab: navigateProjectTab,
             onEditMaster: () => {
-              state.editProjectId = state.selectedProjectId;
-              state.activeTab = "home";
-              state.activeTabGroup = "overview";
-              renderTabContent();
+              navigateTo(`/projects/new?edit=${encodeURIComponent(state.selectedProjectId)}`);
             },
           });
         } else {
@@ -1834,12 +1881,6 @@ export function mountProjects(container) {
           : buildPrivateBillingTab(state, { onRefresh: () => renderTabContent() });
         break;
       }
-      case "dashboard":
-        card = buildDashboardTab(state, {
-          onNavigateTab: navigateProjectTab,
-          onRefresh: () => renderTabContent(),
-        });
-        break;
       case "measurement":
         card = buildMeasurementTab(state, { onRefresh: () => renderTabContent() });
         break;
@@ -2066,6 +2107,12 @@ export function mountProjects(container) {
     refreshEnrichedProjects();
   });
 
+  const unsubClients = listenList("clients", (list) => {
+    state.clients = list;
+    renderProjectDirectory();
+    if (state.hubMode && state.editProjectId) renderTabContent();
+  });
+
   const unsubGovDetails = listenList("governmentProjectDetails", () => {
     if (state.projectsRaw.length) refreshEnrichedProjects();
   });
@@ -2106,6 +2153,7 @@ export function mountProjects(container) {
     unmount: () => {
       closeProjectDetail();
       unsubProjects();
+      unsubClients();
       unsubGovDetails();
       unsubPrivateDetails();
       unsubAllMilestones();

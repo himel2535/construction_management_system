@@ -3,6 +3,7 @@ import { defaultRouteForRole, roleLabel, filterNavItems, sortUsersByRoleRank } f
 import { getCurrentUserName, getCurrentUserId } from "./svc_auth.js";
 import { getRoutePath, navigateTo } from "./util_route.js";
 import { listenList } from "./svc_data.js";
+import { readRef } from "./svc_tenant.js";
 import { buildGlobalSearchIndex, searchGlobalIndex } from "./util_globalSearch.js";
 
 /** @typedef {{ title?: string, subtitle?: string, showDateRange?: boolean, quickActionLabel?: string, onQuickAction?: (() => void) | null }} PageChrome */
@@ -448,37 +449,50 @@ function initUserMenu() {
 
   const renderDropdown = () => {
     const currentId = getCurrentUserId();
-    import("./svc_demoSession.js").then(({ DEMO_ROLE_USERS, switchDemoUser, isDemoUserId }) => {
-      const canSwitch = canPerformAction("manage_users") || isDemoUserId(currentId);
+    import("./svc_demoSession.js").then(({ listSessionSwitchUsers, switchDemoUser }) => {
+      const users = listSessionSwitchUsers();
+      const rolesRoot = readRef("roles");
+      const rolesNotLoaded =
+        rolesRoot === undefined ||
+        rolesRoot === null ||
+        (typeof rolesRoot === "object" && !Array.isArray(rolesRoot) && !Object.keys(rolesRoot).length);
 
-      if (!canSwitch) {
-        dropdown.innerHTML = `
-        <button type="button" class="header-user-dropdown-item notify-dropdown-item" data-action="settings">
-          <strong>Users &amp; settings</strong>
-        </button>`;
-        dropdown.querySelector('[data-action="settings"]')?.addEventListener("click", () => {
-          dropdown.hidden = true;
-          btn.setAttribute("aria-expanded", "false");
-          navigateTo("/settings");
+      if (!users.length && rolesNotLoaded) {
+        dropdown.innerHTML = `<p class="header-user-dropdown-title text-muted">Loading users…</p>`;
+        import("./svc_data.js").then(({ get }) => {
+          get("roles")
+            .then(() => {
+              if (!dropdown.hidden) renderDropdown();
+            })
+            .catch(() => {
+              if (!dropdown.hidden) {
+                dropdown.innerHTML = `<p class="header-user-dropdown-title text-muted">Could not load users</p>`;
+              }
+            });
         });
         return;
       }
 
-      const sorted = sortUsersByRoleRank(DEMO_ROLE_USERS);
+      if (!users.length) {
+        dropdown.innerHTML = `<p class="header-user-dropdown-title text-muted">No users</p>`;
+        return;
+      }
+
+      const sorted = sortUsersByRoleRank(users);
       dropdown.innerHTML = `
-        <p class="header-user-dropdown-title">Switch demo user</p>
-        <div class="header-user-dropdown-list" role="group" aria-label="Demo users by role">
+        <p class="header-user-dropdown-title">Switch user (demo session)</p>
+        <div class="header-user-dropdown-list" role="group" aria-label="Switch active user">
         ${sorted
           .map((u) => {
             const active = u.id === currentId;
             return `<button type="button" class="demo-user-card${active ? " is-active-user" : ""}" data-uid="${escapeNotifyHtml(u.id)}" role="menuitem"${active ? " disabled aria-current=\"true\"" : ""}>
             <span class="demo-user-card__head">
-              <span class="demo-user-card__name">${escapeNotifyHtml(u.displayName)}</span>
+              <span class="demo-user-card__name">${escapeNotifyHtml(u.displayName || u.email || u.id)}</span>
               ${active ? `<span class="demo-user-card__badge">Active</span>` : ""}
             </span>
             <span class="demo-user-card__meta">
               <span class="demo-user-card__role demo-user-card__pill">${escapeNotifyHtml(roleLabel(u.role))}</span>
-              <span class="demo-user-card__email demo-user-card__pill" title="${escapeNotifyHtml(u.email)}">${escapeNotifyHtml(u.email)}</span>
+              ${u.email ? `<span class="demo-user-card__email demo-user-card__pill" title="${escapeNotifyHtml(u.email)}">${escapeNotifyHtml(u.email)}</span>` : ""}
             </span>
           </button>`;
           })

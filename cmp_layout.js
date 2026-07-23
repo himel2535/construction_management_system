@@ -10,19 +10,19 @@ import { getRoutePath, navigateTo } from "./util_route.js";
 
 export const APP_NAV = [
   { path: "/dashboard", label: "Dashboard", icon: "dashboard" },
-  { path: "/client-portal", label: "Client Portal", icon: "portal" },
-  { path: "/clients", label: "Clients / Contacts", icon: "clients" },
   { path: "/projects", label: "Projects", icon: "projects" },
   { path: "/site-incharge", label: "Site Management", icon: "site" },
-  { path: "/accounting", label: "Finance", icon: "finance" },
+  { path: "/clients", label: "Clients / Contacts", icon: "clients" },
   { path: "/purchases", label: "Procurement", icon: "procurement" },
+  { path: "/suppliers", label: "Suppliers", icon: "suppliers" },
   { path: "/inventory", label: "Inventory", icon: "inventory" },
   { path: "/workers", label: "HR & Payroll", icon: "hr" },
   { path: "/assets", label: "Assets & Equipment", icon: "assets" },
   { path: "/billing", label: "Billing", icon: "billing" },
-  { path: "/suppliers", label: "Suppliers", icon: "suppliers" },
+  { path: "/accounting", label: "Finance", icon: "finance" },
   { path: "/approvals", label: "Approvals", icon: "approvals", badgeKey: "approvals" },
   { path: "/reports", label: "Reports", icon: "reports" },
+  { path: "/client-portal", label: "Client Portal", icon: "portal" },
   { path: "/settings", label: "Settings", icon: "settings" },
 ];
 
@@ -112,6 +112,24 @@ function initSidebarCollapse(shell) {
 export function refreshSidebarNav() {
   buildNavLinks(document.getElementById("sidebar-nav"));
   setActiveNav();
+}
+
+/** Keep sidebar footer in sync after demo session switch. */
+export function syncSidebarUserFoot() {
+  const avatar = document.querySelector(".sidebar-user-card .user-avatar");
+  const nameEl = document.querySelector(".sidebar-user-text strong");
+  const roleEl = document.querySelector(".sidebar-user-text span");
+  const userName = getCurrentUserName();
+  const initials =
+    userName
+      .split(/\s+/)
+      .map((w) => w[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "U";
+  if (avatar) avatar.textContent = initials;
+  if (nameEl) nameEl.textContent = userName;
+  if (roleEl) roleEl.textContent = roleLabel(getCurrentRole());
 }
 
 export function renderLayout(contentEl) {

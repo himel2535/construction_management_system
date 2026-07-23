@@ -42,11 +42,15 @@
             "</div>";
         }
         window.addEventListener("error", function (e) {
-          if (e.filename && /\.js(\?|$)/.test(e.filename)) {
-            var msg = e.message || "JavaScript error during startup.";
-            if (e.filename) msg += " — " + e.filename;
-            showBootFailure(msg);
+          if (!e.filename || !/\.js(\?|$)/.test(e.filename)) return;
+          var msg = e.message || "JavaScript error during startup.";
+          if (e.filename) msg += " — " + e.filename;
+          // After boot, do not replace the whole app for routine runtime errors.
+          if (window.__ERP_BOOT_COMPLETE__) {
+            console.error("[ERP] runtime error", e.message, e.filename, e.lineno);
+            return;
           }
+          showBootFailure(msg);
         });
         window.addEventListener("unhandledrejection", function (e) {
           var msg = e.reason && (e.reason.message || String(e.reason));
@@ -59,6 +63,10 @@
             return;
           }
           if (/module|import|fetch/i.test(msg)) {
+            if (window.__ERP_BOOT_COMPLETE__) {
+              console.error("[ERP] unhandled rejection", msg);
+              return;
+            }
             showBootFailure(msg);
           }
         });

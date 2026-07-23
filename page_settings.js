@@ -294,7 +294,7 @@ export function mountSettings(container) {
 
     rolesNote.textContent = manage
       ? "Demo mode — switch active user role to test permissions."
-      : "Only Owner can change roles (demo mode).";
+      : "Switch user via the header profile menu (top right) or Switch to below. Only Owner can add or change roles.";
 
     if (!users.length) {
       rolesHost.innerHTML = `<p class="proj-empty">No users seeded</p>`;
@@ -328,7 +328,7 @@ export function mountSettings(container) {
         }
 
         const actionParts = [];
-        if (manage && u.id !== currentId && !inactive) {
+        if (u.id !== currentId && !inactive) {
           actionParts.push(
             `<button type="button" class="btn btn-sm btn-pastel btn-pastel--switch settings-switch-user" data-uid="${u.id}">Switch to</button>`
           );
