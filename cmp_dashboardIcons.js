@@ -124,6 +124,7 @@ export const DASH_ICONS_REPORT_WIDGET = {
   rbac: "milestone-gear",
   audit: "approval-billing",
   backup: "kpi-expense",
+  help: "milestone-gear",
 };
 
 export function reportWidgetIcon(type, className = "reports-widget-head-icon") {

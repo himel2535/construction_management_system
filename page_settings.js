@@ -27,6 +27,8 @@ import {
   COMPANY_PROFILE_CURRENCY_OPTIONS,
   readCompanyProfileFromForm,
 } from "./cmp_settings.js";
+import { renderProductGuideHtml, mountProductGuide } from "./cmp_productGuide.js";
+import { getRouteQuery } from "./util_route.js";
 
 function escapeHtml(s) {
   return String(s)
@@ -84,6 +86,9 @@ export function mountSettings(container) {
   contentHostEl.className = "rep-content-host";
 
   let activeTab = sessionStorage.getItem(SETTINGS_TAB_STORAGE_KEY) || "profile";
+  if (activeTab === "portfolio") activeTab = "guide";
+  const urlTab = getRouteQuery().get("tab");
+  if (urlTab && SETTINGS_SECTION_TABS.some((t) => t.id === urlTab)) activeTab = urlTab;
   if (!SETTINGS_SECTION_TABS.some((t) => t.id === activeTab)) activeTab = "profile";
 
   function setActiveTab(id) {
@@ -358,12 +363,21 @@ export function mountSettings(container) {
     <p id="backup-status" class="settings-backup-status"></p>
   `;
 
+  const guideWidget = simpleSettingsWidget(
+    "Product Guide",
+    "কোথায় যাবেন, কী করবেন — সম্পূর্ণ interactive map",
+    "settings-guide-body",
+    { headerIcon: "help", extraClass: "settings-guide-widget" }
+  );
+  guideWidget.querySelector("#settings-guide-body").innerHTML = renderProductGuideHtml();
+
   const sectionNodes = [
     ["profile", profileWidget],
     ["users", usersWidget],
     ["rbac", rbacStack],
     ["audit", auditWidget],
     ["backup", backupWidget],
+    ["guide", guideWidget],
   ];
 
   for (const [tabId, node] of sectionNodes) {
@@ -375,6 +389,8 @@ export function mountSettings(container) {
 
   tabHostEl.appendChild(renderReportsTabBar(SETTINGS_SECTION_TABS, activeTab, setActiveTab));
   setActiveTab(activeTab);
+
+  const unmountGuide = mountProductGuide(guideWidget);
 
   root.querySelector("#settings-perm-matrix").innerHTML = renderPermissionMatrixHtml();
   root.querySelector("#settings-system-roles-table").innerHTML = renderSystemRolesTable();
@@ -709,6 +725,7 @@ export function mountSettings(container) {
   return {
     unmount: () => {
       window.removeEventListener("erp:session-user-changed", onSessionUserChanged);
+      unmountGuide?.();
       unsubs.forEach((u) => u());
     },
   };

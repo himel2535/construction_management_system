@@ -61,6 +61,7 @@ export const SETTINGS_SECTION_TABS = [
   { id: "rbac", label: "RBAC" },
   { id: "audit", label: "Audit log" },
   { id: "backup", label: "Backup" },
+  { id: "guide", label: "Product Guide" },
 ];
 
 export const SETTINGS_TAB_STORAGE_KEY = "settingsActiveTab";
