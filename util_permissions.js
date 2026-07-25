@@ -3,21 +3,43 @@ import { roleHasAction } from "./util_roleActions.js";
 
 export const PERMISSION_GROUPS = [
   {
+    id: "procurement",
+    label: "Procurement",
+    actions: [
+      "create_purchase_order",
+      "approve_purchase_order",
+      "approve_material_request",
+      "approve_central_requisition",
+      "post_central_grn",
+      "issue_site_voucher",
+      "submit_material_request",
+    ],
+  },
+  {
     id: "projects",
     label: "Projects & schedule",
     actions: [
       "create_progress",
       "submit",
-      "approve",
+      "approve_milestone",
       "create_change_order",
+      "approve_change_order",
       "create_claim",
-      "submit_material_request",
+      "approve_claim",
+      "approve_eot",
+      "approve_measurement",
+      "approve_ipc",
     ],
   },
   {
     id: "site",
     label: "Site & diary",
-    actions: ["submit_site_diary", "approve_site_diary", "issue_site_voucher"],
+    actions: [
+      "submit_site_diary",
+      "approve_site_diary",
+      "approve_material_log",
+      "approve_settlement",
+    ],
   },
   {
     id: "financial",
@@ -28,29 +50,27 @@ export const PERMISSION_GROUPS = [
       "approve_expense",
       "submit_billing",
       "approve_billing",
+      "create_supplier_bill",
+      "approve_supplier_bill",
       "pay_supplier",
     ],
   },
   {
     id: "hse",
     label: "Quality & safety",
-    actions: ["create_quality", "create_safety", "submit_document", "approve_document"],
-  },
-  {
-    id: "team",
-    label: "Team & procurement",
     actions: [
-      "manage_team",
-      "create_supplier_bill",
-      "approve_supplier_bill",
-      "post_central_grn",
-      "approve_central_requisition",
+      "create_quality",
+      "approve_quality",
+      "create_safety",
+      "approve_safety",
+      "submit_document",
+      "approve_document",
     ],
   },
   {
-    id: "admin",
-    label: "Administration",
-    actions: ["manage_users", "manage_company"],
+    id: "team",
+    label: "Team & admin",
+    actions: ["manage_team", "manage_users", "manage_company"],
   },
 ];
 

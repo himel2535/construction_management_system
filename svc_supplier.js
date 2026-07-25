@@ -135,6 +135,8 @@ export async function createSupplierBill(payload, { autoApprove = false, billCou
 }
 
 export async function approveSupplierBill(billId) {
+  const { guardAction } = await import("./svc_governance.js");
+  guardAction("approve_supplier_bill");
   const bill = readRef(`supplierBills/${billId}`);
   if (!bill) throw new Error("Bill not found");
   if (bill.status !== "draft") throw new Error("Only draft bills can be approved");

@@ -1,5 +1,6 @@
 import { reportKpiIcon } from "./cmp_dashboardIcons.js";
 import { PERMISSION_GROUPS, MATRIX_ROLES, roleHasPermission, matrixRoleLabel } from "./util_permissions.js";
+import { approvalResponsibilityRows } from "./util_approvalResponsibility.js";
 
 function escapeHtml(s) {
   return String(s ?? "")
@@ -304,6 +305,40 @@ function renderPermGroupTable(group) {
     </section>`;
 }
 
+/** Who approves what — production responsibility guide */
+function renderApprovalResponsibilitiesTable() {
+  const rows = approvalResponsibilityRows();
+  const body = rows
+    .map(
+      (r) => `
+        <tr>
+          <td><strong>${escapeHtml(r.label)}</strong></td>
+          <td>${escapeHtml(r.approverRoles)}</td>
+          <td class="settings-approval-resp-pages">${escapeHtml(r.approvePages)}</td>
+        </tr>`
+    )
+    .join("");
+  return `
+    <section class="settings-approval-responsibilities">
+      <h3 class="settings-approval-resp-title">Approval responsibilities</h3>
+      <p class="settings-approval-resp-intro text-muted">
+        Production segregation of duties — who approves each workflow and where to action it.
+      </p>
+      <div class="reports-table-wrap settings-approval-resp-table-wrap">
+        <table class="dash-table projects-table settings-approval-resp-table">
+          <thead>
+            <tr>
+              <th>Entity</th>
+              <th>Approver role(s)</th>
+              <th>Page to action</th>
+            </tr>
+          </thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+    </section>`;
+}
+
 /** RBAC permission matrix — per-module cards, fixed columns */
 export function renderPermissionMatrixHtml() {
   const groupCards = PERMISSION_GROUPS.map(renderPermGroupTable).join("");
@@ -323,5 +358,6 @@ export function renderPermissionMatrixHtml() {
         </div>
       </div>
       <div class="settings-perm-groups">${groupCards}</div>
+      ${renderApprovalResponsibilitiesTable()}
     </div>`;
 }

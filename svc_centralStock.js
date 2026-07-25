@@ -21,6 +21,7 @@ export async function postGrnToCentralStock(projectId, grnId, { receivedBy, line
   const materials = await getList("inventoryMaterials");
   const existingIn = await getList("inventoryStockIn");
   const posted = [];
+  const skipped = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -35,7 +36,11 @@ export async function postGrnToCentralStock(projectId, grnId, { receivedBy, line
       mapProductToInventoryMaterial(line.productName, materials);
 
     if (!material) {
-      throw new Error(`No inventory material mapped for "${line.productName || "line " + (i + 1)}"`);
+      skipped.push({
+        productName: line.productName || `line ${i + 1}`,
+        reason: "add in Inventory → Materials",
+      });
+      continue;
     }
 
     const stockInId = await recordStockIn({
@@ -60,8 +65,18 @@ export async function postGrnToCentralStock(projectId, grnId, { receivedBy, line
     posted.push({ stockInId, materialId: material.id, qty });
   }
 
-  const grn = readRef(`goodsReceipts/${projectId}/${grnId}`) || {};
-  if (posted.length) {
+  const linesWithQty = lines.filter((l) => Number(l.qty ?? l.receivedQty) > 0);
+  const pendingCount = lines.filter((l, i) => {
+    const qty = Number(l.qty ?? l.receivedQty) || 0;
+    if (qty <= 0) return false;
+    const dedupeKey = `${grnId}_${i}`;
+    return !existingIn.some((r) => r.grnDedupeKey === dedupeKey);
+  }).length;
+  const allPosted =
+    skipped.length === 0 && linesWithQty.length > 0 && (pendingCount === 0 || posted.length === pendingCount);
+
+  if (allPosted) {
+    const grn = readRef(`goodsReceipts/${projectId}/${grnId}`) || {};
     const { updatePath } = await import("./svc_data.js");
     await updatePath(`goodsReceipts/${projectId}/${grnId}`, {
       ...grn,
@@ -70,6 +85,13 @@ export async function postGrnToCentralStock(projectId, grnId, { receivedBy, line
       updatedAt: Date.now(),
     });
   }
+
+  if (skipped.length) {
+    const names = skipped.map((s) => `${s.productName} (${s.reason})`).join("; ");
+    const prefix = posted.length ? `Posted ${posted.length} line(s). Skipped: ` : "";
+    throw new Error(`${prefix}${names}`);
+  }
+
   return posted;
 }
 

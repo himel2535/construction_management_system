@@ -157,6 +157,10 @@ export async function updateRosterEntry(projectId, rosterId, data) {
 }
 
 export async function upsertSettlement(projectId, data) {
+  if (data.status === "approved") {
+    const { guardAction } = await import("./svc_governance.js");
+    guardAction("approve_settlement");
+  }
   const month = data.month || currentMonthKey();
   const existing = Object.entries(readRef(`siteSettlements/${projectId}`) || {}).find(
     ([, row]) => row.month === month && row.siteInChargeId === data.siteInChargeId
@@ -220,6 +224,8 @@ export async function deleteMaterialLog(projectId, logId) {
 }
 
 export async function approveMaterialLog(projectId, logId) {
+  const { guardAction } = await import("./svc_governance.js");
+  guardAction("approve_material_log");
   const cur = readRef(`siteMaterialLogs/${projectId}/${logId}`) || {};
   const items = (cur.items || []).map(normalizeUsageItem);
   validateUsageAgainstBalance(projectId, items, { excludeLogId: logId });

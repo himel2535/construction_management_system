@@ -4,7 +4,6 @@ import { readRef } from "./svc_tenant.js";
 import { getCurrentUserId, getCurrentUserName } from "./svc_auth.js";
 import { renderFormField, renderStatusPills, govContractFieldsHtml, buildAgencyOptions, buildClientSelectHtml, buildProjectManagerSelectHtml, wireProjectClientFields, readClientFieldsFromForm, projectManagerCandidates } from "./cmp_projectForm.js";
 import {
-  canTransition,
   milestoneVariance,
   PROJECT_STATUSES,
 } from "./svc_workflow.js";
@@ -1123,7 +1122,7 @@ export function mountProjects(container) {
               <td class="proj-phases-col-seq">${ph.sequence || 0}</td>
               <td>${statusChip(ph.status || "draft")}</td>
               <td>${phasePlannedCell(ph.plannedStart, ph.plannedEnd)}</td>
-              <td>${workflowButtons("phase", ph, `projectPhases/${state.selectedProjectId}/${ph.id}`)}</td>
+              <td>${workflowButtonsHtml({ ...ph, status: ph.status || "draft" }, `projectPhases/${state.selectedProjectId}/${ph.id}`, "phase")}</td>
               <td class="rep-col-actions proj-row-actions-cell">
                 <button type="button" class="btn btn-ghost btn-sm phase-edit-btn" data-id="${ph.id}">Edit</button>
                 ${(ph.status || "draft") === "draft" ? `<button type="button" class="btn btn-ghost btn-sm phase-del-btn" data-id="${ph.id}">Delete</button>` : ""}
@@ -1144,7 +1143,14 @@ export function mountProjects(container) {
 
     tableWrap.querySelector(".proj-phase-add-btn")?.addEventListener("click", () => openAddPhaseDialog());
 
-    wireWorkflowButtons(tableWrap, "phase");
+    wireGovWorkflowButtons(tableWrap, (btn) => {
+      const cur = readRef(btn.dataset.path) || {};
+      return {
+        entityType: "phase",
+        projectId: state.selectedProjectId,
+        title: cur.name || btn.dataset.id,
+      };
+    });
     tableWrap.querySelectorAll(".phase-edit-btn").forEach((btn) => {
       btn.onclick = () => {
         const ph = sorted.find((x) => x.id === btn.dataset.id);
@@ -1183,82 +1189,6 @@ export function mountProjects(container) {
       };
     });
     return root;
-  }
-
-  function workflowButtons(entityType, row, path) {
-    const st = row.status || "draft";
-    const btns = [];
-    if (canTransition(st, "submitted")) btns.push(`<button type="button" class="btn btn-ghost btn-sm wf-btn" data-path="${path}" data-to="submitted" data-entity="${entityType}" data-id="${row.id}">Submit</button>`);
-    if (canTransition(st, "approved")) btns.push(`<button type="button" class="btn btn-ghost btn-sm wf-btn" data-path="${path}" data-to="approved" data-entity="${entityType}" data-id="${row.id}">Approve</button>`);
-    if (canTransition(st, "rejected")) btns.push(`<button type="button" class="btn btn-ghost btn-sm wf-btn" data-path="${path}" data-to="rejected" data-entity="${entityType}" data-id="${row.id}">Reject</button>`);
-    if (canTransition(st, "closed")) btns.push(`<button type="button" class="btn btn-ghost btn-sm wf-btn" data-path="${path}" data-to="closed" data-entity="${entityType}" data-id="${row.id}">Close</button>`);
-    if (canTransition(st, "draft") && st === "rejected") btns.push(`<button type="button" class="btn btn-ghost btn-sm wf-btn" data-path="${path}" data-to="draft" data-entity="${entityType}" data-id="${row.id}">Reopen</button>`);
-    return btns.length ? `<div class="wf-actions">${btns.join("")}</div>` : "";
-  }
-
-  function wireMilestoneWorkflow(host) {
-    host.querySelectorAll(".wf-btn").forEach((btn) => {
-      btn.onclick = async () => {
-        const path = btn.dataset.path;
-        const to = btn.dataset.to;
-        const cur = readRef(path) || {};
-        const from = cur.workflowStatus || "draft";
-        if (!canTransition(from, to)) {
-          showToast("Invalid status transition", "error");
-          return;
-        }
-        const now = Date.now();
-        const patch = { workflowStatus: to, updatedAt: now };
-        if (to === "submitted") {
-          patch.submittedBy = getCurrentUserId();
-          patch.submittedAt = now;
-        }
-        if (to === "approved") {
-          patch.approvedBy = getCurrentUserId();
-          patch.approvedAt = now;
-        }
-        await updatePath(path, { ...cur, ...patch });
-        await auditProject(state, {
-          entityType: "milestone",
-          entityId: btn.dataset.id,
-          action: "status_change",
-          diffSummary: `${cur.title || btn.dataset.id}: ${from} → ${to}`,
-        });
-        showToast(`Approval: ${to}`);
-      };
-    });
-  }
-
-  function wireWorkflowButtons(host, entityType) {
-    host.querySelectorAll(".wf-btn").forEach((btn) => {
-      btn.onclick = async () => {
-        const path = btn.dataset.path;
-        const to = btn.dataset.to;
-        const cur = readRef(path) || {};
-        if (!canTransition(cur.status, to)) {
-          showToast("Invalid status transition", "error");
-          return;
-        }
-        const now = Date.now();
-        const patch = { status: to, updatedAt: now };
-        if (to === "submitted") {
-          patch.submittedBy = getCurrentUserId();
-          patch.submittedAt = now;
-        }
-        if (to === "approved") {
-          patch.approvedBy = getCurrentUserId();
-          patch.approvedAt = now;
-        }
-        await updatePath(path, { ...cur, ...patch });
-        await auditProject(state, {
-          entityType,
-          entityId: btn.dataset.id,
-          action: "status_change",
-          diffSummary: `${cur.name || cur.title || btn.dataset.id}: ${cur.status} → ${to}`,
-        });
-        showToast(`Status: ${to}`);
-      };
-    });
   }
 
   function milestoneDeadlineCell(plannedDate) {
@@ -1496,7 +1426,7 @@ export function mountProjects(container) {
               <td class="proj-milestones-owner">${escapeHtml(m._owner)}</td>
               <td>${m._variance}</td>
               <td>${statusChip(m.status)}</td>
-              <td class="rep-col-workflow proj-milestones-workflow-cell">${workflowButtons("milestone", wfRow, wfPath)}</td>
+              <td class="rep-col-workflow proj-milestones-workflow-cell">${workflowButtonsHtml(wfRow, wfPath, "milestone")}</td>
               <td class="rep-col-actions proj-row-actions-cell">
                 <button type="button" class="btn btn-ghost btn-sm ms-edit-btn" data-id="${m.id}">Edit</button>
               </td>
@@ -1589,7 +1519,15 @@ export function mountProjects(container) {
         );
       };
     });
-    wireMilestoneWorkflow(tableWrap);
+    wireGovWorkflowButtons(tableWrap, (btn) => {
+      const cur = readRef(btn.dataset.path) || {};
+      return {
+        entityType: "milestone",
+        projectId: state.selectedProjectId,
+        title: cur.title || btn.dataset.id,
+        statusField: "workflowStatus",
+      };
+    });
     return root;
   }
 

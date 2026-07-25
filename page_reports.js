@@ -564,7 +564,7 @@ export function mountReports(container) {
     const host = document.getElementById("worker-payroll-body");
     if (!host) return;
     if (!data) return;
-    const showReconcile = canPerformAction("approve") || canPerformAction("approve_expense");
+      const showReconcile = canPerformAction("approve_expense");
     host.innerHTML = renderWorkerPayrollBlocks(data, {
       tableLimit: REPORT_TABLE_PREVIEW,
       viewAllHref: REPORT_VIEW_ALL.workerPayroll,

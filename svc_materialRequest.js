@@ -3,25 +3,48 @@
 import { updatePath, readRef } from "./svc_data.js";
 import { getCurrentUserId } from "./svc_auth.js";
 import { deriveDeliveryStatus } from "./util_materialRequest.js";
+import { upsertApprovalQueue, clearApprovalQueue, canPerformAction, guardAction } from "./svc_governance.js";
+
+function mrPath(projectId, mrId) {
+  return `materialRequests/${projectId}/${mrId}`;
+}
 
 export async function submitMaterialRequest(projectId, mrId) {
-  const cur = readRef(`materialRequests/${projectId}/${mrId}`) || {};
-  await updatePath(`materialRequests/${projectId}/${mrId}`, {
+  guardAction("submit_material_request");
+  const path = mrPath(projectId, mrId);
+  const cur = readRef(path) || {};
+  const now = Date.now();
+  await updatePath(path, {
     ...cur,
     status: "submitted",
     deliveryStatus: "requested",
-    submittedAt: Date.now(),
+    submittedAt: now,
     requestedBy: getCurrentUserId(),
-    updatedAt: Date.now(),
+    updatedAt: now,
+  });
+  await upsertApprovalQueue({
+    entityType: "material_request",
+    entityId: mrId,
+    projectId,
+    title: cur.title || mrId,
+    path,
+    status: "pending",
+    submittedAt: now,
+    submittedBy: getCurrentUserId(),
   });
 }
 
 export async function approveMaterialRequest(projectId, mrId) {
-  const cur = readRef(`materialRequests/${projectId}/${mrId}`) || {};
+  const path = mrPath(projectId, mrId);
+  const cur = readRef(path) || {};
   if (cur.requestType === "central") {
-    return approveCentralRequisition(projectId, mrId);
+    guardAction("approve_central_requisition");
+    await approveCentralRequisition(projectId, mrId);
+    await clearApprovalQueue("material_request", mrId);
+    return;
   }
-  await updatePath(`materialRequests/${projectId}/${mrId}`, {
+  guardAction("approve_material_request");
+  await updatePath(path, {
     ...cur,
     status: "approved",
     deliveryStatus: "approved",
@@ -29,6 +52,24 @@ export async function approveMaterialRequest(projectId, mrId) {
     approvedBy: getCurrentUserId(),
     updatedAt: Date.now(),
   });
+  await clearApprovalQueue("material_request", mrId);
+}
+
+export async function rejectMaterialRequest(projectId, mrId) {
+  guardAction("approve_material_request");
+  const path = mrPath(projectId, mrId);
+  const cur = readRef(path) || {};
+  if ((cur.status || "draft") !== "submitted") {
+    throw new Error("Material request cannot be rejected");
+  }
+  await updatePath(path, {
+    ...cur,
+    status: "rejected",
+    rejectedAt: Date.now(),
+    rejectedBy: getCurrentUserId(),
+    updatedAt: Date.now(),
+  });
+  await clearApprovalQueue("material_request", mrId);
 }
 
 export async function approveCentralRequisition(projectId, mrId) {

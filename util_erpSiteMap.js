@@ -4,9 +4,11 @@ import { ROLE_LABELS } from "./util_roles.js";
 
 export const ERP_GUIDE_SECTIONS = [
   { id: "overview", label: "সারসংক্ষেপ" },
+  { id: "rbac", label: "RBAC & Approvals" },
   { id: "sitemap", label: "Site Map" },
   { id: "roles", label: "Role Guide" },
   { id: "journeys", label: "কাজের ধাপ" },
+  { id: "client", label: "Client Guide" },
   { id: "features", label: "Features" },
 ];
 
@@ -20,14 +22,14 @@ export const ERP_ROLE_OPTIONS = [
 export const ERP_HERO = {
   badge: "Product Guide",
   title: "Construction ERP",
-  highlight: "কোথায় যাবেন, কী করবেন",
+  highlight: "কোথায় যাবেন, কী করবেন, কে approve করবে",
   subtitle:
-    "প্রতিটি menu → tab → button — actual codebase থেকে তৈরি interactive map। Role বেছে নিলে শুধু আপনার relevant path দেখাবে।",
+    "Internal team (Seller) ও Client portal (Buyer) — প্রতিটি role, approval flow, module map এক জায়গায়। Production RBAC অনুযায়ী তৈরি।",
   stats: [
     { value: "15+", label: "Main modules" },
-    { value: "80+", label: "Tabs & actions" },
-    { value: "8", label: "Scenario journeys" },
+    { value: "17", label: "Approval workflows" },
     { value: "7", label: "Role guides" },
+    { value: "8", label: "Scenario journeys" },
   ],
 };
 
@@ -484,12 +486,13 @@ export const ERP_SITE_TREE = [
     id: "approvals",
     label: "Approvals",
     route: "/approvals",
-    roles: R.pm.concat(R.se, R.finance),
+    hint: "PM: PO/MR/quality/CO · Accountant: bills/expenses · Owner: all · Procurement: supplier bills only",
+    roles: R.pm.concat(R.se, R.finance, R.po),
     children: [
       {
         label: "Pending queue",
         actions: [
-          act("Approve / Reject", "/approvals", "diary, MR, bills, phases..."),
+          act("Approve / Reject", "/approvals", "Role-specific — see RBAC matrix in Product Guide"),
         ],
       },
     ],
@@ -589,14 +592,14 @@ export const ERP_JOURNEYS = [
   },
   {
     id: "procurement",
-    title: "মাল কেনা ও inventory",
-    roles: R.proc,
+    title: "মাল কেনা ও inventory (Production RBAC)",
+    roles: R.proc.concat(R.pm),
     steps: [
-      { text: "Inventory → Materials-এ item যোগ করুন", route: "/inventory?tab=materials", action: "+ Add material" },
-      { text: "Procurement → Material request তৈরি → Submit", route: "/purchases?tab=requests", action: "+ Create request" },
-      { text: "Approve করুন → Purchase Order বানান", route: "/purchases?tab=orders", action: "+ Build PO" },
-      { text: "GRN receive করুন — stock update হবে", route: "/purchases?tab=grn", action: "Receive GRN" },
-      { text: "Low stock alert দেখুন", route: "/inventory?tab=low_stock", action: "Stock in" },
+      { text: "Site → Material request submit (Site Management)", route: "/site-incharge?tab=requests", action: "Submit MR" },
+      { text: "PM → Approvals inbox-এ MR approve করুন", route: "/approvals", action: "Approve MR" },
+      { text: "Procurement → Build PO draft (approve নয়)", route: "/purchases?tab=orders", action: "+ Build PO" },
+      { text: "PM → Approvals-এ PO approve করুন", route: "/approvals", action: "Approve PO" },
+      { text: "Procurement → GRN receive (operational, no approval)", route: "/purchases?tab=grn", action: "Receive GRN" },
     ],
   },
   {
@@ -648,11 +651,11 @@ export const ERP_JOURNEYS = [
   {
     id: "material_site",
     title: "Site থেকে material request",
-    roles: R.field.concat(R.proc),
+    roles: R.field.concat(R.proc, R.pm),
     steps: [
       { text: "Site → Material requests → requisition submit", route: "/site-incharge?tab=requests", action: "+ Submit requisition" },
-      { text: "Inventory → Issue Vouchers → approve MR", route: "/inventory?tab=issue_vouchers", action: "Approve MR" },
-      { text: "Issue voucher — site-এ material issue", route: "/inventory?tab=issue_vouchers", action: "Issue voucher" },
+      { text: "PM → Approvals বা Inventory-তে central MR approve", route: "/approvals", action: "Approve MR" },
+      { text: "Procurement → Build PO → PM approve → GRN", route: "/purchases?tab=orders", action: "Build PO" },
       { text: "Site → Material log-এ usage record", route: "/site-incharge?tab=material", action: "+ Log usage" },
     ],
   },
@@ -676,7 +679,7 @@ export const ERP_ROLE_GUIDES = [
     canAccess: ["সব module", "Users & RBAC", "Company profile", "Backup", "Assets"],
     dailyTasks: [
       { text: "Dashboard KPI review", route: "/dashboard" },
-      { text: "Pending approvals", route: "/approvals" },
+      { text: "Pending approvals (সব entity)", route: "/approvals" },
       { text: "Financial summary", route: "/reports?tab=financial" },
       { text: "User management", route: "/settings?tab=users" },
     ],
@@ -684,23 +687,23 @@ export const ERP_ROLE_GUIDES = [
   {
     role: "project_manager",
     title: "Project Manager",
-    canAccess: ["Projects hub", "Site Management", "Clients", "Workers", "Approvals", "Reports"],
+    canAccess: ["Projects hub", "Site Management", "Procurement", "Clients", "Approvals", "Reports"],
     dailyTasks: [
-      { text: "Project progress review", route: "/projects?hub=1&tab=progress" },
-      { text: "Approve site diary", route: "/approvals" },
+      { text: "Approve PO & material requests", route: "/approvals" },
+      { text: "Approve site diary / quality / CO", route: "/approvals" },
       { text: "Milestone / phase approvals", route: "/projects?hub=1&tab=milestones" },
-      { text: "Team assignment", route: "/projects?hub=1&tab=team" },
+      { text: "Project progress review", route: "/projects?hub=1&tab=progress" },
     ],
   },
   {
     role: "site_engineer",
     title: "Site Engineer",
-    canAccess: ["Projects (view)", "Site Management", "Approvals (submit)"],
+    canAccess: ["Projects (view)", "Site Management", "Approvals (view only for most)"],
     dailyTasks: [
-      { text: "Daily diary entry", route: "/site-incharge?tab=diary" },
-      { text: "Material usage log", route: "/site-incharge?tab=material" },
+      { text: "Daily diary entry → Submit", route: "/site-incharge?tab=diary" },
+      { text: "Material usage log approve", route: "/site-incharge?tab=material" },
+      { text: "Material request submit", route: "/site-incharge?tab=requests" },
       { text: "Progress update", route: "/projects?hub=1&tab=progress" },
-      { text: "Quality / safety log", route: "/projects?hub=1&tab=quality" },
     ],
   },
   {
@@ -710,19 +713,19 @@ export const ERP_ROLE_GUIDES = [
     dailyTasks: [
       { text: "Worker roster manage", route: "/site-incharge?tab=roster" },
       { text: "Attendance mark", route: "/workers?tab=attendance" },
-      { text: "Material log", route: "/site-incharge?tab=material" },
+      { text: "Material request submit", route: "/site-incharge?tab=requests" },
       { text: "Payroll calculate", route: "/site-incharge?tab=payroll" },
     ],
   },
   {
     role: "accountant",
     title: "Accountant / Finance",
-    canAccess: ["Billing", "Finance", "Clients", "Reports", "Approvals (finance)"],
+    canAccess: ["Billing", "Finance", "Suppliers", "Clients", "Reports", "Approvals (finance items)"],
     dailyTasks: [
-      { text: "Bill approval queue", route: "/billing" },
-      { text: "Payment recording", route: "/billing" },
+      { text: "Approve client billing", route: "/billing" },
+      { text: "Approve supplier bills", route: "/suppliers" },
+      { text: "Expense approval (staged)", route: "/approvals" },
       { text: "Financial reports", route: "/reports?tab=financial" },
-      { text: "Supplier payments", route: "/suppliers" },
     ],
   },
   {
@@ -730,9 +733,9 @@ export const ERP_ROLE_GUIDES = [
     title: "Procurement Officer",
     canAccess: ["Procurement", "Suppliers", "Inventory", "Reports"],
     dailyTasks: [
-      { text: "Approve material requests", route: "/purchases?tab=requests" },
-      { text: "Build & approve PO", route: "/purchases?tab=orders" },
-      { text: "GRN receive", route: "/purchases?tab=grn" },
+      { text: "Build PO draft (PM approve করবে)", route: "/purchases?tab=orders" },
+      { text: "Receive GRN — stock update", route: "/purchases?tab=grn" },
+      { text: "Create supplier bill (Accountant approve)", route: "/suppliers" },
       { text: "Low stock check", route: "/inventory?tab=low_stock" },
     ],
   },
@@ -748,10 +751,34 @@ export const ERP_ROLE_GUIDES = [
   },
 ];
 
+/** Client (Buyer) portal guide content */
+export const ERP_CLIENT_GUIDE = {
+  title: "Client Portal — Buyer Guide",
+  subtitle: "আপনি শুধু আপনার project-এর progress, billing ও milestone দেখতে পারবেন — কোনো approval বা edit নেই।",
+  canSee: [
+    "Assigned project cards — progress %",
+    "Billing table — invoice status, due dates",
+    "Upcoming payment milestones",
+    "Document downloads (if shared)",
+  ],
+  cannotDo: [
+    "Approve purchase orders or material requests",
+    "Edit site diary, BOQ, or financial records",
+    "Access other clients' projects",
+    "User management or RBAC settings",
+  ],
+  steps: [
+    { text: "Login → Client Portal auto-open", route: "/client-portal", action: "Open portal" },
+    { text: "Your projects — progress cards", route: "/client-portal", action: "View projects" },
+    { text: "Billing table — invoice status", route: "/client-portal", action: "View billing" },
+    { text: "Milestones — upcoming payments", route: "/client-portal", action: "View milestones" },
+  ],
+};
+
 export const ERP_FEATURES = [
   {
-    title: "Role-based access",
-    desc: "Owner থেকে Client — প্রতিটি role শুধু relevant menu দেখে। RBAC matrix Settings-এ।",
+    title: "Production RBAC",
+    desc: "Segregation of duties — PM approves PO/MR, Accountant approves bills, Procurement creates/receives only।",
     route: "/settings?tab=rbac",
   },
   {

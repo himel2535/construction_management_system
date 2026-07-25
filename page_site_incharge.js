@@ -54,6 +54,7 @@ import {
 import { renderPhotoGallery } from "./cmp_photoGallery.js";
 import { submitMaterialRequest } from "./svc_materialRequest.js";
 import { canPerformAction } from "./svc_governance.js";
+import { approvalAwaitingHint } from "./util_approvalResponsibility.js";
 import { getCurrentUserId } from "./svc_auth.js";
 import { rollupSiteLedger, issuedVsUsedVariance, mapProductToInventoryMaterial } from "./util_stockLedger.js";
 import { openCustFormDialog } from "./cmp_projectTab.js";
@@ -1147,13 +1148,15 @@ export function mountSiteIncharge(container) {
         <tbody>
           ${logs
             .map((l) => {
-              const canApprove = l.status === "submitted";
-              const approveBlock = canApprove ? materialLogApproveReason(proj.id, l) : "";
-              const approveBtn = canApprove
+              const canApproveLog = l.status === "submitted" && canPerformAction("approve_material_log");
+              const approveBlock = canApproveLog ? materialLogApproveReason(proj.id, l) : "";
+              const approveBtn = canApproveLog
                 ? approveBlock
                   ? `<button type="button" class="btn btn-primary btn-sm sic-approve-blocked" disabled title="${escapeHtml(approveBlock)}">Approve</button>`
                   : `<button type="button" class="btn btn-primary btn-sm" data-approve-log="${l.id}">Approve</button>`
-                : "";
+                : l.status === "submitted"
+                  ? `<span class="approval-awaiting-hint">${escapeHtml(approvalAwaitingHint("material_log"))}</span>`
+                  : "";
               return `<tr data-log-id="${l.id}">
                 <td>${escapeHtml(l.logDate)}</td>
                 <td class="sic-material-items-cell">${materialLogItemsHtml(l.items)}</td>
@@ -2480,11 +2483,14 @@ export function mountSiteIncharge(container) {
     if (!readOnly) {
       settleForm.querySelectorAll("input").forEach((inp) => inp.addEventListener("input", recalc));
 
+      const canApproveSettlement = canPerformAction("approve_settlement");
       const actions = actionsShell.querySelector("#sic-settle-actions");
       if (actions) {
+        const showApprove = existing?.status === "draft" || !existing;
         actions.innerHTML = `
           <button type="button" class="btn btn-primary btn-sm" id="sic-save-settlement">Save draft</button>
-          ${existing?.status === "draft" || !existing ? '<button type="button" class="btn btn-ghost btn-sm" id="sic-approve-settlement">Approve</button>' : ""}
+          ${showApprove && canApproveSettlement ? '<button type="button" class="btn btn-ghost btn-sm" id="sic-approve-settlement">Approve</button>' : ""}
+          ${showApprove && !canApproveSettlement ? `<span class="approval-awaiting-hint">${escapeHtml(approvalAwaitingHint("settlement"))}</span>` : ""}
           ${existing?.status === "approved" ? '<button type="button" class="btn btn-primary btn-sm" id="sic-paid-settlement">Mark paid</button>' : ""}
         `;
       }

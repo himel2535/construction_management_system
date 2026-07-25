@@ -828,7 +828,7 @@ export function mountWorkers(container) {
         </div>
         <div class="toolbar-actions">
           ${
-            canPerformAction("approve") || canPerformAction("approve_expense")
+            canPerformAction("approve_expense")
               ? `<button type="button" class="btn btn-primary btn-sm" id="wrk-reconcile-btn">Reconcile payroll</button>`
               : ""
           }

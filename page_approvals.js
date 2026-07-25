@@ -12,6 +12,13 @@ import {
   expenseQueueRowAwaitingLabel,
 } from "./svc_projectExpense.js";
 import { canRoleDecideQueueRow } from "./util_approvalQueue.js";
+import {
+  approvalEntityLabel,
+  approvalResponsibilityFor,
+  approvePageLabels,
+  approvableEntitiesForRole,
+} from "./util_approvalResponsibility.js";
+import { roleLabel } from "./util_roles.js";
 import { formatDate } from "./util_format.js";
 import { showToast, actionFeedback } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
@@ -38,6 +45,38 @@ function canRejectQueueRow(row) {
   return canActOnQueueRow(row);
 }
 
+function entityTypeBadge(entityType) {
+  const label = approvalEntityLabel(entityType);
+  return `<span class="appr-entity-badge">${escapeHtml(label)}</span>`;
+}
+
+function approverPrimaryLabel(entityType) {
+  const row = approvalResponsibilityFor(entityType);
+  if (!row?.approverRoles?.length) return "Approver";
+  return roleLabel(row.approverRoles[0]);
+}
+
+function approverChipsHtml(entityType) {
+  const row = approvalResponsibilityFor(entityType);
+  if (!row?.approverRoles?.length) {
+    return '<span class="appr-role-chips"><span class="appr-role-chip">Approver</span></span>';
+  }
+  const labels = row.approverRoles.map((r) => roleLabel(r));
+  const chips = labels.map((l) => `<span class="appr-role-chip">${escapeHtml(l)}</span>`).join("");
+  return `<span class="appr-role-chips">${chips}</span>`;
+}
+
+function queueRowWaitingHtml(q) {
+  const waitLabel = q.entityType === "projectExpense" ? expenseQueueRowAwaitingLabel(q) : "";
+  if (waitLabel) {
+    return `<span class="text-muted appr-awaiting">${escapeHtml(waitLabel)}</span>`;
+  }
+  return `<div class="appr-status-block">
+    <span class="appr-needs-badge">Needs ${escapeHtml(approverPrimaryLabel(q.entityType))}</span>
+    <span class="appr-needs-route">${escapeHtml(approvePageLabels(q.entityType))}</span>
+  </div>`;
+}
+
 function queueRowActionHtml(q) {
   const isArb = q.workflowProfile === "arbitration" || q.entityType === "dispute";
   const approveLabel = isArb ? "Accept review" : "Approve";
@@ -51,13 +90,16 @@ function queueRowActionHtml(q) {
     const rejectBtn = canReject
       ? `<button type="button" class="btn btn-ghost btn-sm appr-reject" data-id="${escapeHtml(q.id)}">${rejectLabel}</button>`
       : "";
-    return `${approveBtn} ${rejectBtn}`.trim();
+    return `<div class="appr-action-btns">${approveBtn}${rejectBtn}</div>`;
   }
-  const waitLabel = q.entityType === "projectExpense" ? expenseQueueRowAwaitingLabel(q) : "";
-  if (waitLabel) {
-    return `<span class="text-muted appr-awaiting">${escapeHtml(waitLabel)}</span>`;
-  }
-  return `<span class="text-muted">—</span>`;
+  return queueRowWaitingHtml(q);
+}
+
+function submittedMetaHtml(q) {
+  const age = q.submittedAt ? Math.floor((Date.now() - q.submittedAt) / 86400000) : 0;
+  const dateLabel = q.submittedAt ? formatDate(q.submittedAt) : "—";
+  const ageLabel = `${age} day${age === 1 ? "" : "s"}`;
+  return `<span class="appr-meta-date">${escapeHtml(dateLabel)}</span><span class="appr-meta-sub">${escapeHtml(ageLabel)}</span>`;
 }
 
 export function mountApprovals(container) {
@@ -119,7 +161,11 @@ export function mountApprovals(container) {
   function render() {
     const role = getCurrentRole();
     const pending = visiblePending();
-    subEl.textContent = `Role: ${role} · review and action queued items`;
+    const approvable = approvableEntitiesForRole(role);
+    subEl.textContent =
+      approvable.length > 0
+        ? `Role: ${roleLabel(role)} · You can approve: ${approvable.join(", ")}`
+        : `Role: ${roleLabel(role)} · No approval actions for this role`;
     countEl.textContent =
       pending.length === 0
         ? "No items pending"
@@ -132,31 +178,38 @@ export function mountApprovals(container) {
 
     const projName = (id) => projects.find((p) => p.id === id)?.name || id;
     bodyEl.innerHTML = `
-      <div class="table-wrap projects-table-wrap">
+      <div class="table-wrap projects-table-wrap appr-table-wrap">
         <table class="dash-table projects-table" id="appr-table">
+          <colgroup>
+            <col class="appr-col-entity" />
+            <col class="appr-col-title" />
+            <col class="appr-col-project" />
+            <col class="appr-col-approver" />
+            <col class="appr-col-meta" />
+            <col class="appr-col-actions" />
+          </colgroup>
           <thead>
             <tr>
-              <th>Entity</th>
-              <th>Title</th>
-              <th>Project</th>
-              <th>Submitted</th>
-              <th>Age (days)</th>
-              <th>Actions</th>
+              <th class="appr-col-entity">Entity</th>
+              <th class="appr-col-title">Request</th>
+              <th class="appr-col-project">Project</th>
+              <th class="appr-col-approver">Approver</th>
+              <th class="appr-col-meta">Submitted</th>
+              <th class="appr-col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
             ${pending
               .map((q) => {
-                const age = q.submittedAt
-                  ? Math.floor((Date.now() - q.submittedAt) / 86400000)
-                  : 0;
+                const title = q.title || q.entityId;
+                const project = projName(q.projectId);
                 return `<tr data-id="${escapeHtml(q.id)}">
-                  <td>${escapeHtml(q.entityType)}</td>
-                  <td>${escapeHtml(q.title || q.entityId)}</td>
-                  <td>${escapeHtml(projName(q.projectId))}</td>
-                  <td>${q.submittedAt ? formatDate(q.submittedAt) : "—"}</td>
-                  <td>${age}</td>
-                  <td>${queueRowActionHtml(q)}</td>
+                  <td class="appr-col-entity">${entityTypeBadge(q.entityType)}</td>
+                  <td class="appr-col-title" title="${escapeHtml(title)}"><strong>${escapeHtml(title)}</strong></td>
+                  <td class="appr-col-project" title="${escapeHtml(project)}">${escapeHtml(project)}</td>
+                  <td class="appr-col-approver">${approverChipsHtml(q.entityType)}</td>
+                  <td class="appr-col-meta">${submittedMetaHtml(q)}</td>
+                  <td class="appr-col-actions">${queueRowActionHtml(q)}</td>
                 </tr>`;
               })
               .join("")}

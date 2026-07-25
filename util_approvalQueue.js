@@ -1,29 +1,16 @@
 import { normalizeRole } from "./util_roles.js";
 import { roleHasAction } from "./util_roleActions.js";
+import { approvalActionForEntity, canApproveEntity } from "./util_approvalResponsibility.js";
 
-/** Inbox types procurement may approve (not billing / change orders / quality). */
-export const PROCUREMENT_INBOX_TYPES = new Set([
-  "purchaseorder",
-  "purchase_order",
-  "purchase_requisition",
-  "material_request",
-  "supplierbill",
-  "bill",
-]);
+/** Supplier bill rows procurement may see but not decide (accountant approves). */
+export const PROCUREMENT_INBOX_TYPES = new Set(["supplierbill", "bill"]);
 
 /**
  * Primary permission key for approving a queue row (non-expense).
  * @param {string} [entityType]
  */
 export function queueRowDecisionPermissionKey(entityType) {
-  const t = String(entityType || "").toLowerCase();
-  if (t === "clientinvoice" || t === "billing") return "approve_billing";
-  if (t === "supplierbill" || t === "bill") return "approve_supplier_bill";
-  return "approve";
-}
-
-function roleCanPerform(role, action) {
-  return roleHasAction(normalizeRole(role), action);
+  return approvalActionForEntity(entityType);
 }
 
 /**
@@ -45,9 +32,5 @@ export function canRoleDecideQueueRow(row, role, opts = {}) {
     if (!PROCUREMENT_INBOX_TYPES.has(t)) return false;
   }
 
-  const key = queueRowDecisionPermissionKey(row.entityType);
-  if (key === "approve_supplier_bill") {
-    return roleCanPerform(r, "approve_supplier_bill") || roleCanPerform(r, "approve");
-  }
-  return roleCanPerform(r, key);
+  return canApproveEntity(row.entityType, r);
 }

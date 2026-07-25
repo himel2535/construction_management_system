@@ -30,8 +30,7 @@ function usersWhoCanApproveCentralReq() {
     (u) =>
       u.active !== false &&
       !u.deletedAt &&
-      (roleHasAction(normalizeRole(u.role), "approve_central_requisition") ||
-        roleHasAction(normalizeRole(u.role), "approve"))
+      roleHasAction(normalizeRole(u.role), "approve_central_requisition")
   );
 }
 

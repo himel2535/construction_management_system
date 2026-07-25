@@ -1,8 +1,6 @@
 import { create, listenList, listenProjectSub, updatePath } from "./svc_data.js";
 import { readRef } from "./svc_tenant.js";
 import { getCurrentUserId } from "./svc_auth.js";
-import { checkBudgetForApproval } from "./svc_projectCost.js";
-import { writeAuditLog } from "./svc_workflow.js";
 import { createSupplierBill, mergeSupplierLists, createSupplier } from "./svc_supplier.js";
 import { formatBDT, todayISO } from "./util_format.js";
 import { showToast, actionFeedback } from "./cmp_toast.js";
@@ -11,16 +9,17 @@ import { setPageChrome } from "./cmp_header.js";
 import { statusChip } from "./cmp_ui.js";
 import { openCustFormDialog, escapeHtml } from "./cmp_projectTab.js";
 import { buildProductCatalog, summarizePoItems } from "./util_procurement.js";
-import { renderPurchaseOrderComposer, renderGrnReceiveForm } from "./cmp_procurement.js";
+import { openPurchaseOrderModal, openGrnReceiveModal } from "./cmp_procurement.js";
 import { deliveryStatusLabel, deliveryChipClass } from "./util_materialRequest.js";
 import {
   submitMaterialRequest,
   approveMaterialRequest,
-  syncMrOnPoApprove,
   syncMrDeliveryFromGrn,
 } from "./svc_materialRequest.js";
+import { approvePurchaseOrder } from "./svc_procurement.js";
 import { postGrnToCentralStock } from "./svc_centralStock.js";
-import { canPerformAction } from "./svc_governance.js";
+import { canPerformAction, upsertApprovalQueue, canApproveEntity } from "./svc_governance.js";
+import { approvalAwaitingHint } from "./util_approvalResponsibility.js";
 import {
   computeProcurementStats,
   renderProcurementKpiStripHtml,
@@ -74,14 +73,14 @@ export function mountPurchases(container) {
   let mrs = [];
   let pos = [];
   let grns = [];
+  let inventoryMaterials = [];
   let boqItems = [];
   let productsBySupplierId = {};
   let productCatalog = [];
   const poDraftLines = [];
   let productUnsubs = [];
-  let poComposerExpanded = false;
-  let composerMounted = false;
-  let grnPoIdPersist = "";
+  let activeGrnModalClose = null;
+  let procurementModalOpen = false;
 
   function rebuildCatalog() {
     productCatalog = buildProductCatalog(suppliers, productsBySupplierId);
@@ -110,10 +109,6 @@ export function mountPurchases(container) {
     tabHost.innerHTML = "";
     tabHost.appendChild(
       renderProcurementTabBar(activeTab, (tab) => {
-        if (tab !== "orders") {
-          poComposerExpanded = false;
-          composerMounted = false;
-        }
         activeTab = tab;
         render({ full: true });
       })
@@ -122,10 +117,10 @@ export function mountPurchases(container) {
 
   function poDraftActionsCell(p) {
     if (p.status !== "draft") return "—";
-    if (canPerformAction("approve")) {
+    if (canApproveEntity("purchase_order")) {
       return `<button type="button" class="btn btn-ghost btn-sm po-approve" data-id="${p.id}">Approve</button>`;
     }
-    return `<span class="section-sub pur-po-approval-hint">Needs PM/Owner approval</span>`;
+    return `<span class="approval-awaiting-hint">${escapeHtml(approvalAwaitingHint("purchase_order"))}</span>`;
   }
 
   function buildPoTableRowsHtml() {
@@ -145,16 +140,22 @@ export function mountPurchases(container) {
       : '<tr class="empty-row"><td colspan="5">No POs</td></tr>';
   }
 
-  function mountPoComposer(composerHost) {
-    composerHost.innerHTML = "";
-    const poComposer = renderPurchaseOrderComposer({
+  function openBuildPoModal() {
+    if (!selectedProject) {
+      showToast("Select a project first", "error");
+      return;
+    }
+    poDraftLines.length = 0;
+    procurementModalOpen = true;
+    openPurchaseOrderModal({
       getCatalog: () => productCatalog,
       getSuppliers: () => suppliers,
       mrs,
       draftLines: poDraftLines,
       onCreatePo: async ({ lines, mrId, vendorId, vendorName, amount }) => {
         try {
-          await create(`purchaseOrders/${selectedProject}`, {
+          const now = Date.now();
+          const poId = await create(`purchaseOrders/${selectedProject}`, {
             mrId: mrId || "",
             vendorId,
             vendorName,
@@ -165,31 +166,32 @@ export function mountPurchases(container) {
             costCategory: "material",
             projectId: selectedProject,
             orderDate: todayISO(),
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
+            createdAt: now,
+            updatedAt: now,
             createdBy: getCurrentUserId(),
           });
-          showToast("PO created (draft)");
-          poComposerExpanded = false;
-          composerMounted = false;
+          await upsertApprovalQueue({
+            entityType: "purchase_order",
+            entityId: poId,
+            projectId: selectedProject,
+            title: `${vendorName || "PO"} · ${formatBDT(amount)}`,
+            path: `purchaseOrders/${selectedProject}/${poId}`,
+            status: "pending",
+            submittedAt: now,
+            submittedBy: getCurrentUserId(),
+          });
+          showToast("PO created (draft) — pending approval");
           render({ full: true });
         } catch (err) {
           showToast(err.message, "error");
+          throw err;
         }
       },
+      onClose: () => {
+        poDraftLines.length = 0;
+        procurementModalOpen = false;
+      },
     });
-    composerHost.appendChild(poComposer);
-    composerMounted = true;
-  }
-
-  function refreshOrdersTable() {
-    const panel = contentHost.querySelector("#pur-orders-panel");
-    const tbody = contentHost.querySelector("#pur-po-table-tbody");
-    if (!panel || !tbody) {
-      render({ full: true });
-      return;
-    }
-    tbody.innerHTML = buildPoTableRowsHtml();
   }
 
   function openCreateMrDialog() {
@@ -263,6 +265,10 @@ export function mountPurchases(container) {
 
   function bindMrActions(host) {
     host.querySelectorAll(".mr-submit").forEach((btn) => {
+      if (!canPerformAction("submit_material_request")) {
+        btn.remove();
+        return;
+      }
       btn.onclick = async () => {
         try {
           await submitMaterialRequest(selectedProject, btn.dataset.id);
@@ -274,9 +280,8 @@ export function mountPurchases(container) {
     });
     host.querySelectorAll(".mr-approve").forEach((btn) => {
       btn.onclick = async () => {
-        const { canPerformAction } = await import("./svc_governance.js");
-        if (!canPerformAction("approve")) {
-          showToast("Permission denied", "error");
+        if (!canPerformAction("approve_material_request")) {
+          showToast("Only Project Manager can approve material requests", "error");
           return;
         }
         try {
@@ -302,11 +307,15 @@ export function mountPurchases(container) {
                   .map((m) => {
                     const dClass = deliveryChipClass(m.deliveryStatus || "requested");
                     let actions = "";
-                    if (m.status === "draft") {
+                    if (m.status === "draft" && canPerformAction("submit_material_request")) {
                       actions += `<button type="button" class="btn btn-ghost btn-sm mr-submit" data-id="${m.id}">Submit</button>`;
                     }
                     if (m.status === "submitted") {
-                      actions += `<button type="button" class="btn btn-primary btn-sm mr-approve" data-id="${m.id}">Approve</button>`;
+                      if (canApproveEntity("material_request")) {
+                        actions += `<button type="button" class="btn btn-primary btn-sm mr-approve" data-id="${m.id}">Approve</button>`;
+                      } else {
+                        actions += `<span class="approval-awaiting-hint">${escapeHtml(approvalAwaitingHint("material_request"))}</span>`;
+                      }
                     }
                     const typeLabel =
                       m.requestType === "central" ? '<span class="chip">Central issue</span>' : "";
@@ -337,21 +346,13 @@ export function mountPurchases(container) {
 
   async function handlePoApprove(btn) {
     if (btn.disabled) return;
-    if (!canPerformAction("approve")) {
-      showToast(
-        "You cannot approve POs with your role. Switch to Owner/PM/Procurement in Settings.",
-        "error"
-      );
+    if (!canPerformAction("approve_purchase_order")) {
+      showToast("Only Project Manager can approve purchase orders", "error");
       return;
     }
     const po = pos.find((x) => x.id === btn.dataset.id);
     if (!po) {
       showToast("PO not found — refresh the page and try again.", "error");
-      return;
-    }
-    const check = checkBudgetForApproval(selectedProject, po.amount);
-    if (!check.ok) {
-      showToast(check.message, "error");
       return;
     }
     showToast(
@@ -361,21 +362,7 @@ export function mountPurchases(container) {
     btn.disabled = true;
     btn.classList.add("is-loading");
     try {
-      const cur = readRef(`purchaseOrders/${selectedProject}/${po.id}`) || {};
-      await updatePath(`purchaseOrders/${selectedProject}/${po.id}`, {
-        ...cur,
-        status: "approved",
-        updatedAt: Date.now(),
-      });
-      if (po.mrId) {
-        await syncMrOnPoApprove(selectedProject, po.id, po.mrId);
-      }
-      await writeAuditLog({
-        entityType: "purchaseOrder",
-        entityId: po.id,
-        action: "approve",
-        diffSummary: `PO approved ${formatBDT(po.amount)}`,
-      });
+      await approvePurchaseOrder(selectedProject, po.id);
       await actionFeedback("po_approved");
     } catch (err) {
       showToast(err.message || "Could not approve PO", "error");
@@ -400,25 +387,16 @@ export function mountPurchases(container) {
     wrap.className = "pur-tab-panel pur-orders-panel";
     wrap.id = "pur-orders-panel";
 
+    const buildPoBtn = canPerformAction("create_purchase_order")
+      ? `<button type="button" class="btn btn-primary btn-sm" id="pur-build-po">+ Build PO</button>`
+      : "";
     const section = purSection(
       "Purchase orders",
       "Product → supplier → qty; one supplier per PO",
-      `<button type="button" class="btn btn-primary btn-sm" id="pur-toggle-composer">${poComposerExpanded ? "Hide builder" : "+ Build PO"}</button>`,
+      buildPoBtn,
       ""
     );
     const body = section.querySelector(".pur-section-body");
-
-    const composerHost = document.createElement("div");
-    composerHost.id = "pur-composer-slot";
-    composerHost.className = "pur-composer-host";
-    composerHost.hidden = !poComposerExpanded;
-    body.appendChild(composerHost);
-
-    if (poComposerExpanded) {
-      mountPoComposer(composerHost);
-    } else {
-      composerMounted = false;
-    }
 
     const poTableWrap = document.createElement("div");
     poTableWrap.id = "pur-po-table-wrap";
@@ -430,41 +408,128 @@ export function mountPurchases(container) {
       </table>`;
     body.appendChild(poTableWrap);
 
-    section.querySelector("#pur-toggle-composer")?.addEventListener("click", () => {
-      poComposerExpanded = !poComposerExpanded;
-      if (!poComposerExpanded) composerMounted = false;
-      render({ full: true });
-    });
+    section.querySelector("#pur-build-po")?.addEventListener("click", () => openBuildPoModal());
     wrap.appendChild(section);
     ensurePoApproveDelegation(wrap);
     return wrap;
   }
 
+  async function submitGrnReceive(payload, po) {
+    const poId = payload.poId;
+    if (!po.vendorId) {
+      showToast("PO has no supplier", "error");
+      throw new Error("PO has no supplier");
+    }
+    const id = await create(`goodsReceipts/${selectedProject}`, {
+      poId,
+      amount: payload.amount,
+      receiveLines: payload.receiveLines?.length ? payload.receiveLines : undefined,
+      status: "received",
+      costCategory: "material",
+      projectId: selectedProject,
+      receiptDate: payload.receiptDate || todayISO(),
+      vendorId: po.vendorId,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    const sup = suppliers.find((s) => s.id === po.vendorId);
+    await createSupplierBill(
+      {
+        supplierId: po.vendorId,
+        supplierName: po.vendorName || sup?.name || "",
+        projectId: selectedProject,
+        billDate: payload.receiptDate || todayISO(),
+        amount: payload.amount,
+        paymentTermsDays: sup?.paymentTermsDays ?? 30,
+        costCategory: "material",
+        narration: `GRN for PO ${po.billNo || poId}`,
+        sourceType: "grn",
+        sourceRef: { collection: "goodsReceipts", projectId: selectedProject, id },
+      },
+      { autoApprove: false, billCount: supplierBillCount }
+    );
+    const { refreshProjectCostCache } = await import("./svc_operations.js");
+    await refreshProjectCostCache();
+    await syncMrDeliveryFromGrn(selectedProject, poId);
+    try {
+      const posted = await postGrnToCentralStock(selectedProject, id, {
+        receivedBy: getCurrentUserId(),
+        lines: (payload.receiveLines || []).map((l) => ({
+          ...l,
+          date: payload.receiptDate || todayISO(),
+          supplierId: po.vendorId,
+          supplierName: po.vendorName || sup?.name || "",
+        })),
+        invoiceNo: po.billNo || poId,
+      });
+      await actionFeedback("grn_received", {
+        detail: posted.length
+          ? `AP posted; ${posted.length} line(s) added to central stock`
+          : "Supplier bill posted to AP",
+      });
+    } catch (stockErr) {
+      showToast(
+        `GRN saved but central stock incomplete: ${stockErr.message}. Add materials in Inventory → Materials.`,
+        "error"
+      );
+    }
+    render();
+  }
+
+  function purgeProcurementModals() {
+    document.querySelectorAll(".pur-grn-modal, .pur-po-modal").forEach((el) => {
+      el.closest(".cust-detail-overlay")?.remove();
+    });
+    if (!document.querySelector(".cust-detail-overlay")) {
+      document.body.classList.remove("cust-detail-open");
+    }
+  }
+
+  function openReceiveGrnModal() {
+    if (!canPerformAction("post_central_grn")) {
+      showToast("Only Procurement can receive goods (GRN)", "error");
+      return;
+    }
+    if (!selectedProject) {
+      showToast("Select a project first", "error");
+      return;
+    }
+    const approvedPos = pos.filter((p) => p.status === "approved");
+    if (!approvedPos.length) {
+      showToast("No approved POs to receive against", "error");
+      return;
+    }
+    purgeProcurementModals();
+    activeGrnModalClose?.();
+    procurementModalOpen = true;
+    const { close } = openGrnReceiveModal({
+      approvedPos,
+      inventoryMaterials,
+      getPriorGrnsForPo: (poId) => grns.filter((g) => g.poId === poId),
+      receiptDateDefault: todayISO(),
+      onReceive: submitGrnReceive,
+      onClose: () => {
+        activeGrnModalClose = null;
+        procurementModalOpen = false;
+      },
+    });
+    activeGrnModalClose = close;
+  }
+
   function renderGrnTab() {
     const wrap = document.createElement("div");
     wrap.className = "pur-tab-panel";
-    const approvedPos = pos.filter((p) => p.status === "approved");
 
-    const section = purSection("Goods receipt (GRN)", "Receive and post to accounts", "", "");
+    const grnBtn = canPerformAction("post_central_grn")
+      ? `<button type="button" class="btn btn-green btn-sm" id="pur-receive-grn">+ Receive GRN</button>`
+      : "";
+    const section = purSection(
+      "Goods receipt (GRN)",
+      "Receive and post to accounts",
+      grnBtn,
+      ""
+    );
     const body = section.querySelector(".pur-section-body");
-
-    const grnPoWrap = document.createElement("div");
-    grnPoWrap.className = "pur-grn-po-select";
-    grnPoWrap.innerHTML = `
-      <label class="cust-form-field">Approved PO
-        <select id="pur-grn-po" class="cust-form-input">
-          <option value="">Select PO</option>
-          ${approvedPos
-            .map(
-              (p) =>
-                `<option value="${p.id}" ${grnPoIdPersist === p.id ? "selected" : ""}>${escapeHtml(p.vendorName || "—")} · ${escapeHtml(summarizePoItems(p))} · ${formatBDT(p.amount)}</option>`
-            )
-            .join("")}
-        </select>
-      </label>`;
-    const grnFormHost = document.createElement("div");
-    grnFormHost.className = "pur-grn-form-host";
-    body.append(grnPoWrap, grnFormHost);
 
     const grnTableWrap = document.createElement("div");
     grnTableWrap.className = "table-wrap projects-table-wrap";
@@ -497,88 +562,7 @@ export function mountPurchases(container) {
       </table>`;
     body.appendChild(grnTableWrap);
 
-    function mountGrnFormForPo(poId) {
-      grnPoIdPersist = poId || "";
-      grnFormHost.innerHTML = "";
-      if (!poId) return;
-      const po = pos.find((p) => p.id === poId);
-      if (!po) return;
-      const priorGrns = grns.filter((g) => g.poId === poId);
-      const grnForm = renderGrnReceiveForm(po, priorGrns, todayISO());
-      grnForm.onsubmit = async (e) => {
-        e.preventDefault();
-        const payload = grnForm.getReceivePayload?.();
-        if (!payload || payload.amount <= 0) {
-          showToast("Enter receive quantity or amount", "error");
-          return;
-        }
-        if (!po.vendorId) {
-          showToast("PO has no supplier", "error");
-          return;
-        }
-        try {
-          const id = await create(`goodsReceipts/${selectedProject}`, {
-            poId,
-            amount: payload.amount,
-            receiveLines: payload.receiveLines?.length ? payload.receiveLines : undefined,
-            status: "received",
-            costCategory: "material",
-            projectId: selectedProject,
-            receiptDate: payload.receiptDate || todayISO(),
-            vendorId: po.vendorId,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          });
-          const sup = suppliers.find((s) => s.id === po.vendorId);
-          await createSupplierBill(
-            {
-              supplierId: po.vendorId,
-              supplierName: po.vendorName || sup?.name || "",
-              projectId: selectedProject,
-              billDate: payload.receiptDate || todayISO(),
-              amount: payload.amount,
-              paymentTermsDays: sup?.paymentTermsDays ?? 30,
-              costCategory: "material",
-              narration: `GRN for PO ${po.billNo || poId}`,
-              sourceType: "grn",
-              sourceRef: { collection: "goodsReceipts", projectId: selectedProject, id },
-            },
-            { autoApprove: true, billCount: supplierBillCount }
-          );
-          const { refreshProjectCostCache } = await import("./svc_operations.js");
-          await refreshProjectCostCache();
-          await syncMrDeliveryFromGrn(selectedProject, poId);
-          try {
-            const posted = await postGrnToCentralStock(selectedProject, id, {
-              receivedBy: getCurrentUserId(),
-              lines: (payload.receiveLines || []).map((l) => ({
-                ...l,
-                date: payload.receiptDate || todayISO(),
-                supplierId: po.vendorId,
-                supplierName: po.vendorName || sup?.name || "",
-              })),
-              invoiceNo: po.billNo || poId,
-            });
-            await actionFeedback("grn_received", {
-              detail: posted.length
-                ? `AP posted; ${posted.length} line(s) added to central stock`
-                : "Supplier bill posted to AP",
-            });
-          } catch (stockErr) {
-            showToast(`GRN saved but central stock failed: ${stockErr.message}`, "error");
-          }
-          grnPoIdPersist = "";
-          render();
-        } catch (err) {
-          showToast(err.message, "error");
-        }
-      };
-      grnFormHost.appendChild(grnForm);
-    }
-
-    const grnPoSel = grnPoWrap.querySelector("#pur-grn-po");
-    grnPoSel.onchange = () => mountGrnFormForPo(grnPoSel.value);
-    if (grnPoIdPersist) mountGrnFormForPo(grnPoIdPersist);
+    section.querySelector("#pur-receive-grn")?.addEventListener("click", () => openReceiveGrnModal());
 
     wrap.appendChild(section);
     return wrap;
@@ -588,7 +572,6 @@ export function mountPurchases(container) {
     contentHost.innerHTML = "";
     if (!selectedProject) {
       contentHost.innerHTML = `<p class="proj-empty card pur-empty-hint">Select a project to manage procurement</p>`;
-      composerMounted = false;
       return;
     }
     if (activeTab === "requests") contentHost.appendChild(renderRequestsTab());
@@ -597,24 +580,14 @@ export function mountPurchases(container) {
   }
 
   function render(opts = {}) {
-    const full = opts.full === true;
     renderChrome();
     if (!selectedProject) {
       contentHost.innerHTML = `<p class="proj-empty card pur-empty-hint">Select a project to manage procurement</p>`;
-      composerMounted = false;
       return;
     }
-    if (
-      !full &&
-      activeTab === "orders" &&
-      poComposerExpanded &&
-      composerMounted &&
-      contentHost.querySelector("#pur-orders-panel")
-    ) {
-      refreshOrdersTable();
-      return;
+    if (!procurementModalOpen) {
+      renderContentFull();
     }
-    renderContentFull();
   }
 
   let unsubMr = () => {};
@@ -682,12 +655,15 @@ export function mountPurchases(container) {
     supplierBillCount = list.length;
   });
 
+  listenList("inventoryMaterials", (list) => {
+    inventoryMaterials = list;
+  });
+
   projectSel.onchange = () => {
     selectedProject = projectSel.value;
     poDraftLines.length = 0;
     poComposerExpanded = false;
     composerMounted = false;
-    grnPoIdPersist = "";
     bindProject();
     render({ full: true });
   };
@@ -699,6 +675,10 @@ export function mountPurchases(container) {
 
   return {
     unmount: () => {
+      activeGrnModalClose?.();
+      activeGrnModalClose = null;
+      procurementModalOpen = false;
+      purgeProcurementModals();
       unsubMr();
       unsubPo();
       unsubGrn();

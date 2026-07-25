@@ -198,7 +198,7 @@ export async function recordAdvanceWithAuthority({
 }
 
 export async function reconcileSitePayroll(projectId, monthKey) {
-  if (!canPerformAction("approve") && !canPerformAction("approve_expense")) {
+  if (!canPerformAction("approve_expense")) {
     throw new Error("Only accountant or owner may reconcile payroll");
   }
   const projects = readRef("projects") || {};

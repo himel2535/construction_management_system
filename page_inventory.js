@@ -27,6 +27,7 @@ import {
   todayISO,
 } from "./util_inventory.js";
 import { rollupCentralLedger } from "./util_stockLedger.js";
+import { approvalAwaitingHint } from "./util_approvalResponsibility.js";
 import { approveMaterialRequest } from "./svc_materialRequest.js";
 import { createIssueVoucherFromRequisition, listPendingCentralRequisitions } from "./svc_issueVoucher.js";
 import { canPerformAction } from "./svc_governance.js";
@@ -900,7 +901,7 @@ export function mountInventory(container) {
       .flat()
       .filter((mr) => mr.requestType === "central" && mr.status === "submitted");
     const canIssue = canPerformAction("issue_site_voucher");
-    const canApprove = canPerformAction("approve_central_requisition") || canPerformAction("approve");
+    const canApprove = canPerformAction("approve_central_requisition");
 
     if (submittedCentral.length) {
       const subSection = document.createElement("section");
@@ -916,7 +917,7 @@ export function mountInventory(container) {
             const proj = state.projects.find((p) => p.id === mr.projectId);
             const btn = canApprove
               ? `<button type="button" class="btn btn-primary btn-sm inv-approve-mr" data-pid="${escapeHtml(mr.projectId)}" data-mid="${escapeHtml(mr.id)}">Approve</button>`
-              : "—";
+              : `<span class="approval-awaiting-hint">${escapeHtml(approvalAwaitingHint("central_requisition"))}</span>`;
             return `<tr><td>${escapeHtml(proj?.name || mr.projectId)}</td><td>${escapeHtml(mr.title)}</td><td>${mr.qty}</td><td class="cust-col-center">${btn}</td></tr>`;
           })
           .join("")}</tbody></table>

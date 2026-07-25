@@ -105,7 +105,7 @@ export function mountReportsWorkerPayroll(container) {
     headerIcon: "workerPayroll",
     renderInto: (data) => {
       if (!data) return `<p class="proj-empty">No payroll data</p>`;
-      const showReconcile = canPerformAction("approve") || canPerformAction("approve_expense");
+      const showReconcile = canPerformAction("approve_expense");
       return renderWorkerPayrollBlocks(data, {
         tableLimit: null,
         includeReconcile: showReconcile,
@@ -115,7 +115,7 @@ export function mountReportsWorkerPayroll(container) {
 
   const unsub = listenValue("reportsCache/workerPayroll", (data) => {
     paint(data);
-    if (body && data && (canPerformAction("approve") || canPerformAction("approve_expense"))) {
+    if (body && data && canPerformAction("approve_expense")) {
       bindPayrollReconcile(body, data);
     }
   });

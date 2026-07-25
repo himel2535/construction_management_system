@@ -24,6 +24,12 @@ export const R3_PATHS = {
 import { normalizeRole, roleLabel, ALL_ROLES } from "./util_roles.js";
 import { ROLE_ACTIONS, R4_ACTIONS, roleHasAction } from "./util_roleActions.js";
 import { canRoleDecideQueueRow } from "./util_approvalQueue.js";
+import {
+  canApproveEntity as canApproveEntityForRole,
+  canSubmitEntity as canSubmitEntityForRole,
+  submitActionForEntity,
+  approvalAwaitingHint,
+} from "./util_approvalResponsibility.js";
 
 export { ALL_ROLES, roleLabel, normalizeRole };
 export { ROLE_ACTIONS, R4_ACTIONS, roleHasAction };
@@ -136,6 +142,16 @@ export function canPerformAction(action, roleOverride) {
   return roleHasAction(role, action);
 }
 
+/** Entity-specific approve check for current session role. */
+export function canApproveEntity(entityType, roleOverride) {
+  return canApproveEntityForRole(entityType, normalizeRole(roleOverride ?? getCurrentRole()));
+}
+
+/** Entity-specific submit/create check for current session role. */
+export function canSubmitEntity(entityType, roleOverride) {
+  return canSubmitEntityForRole(entityType, normalizeRole(roleOverride ?? getCurrentRole()));
+}
+
 /**
  * @param {string} action
  */
@@ -211,7 +227,14 @@ function entityMatchesPendingQueueRow(row, entity) {
   if (row.entityType === "projectExpense") {
     return (entity.status || "draft") === "submitted";
   }
+  const et = String(row.entityType || "").toLowerCase();
   const st = entity.status || "draft";
+  if (et === "purchase_order" || et === "purchaseorder") {
+    return st === "draft" || st === "submitted";
+  }
+  if (et === "material_request") {
+    return st === "submitted";
+  }
   return st === "submitted" || st === "pending";
 }
 
@@ -261,20 +284,26 @@ export async function applyEntityWorkflowTransition({
   requireApproveRole = true,
   onApproved,
   skipQueue = false,
+  statusField = "status",
 }) {
   const cur = resolveRead(path) || {};
-  const from = cur.status || "draft";
+  const from = cur[statusField] || "draft";
   if (!canTransition(from, to)) throw new Error("Invalid status transition");
 
-  if (to === "submitted" && !canPerformAction("submit")) {
-    throw new Error("You cannot submit for approval");
+  if (to === "submitted") {
+    const submitKey = entityType === "document" ? "submit_document" : submitActionForEntity(entityType);
+    if (!canPerformAction(submitKey) && !canPerformAction("submit")) {
+      throw new Error("You cannot submit for approval");
+    }
   }
-  if ((to === "approved" || to === "rejected") && requireApproveRole && !canPerformAction("approve")) {
-    throw new Error("You cannot approve or reject");
+  if ((to === "approved" || to === "rejected" || to === "closed") && requireApproveRole) {
+    if (!canApproveEntity(entityType)) {
+      throw new Error("You cannot approve or reject this item");
+    }
   }
 
   const now = Date.now();
-  const patch = { status: to, updatedAt: now };
+  const patch = { [statusField]: to, updatedAt: now };
   if (to === "submitted") {
     patch.submittedBy = getCurrentUserId();
     patch.submittedAt = now;
@@ -355,6 +384,36 @@ export async function applyQueueDecision({ row, decision }) {
       await advanceExpenseApproval(row);
     } else {
       await rejectProjectExpense(row);
+    }
+    return;
+  }
+
+  const entityTypeKey = String(row.entityType || "").toLowerCase();
+  if (entityTypeKey === "purchase_order" || entityTypeKey === "purchaseorder") {
+    if (isApprovalQueueRowStale(row)) {
+      await clearApprovalQueue(row.entityType, row.entityId);
+      throw new Error("This purchase order is no longer pending approval");
+    }
+    const projectId = row.projectId || row.path.split("/")[1];
+    const { approvePurchaseOrder, rejectPurchaseOrder } = await import("./svc_procurement.js");
+    if (decision === "approve") {
+      await approvePurchaseOrder(projectId, row.entityId);
+    } else {
+      await rejectPurchaseOrder(projectId, row.entityId);
+    }
+    return;
+  }
+
+  if (row.entityType === "material_request") {
+    if (isApprovalQueueRowStale(row)) {
+      await clearApprovalQueue("material_request", row.entityId);
+      throw new Error("This material request is no longer pending approval");
+    }
+    const { approveMaterialRequest, rejectMaterialRequest } = await import("./svc_materialRequest.js");
+    if (decision === "approve") {
+      await approveMaterialRequest(row.projectId, row.entityId);
+    } else {
+      await rejectMaterialRequest(row.projectId, row.entityId);
     }
     return;
   }
@@ -605,9 +664,13 @@ export function workflowButtonsHtml(row, path, entityType) {
   const st = row.status || "draft";
   const btns = [];
   const canSubmit =
-    entityType === "document" ? canPerformAction("submit_document") : canPerformAction("submit");
+    entityType === "document"
+      ? canPerformAction("submit_document")
+      : canSubmitEntity(entityType) || canPerformAction("submit");
   const canApprove =
-    entityType === "document" ? canPerformAction("approve_document") : canPerformAction("approve");
+    entityType === "document"
+      ? canPerformAction("approve_document")
+      : canApproveEntity(entityType);
   if (canTransition(st, "submitted") && canSubmit) {
     btns.push(
       `<button type="button" class="btn btn-ghost btn-sm wf-btn" data-path="${path}" data-to="submitted" data-entity="${entityType}" data-id="${row.id}">Submit</button>`
@@ -633,7 +696,11 @@ export function workflowButtonsHtml(row, path, entityType) {
       `<button type="button" class="btn btn-ghost btn-sm wf-btn" data-path="${path}" data-to="draft" data-entity="${entityType}" data-id="${row.id}">Reopen</button>`
     );
   }
-  return btns.length ? `<div class="wf-actions">${btns.join("")}</div>` : "";
+  if (btns.length) return `<div class="wf-actions">${btns.join("")}</div>`;
+  if (st === "submitted" && canTransition(st, "approved") && !canApprove) {
+    return `<span class="approval-awaiting-hint">${approvalAwaitingHint(entityType)}</span>`;
+  }
+  return "";
 }
 
 /**
@@ -653,6 +720,7 @@ export function wireWorkflowButtons(host, getMeta) {
           to: btn.dataset.to,
           onApproved: meta.onApproved,
           skipQueue: meta.skipQueue,
+          statusField: meta.statusField || "status",
         });
         showToast(`Status: ${btn.dataset.to}`);
       } catch (err) {

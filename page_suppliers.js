@@ -1,5 +1,6 @@
 import { listenList } from "./svc_data.js";
 import { canPerformAction } from "./svc_governance.js";
+import { approvalAwaitingHint } from "./util_approvalResponsibility.js";
 import { formatBDT } from "./util_format.js";
 import { showToast } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
@@ -1146,7 +1147,7 @@ export function mountSuppliers(container) {
               <td class="text-right">${formatBDT(b.paidAmount || 0)}</td>
               <td class="text-right">${formatBDT(bal)}</td>
               <td>${statusChip(st)}</td>
-              <td>${b.status === "draft" && perms.canApprove ? `<button type="button" class="btn btn-ghost btn-sm sup-approve-ledger" data-id="${b.id}">Approve</button>` : ""}</td>
+              <td>${b.status === "draft" && perms.canApprove ? `<button type="button" class="btn btn-ghost btn-sm sup-approve-ledger" data-id="${b.id}">Approve</button>` : b.status === "draft" ? `<span class="approval-awaiting-hint">${escapeHtml(approvalAwaitingHint("supplier_bill"))}</span>` : ""}</td>
             </tr>`;
                 })
                 .join("")
