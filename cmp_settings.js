@@ -112,34 +112,118 @@ export function renderSettingsKpiRow(stats) {
   return cards.map(renderSettingsKpiCard).join("");
 }
 
-function profileDisplayValue(val) {
+function profileValue(val, { link } = {}) {
   const t = String(val ?? "").trim();
-  if (!t) {
-    return `<span class="settings-profile-card-value is-empty">Not set</span>`;
+  if (!t) return `<span class="co-profile-value is-empty">Not set</span>`;
+  if (link === "mailto") {
+    return `<a class="co-profile-link" href="mailto:${escapeHtml(t)}">${escapeHtml(t)}</a>`;
   }
-  return `<span class="settings-profile-card-value">${escapeHtml(t)}</span>`;
+  if (link === "url") {
+    const href = /^https?:\/\//i.test(t) ? t : `https://${t}`;
+    return `<a class="co-profile-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t)}</a>`;
+  }
+  return `<span class="co-profile-value">${escapeHtml(t)}</span>`;
 }
 
-/** Read-only company profile cards for Settings view mode */
-export function renderCompanyProfileViewHtml(profile) {
-  const p = profile || {};
-  return `
-    <div class="settings-profile-grid">
-      <div class="settings-profile-card settings-profile-card--name">
-        <span class="settings-profile-card-title">Company name</span>
-        ${profileDisplayValue(p.name)}
-      </div>
-      <div class="settings-profile-card settings-profile-card--address">
-        <span class="settings-profile-card-title">Address</span>
-        ${profileDisplayValue(p.address)}
-      </div>
-      <div class="settings-profile-card settings-profile-card--phone">
-        <span class="settings-profile-card-title">Phone</span>
-        ${profileDisplayValue(p.phone)}
-      </div>
-    </div>
-    <p class="settings-profile-foot">Shown on reports and documents</p>`;
+function profileDlRow(label, valueHtml) {
+  return `<div class="co-profile-dl__row"><dt>${escapeHtml(label)}</dt><dd>${valueHtml}</dd></div>`;
 }
+
+const CO_PROFILE_BUILDING_ICON = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 9h.01M15 9h.01M9 13h.01M15 13h.01"/></svg>`;
+
+/** Read-only company profile — hero + panel layout */
+export function renderCompanyProfileViewHtml(profile) {
+  const p = getCompanyProfileFormValues(profile);
+  const displayName = p.name.trim() || "Company name not set";
+  const tradingLine = p.tradingName.trim()
+    ? `<p class="co-profile-hero__trade">Trading as <strong>${escapeHtml(p.tradingName)}</strong></p>`
+    : "";
+  const aboutLine = p.about.trim()
+    ? `<p class="co-profile-hero__about">${escapeHtml(p.about)}</p>`
+    : `<p class="co-profile-hero__about co-profile-hero__about--empty">Add a short company description for reports and the client portal.</p>`;
+
+  return `
+    <div class="co-profile">
+      <header class="co-profile-hero">
+        <div class="co-profile-hero__icon" aria-hidden="true">${CO_PROFILE_BUILDING_ICON}</div>
+        <div class="co-profile-hero__copy">
+          <h3 class="co-profile-hero__name">${escapeHtml(displayName)}</h3>
+          ${tradingLine}
+          ${aboutLine}
+        </div>
+      </header>
+      <div class="co-profile-layout">
+        <section class="co-profile-panel">
+          <h4 class="co-profile-panel__title">Contact</h4>
+          <dl class="co-profile-dl">
+            ${profileDlRow("Registered address", profileValue(p.address))}
+            ${profileDlRow("Phone", profileValue(p.phone))}
+            ${profileDlRow("Email", profileValue(p.email, { link: "mailto" }))}
+            ${profileDlRow("Website", profileValue(p.website, { link: "url" }))}
+          </dl>
+        </section>
+        <section class="co-profile-panel">
+          <h4 class="co-profile-panel__title">Registration &amp; compliance</h4>
+          <dl class="co-profile-dl">
+            ${profileDlRow("Trade license no.", profileValue(p.tradeLicense))}
+            ${profileDlRow("TIN / VAT no.", profileValue(p.tinVatNo))}
+            ${profileDlRow("Company registration (RJSC)", profileValue(p.companyRegNo))}
+          </dl>
+        </section>
+      </div>
+      <section class="co-profile-panel co-profile-panel--finance">
+        <h4 class="co-profile-panel__title">Finance &amp; banking</h4>
+        <dl class="co-profile-dl co-profile-dl--finance">
+          ${profileDlRow("Default currency", profileValue(p.currency))}
+          ${profileDlRow("Receipt / voucher prefix", profileValue(p.receiptPrefix))}
+          ${profileDlRow("Bank name", profileValue(p.bankName))}
+          ${profileDlRow("Bank account no.", profileValue(p.bankAccount))}
+        </dl>
+      </section>
+      <p class="settings-profile-foot">Used on reports, vouchers, and client documents.</p>
+    </div>`;
+}
+
+/** @param {Record<string, unknown> | null | undefined} profile */
+export function getCompanyProfileFormValues(profile) {
+  const p = profile || {};
+  return {
+    name: String(p.name ?? ""),
+    tradingName: String(p.tradingName ?? ""),
+    about: String(p.about ?? ""),
+    address: String(p.address ?? ""),
+    phone: String(p.phone ?? ""),
+    email: String(p.email ?? ""),
+    website: String(p.website ?? ""),
+    tradeLicense: String(p.tradeLicense ?? ""),
+    tinVatNo: String(p.tinVatNo ?? ""),
+    companyRegNo: String(p.companyRegNo ?? ""),
+    currency: String(p.currency ?? "BDT"),
+    receiptPrefix: String(p.receiptPrefix ?? ""),
+    bankName: String(p.bankName ?? ""),
+    bankAccount: String(p.bankAccount ?? ""),
+  };
+}
+
+/** @param {HTMLFormElement} form */
+export function readCompanyProfileFromForm(form) {
+  const keys = Object.keys(getCompanyProfileFormValues({}));
+  /** @type {Record<string, string>} */
+  const out = {};
+  for (const key of keys) {
+    const el = form.elements.namedItem(key);
+    if (el && "value" in el) out[key] = String(el.value ?? "").trim();
+    else out[key] = "";
+  }
+  if (!out.currency) out.currency = "BDT";
+  return out;
+}
+
+export const COMPANY_PROFILE_CURRENCY_OPTIONS = [
+  { value: "BDT", label: "BDT — Bangladeshi Taka" },
+  { value: "USD", label: "USD — US Dollar" },
+  { value: "EUR", label: "EUR — Euro" },
+];
 
 export function isCompanyProfileComplete(profile) {
   return Boolean(String(profile?.name ?? "").trim());

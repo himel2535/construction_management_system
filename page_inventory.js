@@ -1,5 +1,5 @@
 import { listenList, listenValue } from "./svc_data.js";
-import { showToast } from "./cmp_toast.js";
+import { showToast, actionFeedback } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
 import { openCustFormDialog, renderDataTable, escapeHtml } from "./cmp_projectTab.js";
@@ -31,6 +31,7 @@ import { approveMaterialRequest } from "./svc_materialRequest.js";
 import { createIssueVoucherFromRequisition, listPendingCentralRequisitions } from "./svc_issueVoucher.js";
 import { canPerformAction } from "./svc_governance.js";
 import { getCurrentUserId } from "./svc_auth.js";
+import { getRouteQuery } from "./util_route.js";
 
 const TABS = [
   { id: "materials", label: "Materials" },
@@ -147,7 +148,10 @@ export function mountInventory(container) {
     suppliers: [],
     workers: [],
     projects: [],
-    activeTab: "materials",
+    activeTab: (() => {
+      const t = getRouteQuery().get("tab");
+      return t && TABS.some((x) => x.id === t) ? t : "materials";
+    })(),
     filterQuery: "",
     listPage: 1,
     listPageSize: 10,
@@ -291,7 +295,7 @@ export function mountInventory(container) {
             projectId: vals.projectId,
             note: vals.note,
           });
-          showToast("Stock in recorded");
+          await actionFeedback("stock_in_recorded");
         } catch (err) {
           showToast(err.message, "error");
           throw err;
@@ -416,7 +420,7 @@ export function mountInventory(container) {
             returnDate: returnExpected ? vals.returnDate : "",
             returnStatus: returnExpected ? "not_returned" : "returned",
           });
-          showToast("Stock issued");
+          await actionFeedback("stock_issued");
         } catch (err) {
           showToast(err.message, "error");
           throw err;
@@ -922,7 +926,7 @@ export function mountInventory(container) {
         btn.onclick = async () => {
           try {
             await approveMaterialRequest(btn.dataset.pid, btn.dataset.mid);
-            showToast("Central requisition approved");
+            await actionFeedback("central_requisition_approved");
           } catch (err) {
             showToast(err.message, "error");
           }
@@ -973,7 +977,7 @@ export function mountInventory(container) {
           await createIssueVoucherFromRequisition(btn.dataset.pid, btn.dataset.mid, {
             issuedBy: getCurrentUserId(),
           });
-          showToast("Issue voucher created — central stock reduced");
+          await actionFeedback("issue_voucher_created");
         } catch (err) {
           showToast(err.message, "error");
         }

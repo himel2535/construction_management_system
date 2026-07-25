@@ -219,10 +219,6 @@ export function mountProjects(container) {
     title: "Projects",
     subtitle: "Manage projects, BOQ, progress, and contracts",
     showDateRange: false,
-    quickActionLabel: "+ New Project",
-    onQuickAction: () => {
-      navigateTo("/projects/new");
-    },
   });
 
   const root = document.createElement("div");
@@ -526,10 +522,6 @@ export function mountProjects(container) {
       title: "Projects",
       subtitle: "Manage projects, BOQ, progress, and contracts",
       showDateRange: false,
-      quickActionLabel: "+ New Project",
-      onQuickAction: () => {
-        navigateTo("/projects/new");
-      },
     });
   }
 
@@ -674,6 +666,9 @@ export function mountProjects(container) {
     });
     toolbar.querySelector("#proj-export")?.addEventListener("click", () => {
       exportProjectsCsv(filteredProjects(), state.milestonesByProject);
+    });
+    toolbar.querySelector("#proj-new-project")?.addEventListener("click", () => {
+      navigateTo("/projects/new");
     });
     toolbar.querySelector(".proj-draft-chip-dismiss")?.addEventListener("click", () => {
       sessionStorage.setItem(DRAFT_CHIP_KEY, "1");
@@ -1468,8 +1463,8 @@ export function mountProjects(container) {
           <col class="proj-milestones-col-equal" />
           <col class="proj-milestones-col-equal" />
           <col class="proj-milestones-col-equal" />
-          <col class="proj-milestones-col-equal" />
-          <col class="proj-milestones-col-equal" />
+          <col class="proj-milestones-col-workflow" />
+          <col class="proj-milestones-col-actions" />
         </colgroup>
         <thead>
           <tr>
@@ -1479,7 +1474,7 @@ export function mountProjects(container) {
             <th>Owner</th>
             <th>Variance</th>
             <th>Status</th>
-            <th>Workflow</th>
+            <th class="rep-col-workflow">Workflow</th>
             <th class="rep-col-actions">Actions</th>
           </tr>
         </thead>
@@ -1501,7 +1496,7 @@ export function mountProjects(container) {
               <td class="proj-milestones-owner">${escapeHtml(m._owner)}</td>
               <td>${m._variance}</td>
               <td>${statusChip(m.status)}</td>
-              <td>${workflowButtons("milestone", wfRow, wfPath)}</td>
+              <td class="rep-col-workflow proj-milestones-workflow-cell">${workflowButtons("milestone", wfRow, wfPath)}</td>
               <td class="rep-col-actions proj-row-actions-cell">
                 <button type="button" class="btn btn-ghost btn-sm ms-edit-btn" data-id="${m.id}">Edit</button>
               </td>
@@ -2410,7 +2405,7 @@ export function mountProjects(container) {
         card = buildMeasurementTab(state, { onRefresh: () => renderTabContent() });
         break;
       case "retention":
-        card = buildRetentionTab(state);
+        card = buildRetentionTab(state, { onRefresh: () => renderTabContent() });
         break;
       case "compliance":
         card = buildComplianceTab(state, { onRefresh: () => renderTabContent() });
@@ -2509,6 +2504,7 @@ export function mountProjects(container) {
               <div class="cust-toolbar-btn-group">
                 <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="proj-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
                 <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="proj-export">${icon("download", { size: 16 })} Export</button>
+                <button type="button" class="btn btn-primary btn-sm" id="proj-new-project">+ New Project</button>
               </div>
             </div>
           </div>

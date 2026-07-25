@@ -9,6 +9,13 @@ export const WORKER_TABS = [
   { id: "reports", label: "Reports" },
 ];
 
+export const WORKER_REPORTS_SUB_TABS = [
+  { id: "site-payroll", label: "Site payroll" },
+  { id: "advances", label: "Advances" },
+  { id: "payments", label: "Payments" },
+  { id: "attendance", label: "Attendance" },
+];
+
 export const WORKER_PROFILE_TABS = [
   { id: "overview", label: "Overview" },
   { id: "attendance", label: "Attendance" },

@@ -5,7 +5,7 @@ import { checkBudgetForApproval } from "./svc_projectCost.js";
 import { writeAuditLog } from "./svc_workflow.js";
 import { createSupplierBill, mergeSupplierLists, createSupplier } from "./svc_supplier.js";
 import { formatBDT, todayISO } from "./util_format.js";
-import { showToast } from "./cmp_toast.js";
+import { showToast, actionFeedback } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
 import { statusChip } from "./cmp_ui.js";
@@ -26,7 +26,9 @@ import {
   renderProcurementKpiStripHtml,
   renderProcurementTabBar,
   purSection,
+  PROCUREMENT_TABS,
 } from "./cmp_procurementHub.js";
+import { getRouteQuery } from "./util_route.js";
 
 export function mountPurchases(container) {
   setActiveNav();
@@ -65,7 +67,10 @@ export function mountPurchases(container) {
   let suppliers = [];
   let supplierBillCount = 0;
   let selectedProject = "";
-  let activeTab = "requests";
+  let activeTab = (() => {
+    const t = getRouteQuery().get("tab");
+    return t && PROCUREMENT_TABS.some((x) => x.id === t) ? t : "requests";
+  })();
   let mrs = [];
   let pos = [];
   let grns = [];
@@ -261,7 +266,7 @@ export function mountPurchases(container) {
       btn.onclick = async () => {
         try {
           await submitMaterialRequest(selectedProject, btn.dataset.id);
-          showToast("MR submitted");
+          await actionFeedback("mr_submitted", { title: mrs.find((m) => m.id === btn.dataset.id)?.title });
         } catch (err) {
           showToast(err.message, "error");
         }
@@ -276,7 +281,7 @@ export function mountPurchases(container) {
         }
         try {
           await approveMaterialRequest(selectedProject, btn.dataset.id);
-          showToast("MR approved");
+          await actionFeedback("mr_approved");
         } catch (err) {
           showToast(err.message, "error");
         }
@@ -371,7 +376,7 @@ export function mountPurchases(container) {
         action: "approve",
         diffSummary: `PO approved ${formatBDT(po.amount)}`,
       });
-      showToast("PO approved — you can receive goods on the Goods receipt tab.");
+      await actionFeedback("po_approved");
     } catch (err) {
       showToast(err.message || "Could not approve PO", "error");
     } finally {
@@ -554,11 +559,11 @@ export function mountPurchases(container) {
               })),
               invoiceNo: po.billNo || poId,
             });
-            showToast(
-              posted.length
-                ? `GRN received · AP posted; ${posted.length} line(s) added to central stock`
-                : "GRN received · supplier bill posted to AP"
-            );
+            await actionFeedback("grn_received", {
+              detail: posted.length
+                ? `AP posted; ${posted.length} line(s) added to central stock`
+                : "Supplier bill posted to AP",
+            });
           } catch (stockErr) {
             showToast(`GRN saved but central stock failed: ${stockErr.message}`, "error");
           }

@@ -3,7 +3,8 @@ import { getCurrentUserId } from "./svc_auth.js";
 import { readRef } from "./svc_data.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
-import { showToast } from "./cmp_toast.js";
+import { showToast, actionFeedback } from "./cmp_toast.js";
+import { getRouteQuery } from "./util_route.js";
 import { formatBDT } from "./util_format.js";
 import { openEditDialog, openCustFormDialog, renderDataTable, escapeHtml, escAttr } from "./cmp_projectTab.js";
 import { icon } from "./cmp_icons.js";
@@ -12,6 +13,7 @@ import { formatCompactBDT } from "./util_dashboard.js";
 import {
   WORKER_TABS,
   WORKER_PROFILE_TABS,
+  WORKER_REPORTS_SUB_TABS,
   renderWorkerTabBar,
   renderWorkerDetailHeader,
   renderWorkerAvatar,
@@ -245,7 +247,10 @@ export function mountWorkers(container) {
     stockOut: [],
     transfers: [],
     documents: [],
-    activeTab: "list",
+    activeTab: (() => {
+      const t = getRouteQuery().get("tab");
+      return t && WORKER_TABS.some((x) => x.id === t) ? t : "list";
+    })(),
     selectedWorkerId: "",
     profileTab: "overview",
     listQuery: "",
@@ -260,6 +265,7 @@ export function mountWorkers(container) {
     reportsMonth: currentMonthKey(),
     reportsProject: "all",
     reportsWorker: "",
+    reportsSubTab: "site-payroll",
     siteInCharges: [],
     salaryCalculations: [],
     profileItemsReturn: "all",
@@ -533,47 +539,63 @@ export function mountWorkers(container) {
   }
 
   function openAdvanceModal() {
-    openEditDialog(
-      "Give advance",
-      [
+    openCustFormDialog({
+      title: "Give advance",
+      subtitle: "Record a salary advance for an active worker.",
+      modalClass: "wrk-worker-modal",
+      submitLabel: "Save advance",
+      values: { workerId: "", amount: "", date: todayISO(), note: "" },
+      sections: [
         {
-          name: "workerId",
-          label: "Worker *",
-          type: "select",
-          required: true,
-          options: [{ value: "", label: "Select worker" }, ...activeWorkers().map((w) => ({ value: w.id, label: w.name }))],
+          title: "Advance details",
+          fields: [
+            {
+              name: "workerId",
+              label: "Worker *",
+              type: "select",
+              required: true,
+              options: [{ value: "", label: "Select worker" }, ...activeWorkers().map((w) => ({ value: w.id, label: w.name }))],
+            },
+            { name: "amount", label: "Amount (BDT) *", type: "number", step: "0.01", required: true },
+            { name: "date", label: "Date", type: "date" },
+          ],
         },
-        { name: "amount", label: "Amount (BDT) *", type: "number", step: "0.01", required: true },
-        { name: "date", label: "Date", type: "date" },
-        { name: "note", label: "Reason", type: "textarea" },
+        {
+          title: "Notes",
+          fields: [{ name: "note", label: "Reason", type: "textarea", fullWidth: true }],
+        },
       ],
-      { workerId: "", amount: "", date: todayISO(), note: "" },
-      async (vals) => {
-        const worker = getWorker(vals.workerId);
-        const pid = worker?.assignedProjectId || "";
-        const sic = pid ? readRef(`projects/${pid}`)?.siteInChargeId : "";
-        if (pid && getCurrentRole() !== "owner" && getCurrentRole() !== "accountant") {
-          await recordAdvanceWithAuthority({
-            workerId: vals.workerId,
-            amount: vals.amount,
-            date: vals.date || todayISO(),
-            reason: vals.note,
-            projectId: pid,
-            siteInChargeId: sic,
-          });
-        } else {
-          await recordAdvance({
-            workerId: vals.workerId,
-            amount: vals.amount,
-            date: vals.date || todayISO(),
-            note: vals.note,
-            reason: vals.note,
-            projectId: pid,
-          });
+      onSave: async (vals) => {
+        try {
+          const worker = getWorker(vals.workerId);
+          const pid = worker?.assignedProjectId || "";
+          const sic = pid ? readRef(`projects/${pid}`)?.siteInChargeId : "";
+          if (pid && getCurrentRole() !== "owner" && getCurrentRole() !== "accountant") {
+            await recordAdvanceWithAuthority({
+              workerId: vals.workerId,
+              amount: vals.amount,
+              date: vals.date || todayISO(),
+              reason: vals.note,
+              projectId: pid,
+              siteInChargeId: sic,
+            });
+          } else {
+            await recordAdvance({
+              workerId: vals.workerId,
+              amount: vals.amount,
+              date: vals.date || todayISO(),
+              note: vals.note,
+              reason: vals.note,
+              projectId: pid,
+            });
+          }
+          showToast("Advance recorded");
+        } catch (err) {
+          showToast(err.message, "error");
+          throw err;
         }
-        showToast("Advance recorded");
-      }
-    );
+      },
+    });
   }
 
   function openPaySalaryModal(worker) {
@@ -655,7 +677,11 @@ export function mountWorkers(container) {
           paymentDate: todayISO(),
           note: String(method),
         });
-        showToast("Salary payment recorded");
+        await actionFeedback("salary_payment_workers", {
+          workerName: worker.name,
+          amountLabel: formatBDT(amount),
+          entityId: worker.id,
+        });
         close();
         renderContent();
       } catch (err) {
@@ -718,6 +744,7 @@ export function mountWorkers(container) {
     wrap.className = "wrk-tab-panel wrk-reports-panel";
     const month = state.reportsMonth;
     const projectFilter = state.reportsProject;
+    const subTab = state.reportsSubTab;
     const projects = projectFilter === "all" ? state.projects : state.projects.filter((p) => p.id === projectFilter);
     const siteSummary = buildSitePayrollSummary(projects, state.salaryPayments, state.salaryCalculations, month);
     const outstanding = computeOutstandingAdvances(state.advances, state.salaryPayments, state.workers);
@@ -726,6 +753,69 @@ export function mountWorkers(container) {
     const history = state.reportsWorker
       ? buildCrossSiteAttendanceHistory(state.reportsWorker, state.attendance, state.projects)
       : [];
+
+    let reportSectionHtml = "";
+    if (subTab === "site-payroll") {
+      reportSectionHtml = `
+        <section class="dash-widget dash-widget--projects card wrk-report-block">
+          <div class="dash-widget-head">
+            <h3 class="dash-widget-title">Site-wise payroll summary</h3>
+          </div>
+          <div class="dash-widget-body">
+            <div class="table-wrap projects-table-wrap">
+              <table class="dash-table projects-table workers-table"><thead><tr><th>Project</th><th>Paid</th><th>Calculated</th></tr></thead>
+              <tbody>${siteSummary.map((r) => `<tr><td>${escapeHtml(r.projectName)}</td><td>${formatBDT(r.laborPaid)}</td><td>${formatBDT(r.laborCalculated)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="3">No data</td></tr>`}</tbody></table>
+            </div>
+          </div>
+        </section>`;
+    } else if (subTab === "advances") {
+      reportSectionHtml = `
+        <section class="dash-widget dash-widget--projects card wrk-report-block">
+          <div class="dash-widget-head">
+            <h3 class="dash-widget-title">Outstanding advances</h3>
+          </div>
+          <div class="dash-widget-body">
+            <div class="table-wrap projects-table-wrap">
+              <table class="dash-table projects-table workers-table"><thead><tr><th>Worker</th><th>Advanced</th><th>Outstanding</th></tr></thead>
+              <tbody>${outstanding.map((r) => `<tr><td>${escapeHtml(r.workerName)}</td><td>${formatBDT(r.totalAdvanced)}</td><td>${formatBDT(r.outstanding)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="3">None</td></tr>`}</tbody></table>
+            </div>
+          </div>
+        </section>`;
+    } else if (subTab === "payments") {
+      reportSectionHtml = `
+        <section class="dash-widget dash-widget--projects card wrk-report-block">
+          <div class="dash-widget-head">
+            <h3 class="dash-widget-title">Payment confirmation log</h3>
+          </div>
+          <div class="dash-widget-body">
+            <div class="table-wrap projects-table-wrap">
+              <table class="dash-table projects-table workers-table"><thead><tr><th>Date</th><th>Worker</th><th>Amount</th><th>Mode</th><th>Paid by</th><th>Site In-charge</th></tr></thead>
+              <tbody>${paymentLog.slice(0, 20).map((r) => `<tr><td>${escapeHtml(r.date || "")}</td><td>${escapeHtml(r.workerName)}</td><td>${formatBDT(r.amount)}</td><td>${escapeHtml(paymentModeLabel(r.paymentMode))}</td><td>${escapeHtml(r.paidBy)}</td><td>${escapeHtml(r.siteInChargeName)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="6">No payments</td></tr>`}</tbody></table>
+            </div>
+          </div>
+        </section>`;
+    } else if (subTab === "attendance") {
+      reportSectionHtml = `
+        <section class="dash-widget dash-widget--projects card wrk-report-block">
+          <div class="dash-widget-head dash-widget-head--split">
+            <div>
+              <h3 class="dash-widget-title">Worker attendance history</h3>
+              <p class="dash-widget-sub">Cross-site attendance for a selected worker</p>
+            </div>
+          </div>
+          <div class="dash-widget-body">
+            <div class="toolbar-row projects-toolbar workers-toolbar">
+              <div class="toolbar-filters">
+                <select id="wrk-reports-worker" class="toolbar-select wrk-reports-worker-select">${workerOpts.map((o) => `<option value="${o.value}" ${state.reportsWorker === o.value ? "selected" : ""}>${escapeHtml(o.label)}</option>`).join("")}</select>
+              </div>
+            </div>
+            <div class="table-wrap projects-table-wrap">
+              <table class="dash-table projects-table workers-table"><thead><tr><th>Date</th><th>Project</th><th>Status</th><th>OT</th><th>Marked by</th></tr></thead>
+              <tbody>${history.slice(0, 30).map((r) => `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.projectName)}</td><td>${escapeHtml(r.status)}</td><td>${r.overtimeHours}</td><td>${escapeHtml(r.markedBy)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="5">Select a worker</td></tr>`}</tbody></table>
+            </div>
+          </div>
+        </section>`;
+    }
 
     wrap.innerHTML = `
       <div class="toolbar-row projects-toolbar workers-toolbar wrk-reports-toolbar" id="wrk-reports-toolbar">
@@ -744,59 +834,17 @@ export function mountWorkers(container) {
           }
         </div>
       </div>
-      <section class="dash-widget dash-widget--projects card wrk-report-block">
-        <div class="dash-widget-head">
-          <h3 class="dash-widget-title">Site-wise payroll summary</h3>
-        </div>
-        <div class="dash-widget-body">
-          <div class="table-wrap projects-table-wrap">
-            <table class="dash-table projects-table workers-table"><thead><tr><th>Project</th><th>Paid</th><th>Calculated</th></tr></thead>
-            <tbody>${siteSummary.map((r) => `<tr><td>${escapeHtml(r.projectName)}</td><td>${formatBDT(r.laborPaid)}</td><td>${formatBDT(r.laborCalculated)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="3">No data</td></tr>`}</tbody></table>
-          </div>
-        </div>
-      </section>
-      <section class="dash-widget dash-widget--projects card wrk-report-block">
-        <div class="dash-widget-head">
-          <h3 class="dash-widget-title">Outstanding advances</h3>
-        </div>
-        <div class="dash-widget-body">
-          <div class="table-wrap projects-table-wrap">
-            <table class="dash-table projects-table workers-table"><thead><tr><th>Worker</th><th>Advanced</th><th>Outstanding</th></tr></thead>
-            <tbody>${outstanding.map((r) => `<tr><td>${escapeHtml(r.workerName)}</td><td>${formatBDT(r.totalAdvanced)}</td><td>${formatBDT(r.outstanding)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="3">None</td></tr>`}</tbody></table>
-          </div>
-        </div>
-      </section>
-      <section class="dash-widget dash-widget--projects card wrk-report-block">
-        <div class="dash-widget-head">
-          <h3 class="dash-widget-title">Payment confirmation log</h3>
-        </div>
-        <div class="dash-widget-body">
-          <div class="table-wrap projects-table-wrap">
-            <table class="dash-table projects-table workers-table"><thead><tr><th>Date</th><th>Worker</th><th>Amount</th><th>Mode</th><th>Paid by</th><th>Site In-charge</th></tr></thead>
-            <tbody>${paymentLog.slice(0, 20).map((r) => `<tr><td>${escapeHtml(r.date || "")}</td><td>${escapeHtml(r.workerName)}</td><td>${formatBDT(r.amount)}</td><td>${escapeHtml(paymentModeLabel(r.paymentMode))}</td><td>${escapeHtml(r.paidBy)}</td><td>${escapeHtml(r.siteInChargeName)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="6">No payments</td></tr>`}</tbody></table>
-          </div>
-        </div>
-      </section>
-      <section class="dash-widget dash-widget--projects card wrk-report-block">
-        <div class="dash-widget-head dash-widget-head--split">
-          <div>
-            <h3 class="dash-widget-title">Worker attendance history</h3>
-            <p class="dash-widget-sub">Cross-site attendance for a selected worker</p>
-          </div>
-        </div>
-        <div class="dash-widget-body">
-          <div class="toolbar-row projects-toolbar workers-toolbar">
-            <div class="toolbar-filters">
-              <select id="wrk-reports-worker" class="toolbar-select wrk-reports-worker-select">${workerOpts.map((o) => `<option value="${o.value}" ${state.reportsWorker === o.value ? "selected" : ""}>${escapeHtml(o.label)}</option>`).join("")}</select>
-            </div>
-          </div>
-          <div class="table-wrap projects-table-wrap">
-            <table class="dash-table projects-table workers-table"><thead><tr><th>Date</th><th>Project</th><th>Status</th><th>OT</th><th>Marked by</th></tr></thead>
-            <tbody>${history.slice(0, 30).map((r) => `<tr><td>${escapeHtml(r.date)}</td><td>${escapeHtml(r.projectName)}</td><td>${escapeHtml(r.status)}</td><td>${r.overtimeHours}</td><td>${escapeHtml(r.markedBy)}</td></tr>`).join("") || `<tr class="empty-row"><td colspan="5">Select a worker</td></tr>`}</tbody></table>
-          </div>
-        </div>
-      </section>
+      <div class="wrk-reports-subnav"></div>
+      ${reportSectionHtml}
     `;
+
+    const subnavHost = wrap.querySelector(".wrk-reports-subnav");
+    subnavHost?.appendChild(
+      renderWorkerTabBar(WORKER_REPORTS_SUB_TABS, subTab, (tab) => {
+        state.reportsSubTab = tab;
+        renderContent();
+      })
+    );
 
     wrap.querySelector("#wrk-reports-month")?.addEventListener("change", (e) => {
       state.reportsMonth = e.target.value;

@@ -23,8 +23,8 @@ function validateUsageAgainstBalance(projectId, items, { excludeLogId } = {}) {
   }));
   const logs = Object.entries(readRef(`siteMaterialLogs/${projectId}`) || {})
     .map(([id, row]) => ({ id, ...row }))
-    .filter((l) => l.id !== excludeLogId);
-  const ledger = rollupSiteLedger(projectId, vouchers, logs);
+    .filter((l) => l.id !== excludeLogId && l.status === "approved");
+  const ledger = rollupSiteLedger(projectId, vouchers, logs, null, { usageStatus: "approved" });
   const pendingByMaterial = {};
   for (const item of items) {
     const mid = item.inventoryMaterialId || item.materialKey;
@@ -33,9 +33,15 @@ function validateUsageAgainstBalance(projectId, items, { excludeLogId } = {}) {
   }
   for (const [mid, pending] of Object.entries(pendingByMaterial)) {
     const row = ledger.find((r) => r.materialId === mid);
-    const available = row?.balance ?? 0;
+    const available = Math.max(0, row?.balance ?? 0);
+    const issued = row?.qtyIssued ?? 0;
+    const name = row?.materialName || mid;
+    const unit = row?.unit || "unit";
     if (pending > available + 0.001) {
-      throw new Error(`Usage exceeds site balance for ${row?.materialName || mid} (${available} remaining)`);
+      if (issued <= 0.001) {
+        throw new Error(`No ${name} issued to site — issue from Inventory first`);
+      }
+      throw new Error(`Cannot approve — only ${available} ${unit} remaining (this log needs ${pending})`);
     }
   }
 }
@@ -122,7 +128,6 @@ export async function createSiteInChargeWithProject(data, projectId, projectName
 
 export async function createMaterialLog(projectId, data) {
   const items = (data.items || []).map(normalizeUsageItem);
-  validateUsageAgainstBalance(projectId, items);
   const id = await create(`siteMaterialLogs/${projectId}`, {
     siteInChargeId: data.siteInChargeId,
     logDate: data.logDate || todayISO(),
@@ -203,7 +208,6 @@ export async function updateMaterialLog(projectId, logId, patch) {
   const next = { ...cur, ...patch };
   if (next.items) {
     next.items = next.items.map(normalizeUsageItem);
-    validateUsageAgainstBalance(projectId, next.items, { excludeLogId: logId });
   }
   await updatePath(`siteMaterialLogs/${projectId}/${logId}`, {
     ...next,
@@ -217,6 +221,8 @@ export async function deleteMaterialLog(projectId, logId) {
 
 export async function approveMaterialLog(projectId, logId) {
   const cur = readRef(`siteMaterialLogs/${projectId}/${logId}`) || {};
+  const items = (cur.items || []).map(normalizeUsageItem);
+  validateUsageAgainstBalance(projectId, items, { excludeLogId: logId });
   await updatePath(`siteMaterialLogs/${projectId}/${logId}`, {
     ...cur,
     status: "approved",

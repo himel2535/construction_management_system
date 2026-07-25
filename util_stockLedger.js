@@ -68,7 +68,13 @@ export function rollupCentralLedger(stockInRows = [], stockOutRows = [], materia
 }
 
 /** Per-site balance: issued - used - wasted. */
-export function rollupSiteLedger(projectId, issueVouchers = [], usageLogs = [], materialId = null) {
+export function rollupSiteLedger(
+  projectId,
+  issueVouchers = [],
+  usageLogs = [],
+  materialId = null,
+  { usageStatus = "all" } = {}
+) {
   const totals = {};
 
   for (const v of issueVouchers) {
@@ -93,6 +99,7 @@ export function rollupSiteLedger(projectId, issueVouchers = [], usageLogs = [], 
   }
 
   for (const log of usageLogs) {
+    if (usageStatus === "approved" && log.status !== "approved") continue;
     for (const item of log.items || []) {
       const mid = item.inventoryMaterialId || item.materialKey;
       if (!mid) continue;

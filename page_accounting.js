@@ -2,7 +2,7 @@ import { renderTable } from "./cmp_table.js";
 import { listenList, listenProjectSub } from "./svc_data.js";
 import { resolveRead } from "./svc_tenant.js";
 import { formatBDT, todayISO } from "./util_format.js";
-import { showToast } from "./cmp_toast.js";
+import { showToast, actionFeedback } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
 import { postManualVoucherClient } from "./svc_firebaseOps.js";
@@ -12,6 +12,7 @@ import { kpiIcon } from "./cmp_dashboardIcons.js";
 import { formatCompactBDT } from "./util_dashboard.js";
 import { canPerformAction } from "./svc_governance.js";
 import { EXPENSE_CATEGORIES } from "./util_projectExpense.js";
+import { openCustFormDialog } from "./cmp_projectTab.js";
 import {
   createProjectExpense,
   submitProjectExpense,
@@ -20,6 +21,26 @@ import {
   reopenProjectExpense,
   expenseActionButtons,
 } from "./svc_projectExpense.js";
+
+const FINANCE_TABS = [
+  { id: "expenses", label: "Expenses" },
+  { id: "accounts", label: "Accounts" },
+  { id: "vouchers", label: "Vouchers" },
+];
+
+function renderFinanceTabBar(tabs, activeId, onSelect) {
+  const wrap = document.createElement("div");
+  wrap.className = "proj-tab-subnav fin-pill-tabs fin-pill-tabs--finance-main";
+  for (const t of tabs) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `proj-tab fin-tab-pill fin-tab-pill--${t.id}${activeId === t.id ? " is-active" : ""}`;
+    btn.textContent = t.label;
+    btn.onclick = () => onSelect(t.id);
+    wrap.appendChild(btn);
+  }
+  return wrap;
+}
 
 function escapeHtml(s) {
   return String(s)
@@ -108,15 +129,17 @@ export function mountAccounting(container) {
   container.appendChild(root);
 
   let metricsRow = null;
+  let tabHost = null;
+  let contentHost = null;
   let expenseCountEl = null;
   let expenseTbody = null;
   let expenseForm = null;
   let expenseModalOverlay = null;
   let expenseModalWired = false;
   let accHost = null;
-  let vchFormHost = null;
   let vchListHost = null;
   let toolbarWired = false;
+  let activeTab = "expenses";
 
   let accounts = [];
   let vouchers = [];
@@ -134,119 +157,204 @@ export function mountAccounting(container) {
   }
 
   function ensureLayout() {
-    if (root.querySelector("#finance-expense-tbody")) {
+    if (root.querySelector(".fin-content-host")) {
       metricsRow = root.querySelector("#finance-metrics");
-      expenseCountEl = root.querySelector("#finance-expense-count");
-      expenseTbody = root.querySelector("#finance-expense-tbody");
-      accHost = root.querySelector("#finance-accounts-host");
-      vchFormHost = root.querySelector("#finance-voucher-form-host");
-      vchListHost = root.querySelector("#finance-vouchers-host");
+      tabHost = root.querySelector(".fin-tab-host");
+      contentHost = root.querySelector(".fin-content-host");
       return;
     }
 
     root.innerHTML = `
       <div id="finance-metrics"></div>
-      <section class="dash-widget dash-widget--projects card" id="finance-expense-widget">
-        <div class="dash-widget-head dash-widget-head--split">
-          <div>
-            <h3 class="dash-widget-title">Project expenses</h3>
-            <p class="dash-widget-sub">Create, approve, and track costs by project</p>
-          </div>
-          <span class="cust-toolbar-count" id="finance-expense-count">Showing 0 expenses</span>
-        </div>
-        <div class="dash-widget-body">
-          <div class="toolbar-row projects-toolbar finance-toolbar" id="finance-expense-toolbar">
-            <div class="toolbar-filters">
-              <select class="toolbar-select" id="fin-filter-project" aria-label="Project filter">
-                <option value="">All projects</option>
-              </select>
-              <select class="toolbar-select" id="fin-filter-status" aria-label="Status filter">
-                <option value="all">All statuses</option>
-                <option value="draft">Draft</option>
-                <option value="submitted">Submitted</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-            <div class="toolbar-actions">
-              <div class="cust-toolbar-search toolbar-search">
-                <span class="search-icon" aria-hidden="true">${icon("search", { size: 18 })}</span>
-                <input type="search" class="cust-toolbar-search-input" id="fin-search" placeholder="Search category, description, amount…" autocomplete="off" />
-              </div>
-              <div class="cust-toolbar-btn-group">
-                <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="fin-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
-                <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="fin-export">${icon("download", { size: 16 })} Export</button>
-                <button type="button" class="btn btn-primary btn-sm" id="fin-add-expense">+ Add expense</button>
-              </div>
-            </div>
-          </div>
-          <div class="table-wrap projects-table-wrap finance-expense-table-wrap">
-            <table class="dash-table projects-table finance-expense-table" id="finance-expense-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Project</th>
-                  <th>Category</th>
-                  <th class="text-right">Amount</th>
-                  <th>Description</th>
-                  <th class="cust-col-center">Status</th>
-                  <th class="cust-col-center">Stage</th>
-                  <th class="cust-col-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="finance-expense-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-      <div class="finance-mid-row">
-        <section class="dash-widget dash-widget--projects card">
-          <div class="dash-widget-head">
-            <h3 class="dash-widget-title">Chart of accounts</h3>
-            <p class="dash-widget-sub">Ledger accounts and balances</p>
-          </div>
-          <div class="dash-widget-body" id="finance-accounts-host"></div>
-        </section>
-        <section class="dash-widget dash-widget--projects card">
-          <div class="dash-widget-head">
-            <h3 class="dash-widget-title">Manual voucher</h3>
-            <p class="dash-widget-sub">Post a debit / credit entry</p>
-          </div>
-          <div class="dash-widget-body" id="finance-voucher-form-host"></div>
-        </section>
-      </div>
-      <section class="dash-widget dash-widget--projects card">
-        <div class="dash-widget-head">
-          <h3 class="dash-widget-title">Recent vouchers</h3>
-          <p class="dash-widget-sub">Latest manual and system vouchers</p>
-        </div>
-        <div class="dash-widget-body" id="finance-vouchers-host"></div>
-      </section>
+      <div class="fin-tab-host"></div>
+      <div class="fin-content-host"></div>
     `;
 
     metricsRow = root.querySelector("#finance-metrics");
-    expenseCountEl = root.querySelector("#finance-expense-count");
-    expenseTbody = root.querySelector("#finance-expense-tbody");
-    accHost = root.querySelector("#finance-accounts-host");
-    vchFormHost = root.querySelector("#finance-voucher-form-host");
-    vchListHost = root.querySelector("#finance-vouchers-host");
+    tabHost = root.querySelector(".fin-tab-host");
+    contentHost = root.querySelector(".fin-content-host");
+  }
 
-    vchFormHost.innerHTML = `
-      <form class="finance-voucher-form" id="voucher-form">
-        <input name="date" type="date" />
-        <select name="debit" required></select>
-        <select name="credit" required></select>
-        <input name="amount" type="number" placeholder="Amount" required />
-        <input name="narration" placeholder="Description" />
-        <button type="submit" class="btn btn-primary btn-sm">Save voucher</button>
-      </form>
+  function renderExpensesPanel() {
+    const section = document.createElement("section");
+    section.className = "dash-widget dash-widget--projects card fin-tab-panel";
+    section.innerHTML = `
+      <div class="dash-widget-head dash-widget-head--split">
+        <div>
+          <h3 class="dash-widget-title">Project expenses</h3>
+          <p class="dash-widget-sub">Create, approve, and track costs by project</p>
+        </div>
+        <span class="cust-toolbar-count" id="finance-expense-count">Showing 0 expenses</span>
+      </div>
+      <div class="dash-widget-body">
+        <div class="toolbar-row projects-toolbar finance-toolbar" id="finance-expense-toolbar">
+          <div class="toolbar-filters">
+            <select class="toolbar-select" id="fin-filter-project" aria-label="Project filter">
+              <option value="">All projects</option>
+              ${projects.map((p) => `<option value="${escapeHtml(p.id)}" ${filters.projectId === p.id ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
+            </select>
+            <select class="toolbar-select" id="fin-filter-status" aria-label="Status filter">
+              <option value="all" ${filters.status === "all" ? "selected" : ""}>All statuses</option>
+              <option value="draft" ${filters.status === "draft" ? "selected" : ""}>Draft</option>
+              <option value="submitted" ${filters.status === "submitted" ? "selected" : ""}>Submitted</option>
+              <option value="approved" ${filters.status === "approved" ? "selected" : ""}>Approved</option>
+              <option value="rejected" ${filters.status === "rejected" ? "selected" : ""}>Rejected</option>
+            </select>
+          </div>
+          <div class="toolbar-actions">
+            <div class="cust-toolbar-search toolbar-search">
+              <span class="search-icon" aria-hidden="true">${icon("search", { size: 18 })}</span>
+              <input type="search" class="cust-toolbar-search-input" id="fin-search" placeholder="Search category, description, amount…" autocomplete="off" value="${escapeHtml(filters.query)}" />
+            </div>
+            <div class="cust-toolbar-btn-group">
+              <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="fin-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
+              <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="fin-export">${icon("download", { size: 16 })} Export</button>
+              <button type="button" class="btn btn-primary btn-sm" id="fin-add-expense">+ Add expense</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap projects-table-wrap finance-expense-table-wrap">
+          <table class="dash-table projects-table finance-expense-table" id="finance-expense-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Project</th>
+                <th>Category</th>
+                <th class="text-right">Amount</th>
+                <th>Description</th>
+                <th class="cust-col-center">Status</th>
+                <th class="cust-col-center">Stage</th>
+                <th class="cust-col-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="finance-expense-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     `;
-    const vchForm = vchFormHost.querySelector("#voucher-form");
-    vchForm.date.value = todayISO();
+    expenseCountEl = section.querySelector("#finance-expense-count");
+    expenseTbody = section.querySelector("#finance-expense-tbody");
+    return section;
+  }
 
-    wireExpenseToolbar();
-    wireVoucherForm(vchForm);
-    syncAddExpenseButton();
+  function renderAccountsPanel() {
+    const section = document.createElement("section");
+    section.className = "dash-widget dash-widget--projects card fin-tab-panel";
+    section.innerHTML = `
+      <div class="dash-widget-head">
+        <h3 class="dash-widget-title">Chart of accounts</h3>
+        <p class="dash-widget-sub">Ledger accounts and balances</p>
+      </div>
+      <div class="dash-widget-body" id="finance-accounts-host"></div>
+    `;
+    accHost = section.querySelector("#finance-accounts-host");
+    return section;
+  }
+
+  function renderVouchersPanel() {
+    const section = document.createElement("section");
+    section.className = "dash-widget dash-widget--projects card fin-tab-panel";
+    section.innerHTML = `
+      <div class="dash-widget-head dash-widget-head--split">
+        <div>
+          <h3 class="dash-widget-title">Recent vouchers</h3>
+          <p class="dash-widget-sub">Latest manual and system vouchers</p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="fin-open-voucher">+ Manual voucher</button>
+      </div>
+      <div class="dash-widget-body" id="finance-vouchers-host"></div>
+    `;
+    vchListHost = section.querySelector("#finance-vouchers-host");
+    section.querySelector("#fin-open-voucher").onclick = () => openVoucherDialog();
+    return section;
+  }
+
+  function renderTabs() {
+    if (!tabHost) return;
+    tabHost.innerHTML = "";
+    tabHost.appendChild(
+      renderFinanceTabBar(FINANCE_TABS, activeTab, (tab) => {
+        activeTab = tab;
+        renderTabs();
+        renderContent();
+      })
+    );
+  }
+
+  function renderContent() {
+    if (!contentHost) return;
+    contentHost.innerHTML = "";
+    expenseCountEl = null;
+    expenseTbody = null;
+    accHost = null;
+    vchListHost = null;
+
+    if (activeTab === "expenses") {
+      contentHost.appendChild(renderExpensesPanel());
+      toolbarWired = false;
+      wireExpenseToolbar();
+      syncProjectFilterOptions();
+      renderExpenses();
+    } else if (activeTab === "accounts") {
+      contentHost.appendChild(renderAccountsPanel());
+      renderAccounts();
+    } else {
+      contentHost.appendChild(renderVouchersPanel());
+      renderVouchers();
+    }
+  }
+
+  function openVoucherDialog() {
+    const accountOptions = [
+      { value: "", label: "Select account" },
+      ...accounts.map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` })),
+    ];
+    openCustFormDialog({
+      title: "Manual voucher",
+      subtitle: "Post a debit / credit entry",
+      modalClass: "finance-expense-modal",
+      submitLabel: "Save voucher",
+      values: { date: todayISO(), debit: "", credit: "", amount: "", narration: "" },
+      sections: [
+        {
+          title: "Entry",
+          fields: [
+            { name: "date", label: "Date", type: "date" },
+            { name: "debit", label: "Debit account *", type: "select", required: true, options: accountOptions },
+            { name: "credit", label: "Credit account *", type: "select", required: true, options: accountOptions },
+            { name: "amount", label: "Amount (BDT) *", type: "number", step: "0.01", required: true },
+          ],
+        },
+        {
+          title: "Details",
+          fields: [{ name: "narration", label: "Description", fullWidth: true }],
+        },
+      ],
+      onSave: async (vals) => {
+        const amount = Number(vals.amount);
+        if (amount <= 0) {
+          showToast("Enter a valid amount", "error");
+          throw new Error("validation");
+        }
+        if (!vals.debit || !vals.credit) {
+          showToast("Select debit and credit accounts", "error");
+          throw new Error("validation");
+        }
+        try {
+          await postManualVoucherClient({
+            amount,
+            debit: vals.debit,
+            credit: vals.credit,
+            date: vals.date,
+            narration: vals.narration,
+          });
+          showToast("Voucher saved");
+        } catch (err) {
+          showToast(err.message, "error");
+          throw err;
+        }
+      },
+    });
   }
 
   function syncAddExpenseButton() {
@@ -498,28 +606,6 @@ export function mountAccounting(container) {
     });
   }
 
-  function wireVoucherForm(vchForm) {
-    vchForm.onsubmit = async (e) => {
-      e.preventDefault();
-      const amount = Number(vchForm.amount.value);
-      if (amount <= 0) return;
-      try {
-        await postManualVoucherClient({
-          amount,
-          debit: vchForm.debit.value,
-          credit: vchForm.credit.value,
-          date: vchForm.date.value,
-          narration: vchForm.narration.value,
-        });
-        vchForm.amount.value = "";
-        vchForm.narration.value = "";
-        showToast("Voucher saved");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    };
-  }
-
   function expenseSourceList() {
     if (filters.projectId && scopedExpenses) return scopedExpenses;
     return allExpenses;
@@ -630,7 +716,7 @@ export function mountAccounting(container) {
       btn.onclick = async () => {
         try {
           await submitProjectExpense(btn.dataset.pid, btn.dataset.id);
-          showToast("Expense submitted for approval");
+          await actionFeedback("expense_submitted", { title: fd.get("narration") || "Expense" });
         } catch (err) {
           showToast(err.message, "error");
         }
@@ -640,7 +726,7 @@ export function mountAccounting(container) {
       btn.onclick = async () => {
         try {
           await advanceExpenseApproval(btn.dataset.pid, btn.dataset.id);
-          showToast("Expense approved");
+          await actionFeedback("expense_approved");
         } catch (err) {
           showToast(err.message, "error");
         }
@@ -719,20 +805,6 @@ export function mountAccounting(container) {
     );
     styleTableWrap(wrap);
     accHost.appendChild(wrap);
-
-    const vchForm = vchFormHost?.querySelector("#voucher-form");
-    if (!vchForm) return;
-    const debitSel = vchForm.debit;
-    const creditSel = vchForm.credit;
-    debitSel.innerHTML = creditSel.innerHTML = '<option value="">Account</option>';
-    accounts.forEach((a) => {
-      for (const sel of [debitSel, creditSel]) {
-        const o = document.createElement("option");
-        o.value = a.id;
-        o.textContent = `${a.code} — ${a.name}`;
-        sel.appendChild(o);
-      }
-    });
   }
 
   function renderVouchers() {
@@ -760,32 +832,32 @@ export function mountAccounting(container) {
 
   function refreshAll() {
     renderFinanceMetrics();
-    renderExpenses();
-    renderAccounts();
-    renderVouchers();
+    renderContent();
   }
 
   ensureLayout();
+  renderTabs();
+  renderContent();
 
   const u1 = listenList("accounts", (list) => {
     accounts = list;
     renderFinanceMetrics();
-    renderAccounts();
+    if (activeTab === "accounts") renderAccounts();
   });
   const u2 = listenList("vouchers", (list) => {
     vouchers = list;
     renderFinanceMetrics();
-    renderVouchers();
+    if (activeTab === "vouchers") renderVouchers();
   });
   const u3 = listenList("projects", (list) => {
     projects = list;
     syncProjectFilterOptions();
-    renderExpenses();
+    if (activeTab === "expenses") renderExpenses();
   });
   const u4 = listenList("projectExpenses", () => {
     allExpenses = flattenProjectExpenses(resolveRead("projectExpenses") ?? {});
     renderFinanceMetrics();
-    renderExpenses();
+    if (activeTab === "expenses") renderExpenses();
   });
 
   refreshAll();

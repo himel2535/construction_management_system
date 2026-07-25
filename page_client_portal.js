@@ -2,15 +2,15 @@ import { listenList } from "./svc_data.js";
 import { readRef } from "./svc_tenant.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
-import { statusChip, progressBar } from "./cmp_ui.js";
-import { formatBDT } from "./util_format.js";
 import { getCurrentRole, getRoleEntry } from "./svc_governance.js";
-import { isGovProject, projectTypeLabel } from "./util_govProject.js";
 import { enrichProjectList } from "./svc_projectDetails.js";
 import {
   computeClientPortalStats,
   renderClientPortalKpiHtml,
-  portalWidgetHtml,
+  renderPortalHeroHtml,
+  renderPortalProjectsSectionHtml,
+  renderPortalBillingHtml,
+  renderPortalMilestonesHtml,
 } from "./cmp_clientPortalHub.js";
 
 function escapeHtml(s) {
@@ -58,80 +58,6 @@ export function mountClientPortal(container) {
       });
     }
     state.milestones = ms.sort((a, b) => String(a.plannedDate).localeCompare(String(b.plannedDate)));
-  }
-
-  function renderProjectGrid(linkedProjects) {
-    if (!linkedProjects.length) {
-      return portalWidgetHtml("Your projects", "Progress and contract summary", `<p class="proj-empty">No projects linked to your account yet.</p>`);
-    }
-    const cards = linkedProjects
-      .map(
-        (p) => `
-        <section class="dash-widget dash-widget--projects card portal-project-card">
-          <div class="dash-widget-head">
-            <h3 class="dash-widget-title">${escapeHtml(p.name)}</h3>
-            <p class="dash-widget-sub">${escapeHtml(projectTypeLabel(p.projectType))} · ${escapeHtml(p.status || "ongoing")}</p>
-          </div>
-          <div class="dash-widget-body portal-section-body">
-            <div class="progress-cell portal-progress-cell">${progressBar(p.progressPercent || 0)}<small>${p.progressPercent || 0}% complete</small></div>
-            <dl class="portal-meta">
-              <div><dt>Timeline</dt><dd>${escapeHtml(p.startDate || "—")} → ${escapeHtml(p.endDate || "—")}</dd></div>
-              ${isGovProject(p) ? `<div><dt>Work order</dt><dd>${escapeHtml(p.workOrderNo || "—")}</dd></div>` : `<div><dt>Contract value</dt><dd>${formatBDT(p.contractValue || 0)}</dd></div>`}
-            </dl>
-          </div>
-        </section>`
-      )
-      .join("");
-    return `<div class="portal-project-grid">${cards}</div>`;
-  }
-
-  function renderBillingTable(bills) {
-    const tableHtml = `
-      <div class="table-wrap projects-table-wrap">
-        <table class="dash-table projects-table portal-billing-table">
-          <thead><tr><th>Project</th><th>Type</th><th class="text-right">Amount</th><th class="text-right">Paid</th><th class="text-right">Due</th><th>Due date</th><th class="cust-col-center">Status</th><th>Date</th></tr></thead>
-          <tbody>
-            ${bills.length
-              ? bills
-                  .map((b) => {
-                    const due = Math.max(0, Number(b.amount || 0) - Number(b.paidAmount || 0));
-                    return `<tr>
-                  <td>${escapeHtml(b.projectName || "—")}</td>
-                  <td>${escapeHtml(b.billType || "—")}</td>
-                  <td class="text-right">${formatBDT(b.amount)}</td>
-                  <td class="text-right">${formatBDT(b.paidAmount || 0)}</td>
-                  <td class="text-right">${formatBDT(due)}</td>
-                  <td>${escapeHtml(b.dueDate || "—")}</td>
-                  <td class="cust-col-center">${statusChip(b.status || "draft")}</td>
-                  <td>${escapeHtml(b.billDate || "—")}</td>
-                </tr>`;
-                  })
-                  .join("")
-              : '<tr class="empty-row"><td colspan="8">No bills yet</td></tr>'}
-          </tbody>
-        </table>
-      </div>`;
-    return portalWidgetHtml("Billing", "Invoices and payment status (read-only)", tableHtml);
-  }
-
-  function renderMilestonesSection() {
-    const listHtml = `
-      <ul class="portal-milestone-list">
-        ${state.milestones.length
-          ? state.milestones
-              .slice(0, 8)
-              .map(
-                (m) => `
-            <li class="portal-milestone-item">
-              <strong>${escapeHtml(m.title)}</strong>
-              <span class="portal-milestone-meta">${escapeHtml(m.projectName)} · deadline ${escapeHtml(m.plannedDate || "—")}</span>
-              ${statusChip(m.status || "pending")}
-            </li>`
-              )
-              .join("")
-          : `<li class="proj-empty">No milestones scheduled</li>`}
-      </ul>`;
-    return portalWidgetHtml("Upcoming milestones", "Schedule across your projects", listHtml);
   }
 
   function render() {
@@ -182,32 +108,17 @@ export function mountClientPortal(container) {
       })
       .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
 
-    const dueBanner = upcomingBills.length
-      ? `<div class="portal-due-banner card card-pad">
-        <strong>Upcoming bill due dates</strong>
-        <ul class="portal-due-list">
-          ${upcomingBills
-            .slice(0, 5)
-            .map((b) => {
-              const due = Math.max(0, Number(b.amount || 0) - Number(b.paidAmount || 0));
-              return `<li>${escapeHtml(b.projectName || "Project")} — due ${escapeHtml(b.dueDate)} · ${formatBDT(due)} outstanding</li>`;
-            })
-            .join("")}
-        </ul>
-      </div>`
-      : "";
-
-    const hero = `<div class="portal-hero card card-pad">
-        <h2 class="dash-widget-title">${escapeHtml(state.client?.name || "Client")}</h2>
-        <p class="dash-widget-sub">${escapeHtml(state.client?.contractRef ? `Contract: ${state.client.contractRef}` : "Project owner portal")}</p>
+    bodyHost.innerHTML = `
+      ${renderPortalHeroHtml(state.client, upcomingBills)}
+      <div class="portal-main-grid">
+        <div class="portal-main-col portal-main-col--projects">
+          ${renderPortalProjectsSectionHtml(linkedProjects)}
+        </div>
+        <div class="portal-main-col portal-main-col--side">
+          ${renderPortalBillingHtml(bills)}
+          ${renderPortalMilestonesHtml(state.milestones)}
+        </div>
       </div>`;
-
-    bodyHost.innerHTML =
-      dueBanner +
-      hero +
-      renderProjectGrid(linkedProjects) +
-      renderBillingTable(bills) +
-      renderMilestonesSection();
   }
 
   const unsubs = [

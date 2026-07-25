@@ -5,6 +5,7 @@ import { valToList } from "./svc_clientCache.js";
 import { canTransition, writeAuditLog, milestoneVariance } from "./svc_workflow.js";
 import { postProjectExpense, computeProjectBudgetSummary } from "./svc_projectCost.js";
 import { showToast } from "./cmp_toast.js";
+import { notifyApprovalQueueHandoff } from "./svc_actionNotifications.js";
 import {
   expiryAlertLevel,
   requiresExpiry,
@@ -170,11 +171,17 @@ export async function upsertApprovalQueue(item) {
       return id;
     }
   }
-  return create("approvalQueue", {
+  const id = await create("approvalQueue", {
     status: "pending",
     createdAt: Date.now(),
     ...item,
   });
+  try {
+    await notifyApprovalQueueHandoff({ ...item, status: "pending" });
+  } catch {
+    /* non-blocking */
+  }
+  return id;
 }
 
 /**

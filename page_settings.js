@@ -23,6 +23,9 @@ import {
   renderCompanyProfileViewHtml,
   isCompanyProfileComplete,
   renderPermissionMatrixHtml,
+  getCompanyProfileFormValues,
+  COMPANY_PROFILE_CURRENCY_OPTIONS,
+  readCompanyProfileFromForm,
 } from "./cmp_settings.js";
 
 function escapeHtml(s) {
@@ -110,9 +113,10 @@ export function mountSettings(container) {
   );
   profileWidget.querySelector("#settings-profile-body").innerHTML = `
     <div class="settings-profile-panel">
+      <p class="settings-profile-readonly-note" id="settings-profile-readonly-note" hidden>Only the Owner can edit company profile.</p>
       <div class="settings-profile-toolbar">
         <span id="settings-profile-status-chip" class="chip chip--warn">Incomplete</span>
-        <div class="settings-profile-actions">
+        <div class="settings-profile-actions" id="settings-profile-actions">
           <button type="button" class="btn btn-primary btn-sm" id="settings-profile-edit-btn">Edit company profile</button>
           <button type="submit" form="settings-profile-form" class="btn btn-primary btn-sm" id="settings-profile-save-btn" hidden>Save</button>
           <button type="button" class="btn btn-ghost btn-sm" id="settings-profile-cancel-btn" hidden>Cancel</button>
@@ -120,19 +124,87 @@ export function mountSettings(container) {
       </div>
       <div id="settings-profile-view"></div>
       <div id="settings-profile-edit" hidden>
-        <form id="settings-profile-form" class="settings-profile-form settings-profile-form--edit">
-          <label class="settings-profile-field">
-            <span class="settings-profile-field-label">Company name</span>
-            <input name="name" placeholder="Company name" />
-          </label>
-          <label class="settings-profile-field">
-            <span class="settings-profile-field-label">Address</span>
-            <input name="address" placeholder="Address" />
-          </label>
-          <label class="settings-profile-field">
-            <span class="settings-profile-field-label">Phone</span>
-            <input name="phone" placeholder="Phone" />
-          </label>
+        <form id="settings-profile-form" class="settings-profile-form settings-profile-form--edit co-profile-form">
+          <section class="settings-profile-section co-profile-panel co-profile-panel--edit">
+            <h4 class="co-profile-panel__title">Company identity</h4>
+            <div class="settings-profile-form-grid settings-profile-form-grid--2">
+              <label class="settings-profile-field">
+                <span class="settings-profile-field-label">Company name</span>
+                <input name="name" placeholder="Legal company name" required />
+              </label>
+              <label class="settings-profile-field">
+                <span class="settings-profile-field-label">Trading / brand name</span>
+                <input name="tradingName" placeholder="Brand or trading name" />
+              </label>
+            </div>
+            <label class="settings-profile-field settings-profile-field--full">
+              <span class="settings-profile-field-label">About the company</span>
+              <textarea name="about" rows="3" placeholder="Brief description for reports and client portal"></textarea>
+            </label>
+          </section>
+          <section class="settings-profile-section co-profile-panel co-profile-panel--edit">
+            <h4 class="co-profile-panel__title">Contact</h4>
+            <label class="settings-profile-field settings-profile-field--full">
+              <span class="settings-profile-field-label">Registered address</span>
+              <input name="address" placeholder="Office / registered address" />
+            </label>
+            <div class="settings-profile-form-grid settings-profile-form-grid--contact">
+              <label class="settings-profile-field">
+                <span class="settings-profile-field-label">Phone</span>
+                <input name="phone" type="tel" placeholder="+880 …" />
+              </label>
+              <label class="settings-profile-field">
+                <span class="settings-profile-field-label">Email</span>
+                <input name="email" type="email" placeholder="info@company.com" />
+              </label>
+              <label class="settings-profile-field">
+                <span class="settings-profile-field-label">Website</span>
+                <input name="website" type="url" placeholder="https://…" />
+              </label>
+            </div>
+          </section>
+          <section class="settings-profile-section co-profile-panel co-profile-panel--edit">
+            <h4 class="co-profile-panel__title">Registration &amp; compliance</h4>
+            <div class="settings-profile-form-grid settings-profile-form-grid--3">
+              <label class="settings-profile-field">
+                <span class="settings-profile-field-label">Trade license no.</span>
+                <input name="tradeLicense" placeholder="Trade license" />
+              </label>
+              <label class="settings-profile-field">
+                <span class="settings-profile-field-label">TIN / VAT no.</span>
+                <input name="tinVatNo" placeholder="Tax identification" />
+              </label>
+              <label class="settings-profile-field">
+                <span class="settings-profile-field-label">Company registration (RJSC)</span>
+                <input name="companyRegNo" placeholder="RJSC registration" />
+              </label>
+            </div>
+          </section>
+          <section class="settings-profile-section co-profile-panel co-profile-panel--edit">
+            <h4 class="co-profile-panel__title">Finance &amp; banking</h4>
+            <div class="settings-profile-form-grid settings-profile-form-grid--finance">
+              <label class="settings-profile-field">
+                <span class="settings-profile-field-label">Default currency</span>
+                <select name="currency" aria-label="Default currency">
+                  ${COMPANY_PROFILE_CURRENCY_OPTIONS.map(
+                    (o) => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`
+                  ).join("")}
+                </select>
+              </label>
+              <label class="settings-profile-field">
+                <span class="settings-profile-field-label">Receipt / voucher prefix</span>
+                <input name="receiptPrefix" placeholder="RCP" />
+              </label>
+              <label class="settings-profile-field">
+                <span class="settings-profile-field-label">Bank name</span>
+                <input name="bankName" placeholder="Primary bank" />
+              </label>
+              <label class="settings-profile-field">
+                <span class="settings-profile-field-label">Bank account no.</span>
+                <input name="bankAccount" placeholder="Account number" />
+              </label>
+            </div>
+          </section>
         </form>
       </div>
     </div>
@@ -144,14 +216,42 @@ export function mountSettings(container) {
   const profileEditBtn = profileWidget.querySelector("#settings-profile-edit-btn");
   const profileSaveBtn = profileWidget.querySelector("#settings-profile-save-btn");
   const profileCancelBtn = profileWidget.querySelector("#settings-profile-cancel-btn");
+  const profileReadonlyNote = profileWidget.querySelector("#settings-profile-readonly-note");
+  const profileActionsWrap = profileWidget.querySelector("#settings-profile-actions");
 
   let profileMode = "view";
 
+  function canManageCompany() {
+    return canPerformAction("manage_company");
+  }
+
+  function enforceProfileAccess() {
+    const manage = canManageCompany();
+    if (!manage && profileMode === "edit") {
+      profileMode = "view";
+      profileViewHost.hidden = false;
+      profileEditHost.hidden = true;
+      profileWidget.classList.remove("is-profile-editing");
+      populateProfileForm(companyProfile);
+    }
+    profileActionsWrap.hidden = !manage;
+    profileReadonlyNote.hidden = manage;
+    form.querySelectorAll("input, select, textarea").forEach((el) => {
+      el.disabled = !manage;
+    });
+    if (!manage) return;
+    const editing = profileMode === "edit";
+    profileEditBtn.hidden = editing;
+    profileSaveBtn.hidden = !editing;
+    profileCancelBtn.hidden = !editing;
+  }
+
   function populateProfileForm(p) {
-    const data = p || {};
-    form.name.value = data.name || "";
-    form.address.value = data.address || "";
-    form.phone.value = data.phone || "";
+    const data = getCompanyProfileFormValues(p);
+    for (const [key, val] of Object.entries(data)) {
+      const el = form.elements.namedItem(key);
+      if (el && "value" in el) el.value = val;
+    }
   }
 
   function updateProfileStatusChip(p) {
@@ -166,20 +266,31 @@ export function mountSettings(container) {
   }
 
   function setProfileMode(mode) {
+    if (mode === "edit" && !canManageCompany()) {
+      profileMode = "view";
+      enforceProfileAccess();
+      return;
+    }
     profileMode = mode;
     const editing = mode === "edit";
     profileViewHost.hidden = editing;
     profileEditHost.hidden = !editing;
-    profileEditBtn.hidden = editing;
     profileSaveBtn.hidden = !editing;
     profileCancelBtn.hidden = !editing;
     profileWidget.classList.toggle("is-profile-editing", editing);
+    enforceProfileAccess();
   }
 
   profileEditBtn.onclick = () => {
+    try {
+      guardAction("manage_company");
+    } catch (err) {
+      showToast(err.message, "error");
+      return;
+    }
     populateProfileForm(companyProfile);
     setProfileMode("edit");
-    form.name.focus();
+    form.elements.namedItem("name")?.focus();
   };
 
   profileCancelBtn.onclick = () => {
@@ -189,6 +300,7 @@ export function mountSettings(container) {
 
   syncProfileView(null);
   setProfileMode("view");
+  enforceProfileAccess();
 
   const usersWidget = simpleSettingsWidget(
     "Users & roles",
@@ -469,6 +581,7 @@ export function mountSettings(container) {
     }
 
     updateSettingsKpi();
+    enforceProfileAccess();
   }
 
   function renderAuditList(logs = []) {
@@ -509,6 +622,9 @@ export function mountSettings(container) {
   renderRolesList();
   updateSettingsKpi();
 
+  const onSessionUserChanged = () => enforceProfileAccess();
+  window.addEventListener("erp:session-user-changed", onSessionUserChanged);
+
   const addUserForm = root.querySelector("#settings-add-user-form");
   if (addUserForm) {
     addUserForm.style.display = canManageUsers() ? "" : "none";
@@ -541,6 +657,7 @@ export function mountSettings(container) {
     listenValue("roles", () => {
       invalidateRoleCache();
       renderRolesList();
+      enforceProfileAccess();
     }),
     listenList("auditLogs", (list) => renderAuditList(list)),
   ];
@@ -548,16 +665,15 @@ export function mountSettings(container) {
   form.onsubmit = async (e) => {
     e.preventDefault();
     try {
-      await updatePath("companyProfile/main", {
-        name: form.name.value,
-        address: form.address.value,
-        phone: form.phone.value,
-      });
-      companyProfile = {
-        name: form.name.value,
-        address: form.address.value,
-        phone: form.phone.value,
+      guardAction("manage_company");
+      const values = readCompanyProfileFromForm(form);
+      const payload = {
+        ...(companyProfile || {}),
+        ...values,
+        updatedAt: Date.now(),
       };
+      await updatePath("companyProfile/main", payload);
+      companyProfile = payload;
       syncProfileView(companyProfile);
       setProfileMode("view");
       updateSettingsKpi();
@@ -569,6 +685,7 @@ export function mountSettings(container) {
 
   root.querySelector("#backup-btn").onclick = async () => {
     try {
+      guardAction("manage_company");
       await triggerBackupMetaClient();
       root.querySelector("#backup-status").textContent = "Backup marker saved";
       showToast("Backup requested");
@@ -577,5 +694,22 @@ export function mountSettings(container) {
     }
   };
 
-  return { unmount: () => unsubs.forEach((u) => u()) };
+  const backupBtn = root.querySelector("#backup-btn");
+  if (backupBtn && !canManageCompany()) {
+    backupBtn.hidden = true;
+    const backupBody = root.querySelector("#settings-backup-body");
+    if (backupBody && !backupBody.querySelector(".settings-backup-readonly-note")) {
+      const note = document.createElement("p");
+      note.className = "section-sub settings-backup-readonly-note";
+      note.textContent = "Only the Owner can request backups.";
+      backupBody.insertBefore(note, backupBody.firstChild);
+    }
+  }
+
+  return {
+    unmount: () => {
+      window.removeEventListener("erp:session-user-changed", onSessionUserChanged);
+      unsubs.forEach((u) => u());
+    },
+  };
 }

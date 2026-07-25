@@ -286,6 +286,7 @@ function skelClientsToolbar() {
           ${skelBlock("skel-clients-btn")}
           ${skelBlock("skel-clients-btn")}
           ${skelBlock("skel-clients-btn")}
+          ${skelBlock("skel-clients-btn")}
         </div>
       </div>
     </div>

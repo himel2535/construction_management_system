@@ -53,10 +53,6 @@ export function mountDashboard(container) {
     title: "Dashboard",
     subtitle: "Welcome back! Here's what's happening with your business today.",
     showDateRange: true,
-    quickActionLabel: "+ Quick Action",
-    onQuickAction: () => {
-      navigateTo("/projects/new");
-    },
   });
 
   import("./svc_alertEngine.js").then(({ scanAndEmitAlerts }) => {

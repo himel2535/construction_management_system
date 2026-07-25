@@ -13,7 +13,7 @@ import {
 } from "./svc_projectExpense.js";
 import { canRoleDecideQueueRow } from "./util_approvalQueue.js";
 import { formatDate } from "./util_format.js";
-import { showToast } from "./cmp_toast.js";
+import { showToast, actionFeedback } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
 
@@ -184,7 +184,22 @@ export function mountApprovals(container) {
     }
     try {
       await applyQueueDecision({ row, decision });
-      showToast(`Item ${decision === "approve" ? "accepted" : "rejected"}`);
+      const verifyLinks = [];
+      if (row.entityType === "projectExpense") {
+        verifyLinks.push({ label: "Finance → Expenses", link: "/accounting" });
+      } else if (String(row.entityType || "").toLowerCase().includes("purchase")) {
+        verifyLinks.push({ label: "Procurement → Orders", link: "/purchases?tab=orders" });
+      } else {
+        verifyLinks.push({ label: "Approvals inbox", link: "/approvals" });
+      }
+      await actionFeedback(decision === "approve" ? "approval_accepted" : "approval_rejected", {
+        entityLabel: row.title || row.entityType,
+        verifyLinks,
+        message: row.title ? `${row.title} — ${decision}d` : undefined,
+        link: verifyLinks[0]?.link,
+        entityId: row.entityId,
+        projectId: row.projectId,
+      });
     } catch (err) {
       showToast(err.message, "error");
     }

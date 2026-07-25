@@ -23,7 +23,7 @@ import {
   cumulativeMeasuredByBoq,
 } from "./svc_govProject.js";
 import { milestoneVariance } from "./svc_workflow.js";
-import { auditProject, openEditDialog } from "./cmp_projectTab.js";
+import { auditProject, openEditDialog, openCustFormDialog } from "./cmp_projectTab.js";
 import { renderBoqStatGrid } from "./page_projects_r2.js";
 
 export const GOV_TAB_IDS = ["contract", "compliance", "home", "measurement", "retention"];
@@ -117,18 +117,18 @@ function govBase() {
   };
 }
 
-function govBlockShell(title, innerHtml) {
-  const shell = document.createElement("div");
-  shell.className = "reports-table-wrap proj-contract-gov-block-shell";
-  shell.innerHTML = `
-    <h4 class="proj-boq-section-title proj-contract-gov-block-head">${escapeHtml(title)}</h4>
-    <div class="proj-contract-gov-stat-grid">${innerHtml}</div>
-  `;
-  return shell;
+function govStatCell(label, valueHtml) {
+  return `<div class="proj-contract-gov-field"><span class="cust-detail-label">${escapeHtml(label)}</span><div class="cust-detail-value">${valueHtml}</div></div>`;
 }
 
-function govStatCell(label, valueHtml) {
-  return `<div class="proj-contract-gov-stat"><span class="cust-detail-label">${escapeHtml(label)}</span><strong>${valueHtml}</strong></div>`;
+function govSubsection(title, gridClass, cellsHtml, extraHtml = "") {
+  return `
+    <section class="proj-contract-gov-subsection">
+      <h5 class="proj-contract-gov-subsection-title">${escapeHtml(title)}</h5>
+      <div class="proj-contract-gov-field-grid ${gridClass}">${cellsHtml}</div>
+      ${extraHtml}
+    </section>
+  `;
 }
 
 export function buildContractTab(state, opts = {}) {
@@ -164,68 +164,100 @@ export function buildContractTab(state, opts = {}) {
   const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
   if (statGrid) statGrid.classList.add("proj-contracts-stat-grid");
 
-  const agencyBanner = document.createElement("p");
-  agencyBanner.className = "proj-contract-client-banner text-muted";
-  agencyBanner.innerHTML = `Employer: <strong>${escapeHtml(project.employerAgency || "—")}</strong> · Completion: ${escapeHtml(project.completionDate || "—")} · Compliance: ${complianceChip(project.complianceStatus)}`;
+  const termsShell = document.createElement("div");
+  termsShell.className = "reports-table-wrap proj-contract-gov-terms-shell";
+  termsShell.innerHTML = `
+    <div class="proj-contract-gov-terms-head-row">
+      <h4 class="proj-boq-section-title proj-contract-gov-terms-head">Commercial contract terms</h4>
+      <div class="proj-contract-gov-terms-head-actions">
+        <button type="button" class="btn btn-primary btn-sm proj-contract-gov-edit-btn">Edit profile</button>
+        <button type="button" class="btn btn-ghost btn-sm proj-contract-gov-compliance-btn">View compliance checklist →</button>
+      </div>
+    </div>
+    <div class="proj-contract-gov-terms-meta">
+      <span>Employer: <strong>${escapeHtml(project.employerAgency || "—")}</strong></span>
+      <span>Completion: ${escapeHtml(project.completionDate || "—")}</span>
+      <span class="proj-contract-gov-terms-meta-chip">Compliance: ${complianceChip(project.complianceStatus)}</span>
+    </div>
+  `;
+  termsShell.querySelector(".proj-contract-gov-edit-btn").onclick = () => opts.onEditMaster?.();
+  termsShell.querySelector(".proj-contract-gov-compliance-btn").onclick = () => opts.onNavigateTab?.("compliance");
 
-  const tenderShell = govBlockShell(
-    "Tender / e-GP",
-    [
-      govStatCell("Tender ref", escapeHtml(project.tenderRef || "—")),
-      govStatCell("Notice date", escapeHtml(project.tenderNoticeDate || "—")),
-      govStatCell("Submission deadline", escapeHtml(project.tenderSubmissionDeadline || "—")),
-      govStatCell("Document", tenderDoc),
-    ].join("")
-  );
+  const woScopeHtml = project.workOrderScope
+    ? `<p class="proj-contract-gov-scope-callout text-muted">${escapeHtml(project.workOrderScope)}</p>`
+    : "";
 
-  const woInner = [
-    govStatCell("Reference", escapeHtml(project.workOrderNo || "—")),
-    govStatCell("Issue date", escapeHtml(project.workOrderIssueDate || "—")),
-  ].join("");
-  const woShell = govBlockShell("Work order (কার্যাদেশ)", woInner);
-  if (project.workOrderScope) {
-    woShell.insertAdjacentHTML(
-      "beforeend",
-      `<p class="proj-contract-gov-scope text-muted">${escapeHtml(project.workOrderScope)}</p>`
-    );
-  }
-
-  const pgShell = govBlockShell(
-    "Performance guarantee",
-    govStatCell("Amount", escapeHtml(formatBDT(project.performanceGuaranteeAmount || 0)))
-  );
+  const particularsShell = document.createElement("div");
+  particularsShell.className = "reports-table-wrap proj-contract-gov-particulars-shell";
+  particularsShell.innerHTML = `
+    <h4 class="proj-boq-section-title proj-contract-gov-particulars-head">Contract particulars</h4>
+    ${govSubsection(
+      "Tender / e-GP",
+      "proj-contract-gov-tender-grid",
+      [
+        govStatCell("Tender ref", escapeHtml(project.tenderRef || "—")),
+        govStatCell("Notice date", escapeHtml(project.tenderNoticeDate || "—")),
+        govStatCell("Submission deadline", escapeHtml(project.tenderSubmissionDeadline || "—")),
+        govStatCell("Document", tenderDoc),
+      ].join("")
+    )}
+    ${govSubsection(
+      "Work order (কার্যাদেশ)",
+      "proj-contract-gov-wo-grid",
+      [
+        govStatCell("Reference", escapeHtml(project.workOrderNo || "—")),
+        govStatCell("Issue date", escapeHtml(project.workOrderIssueDate || "—")),
+      ].join(""),
+      woScopeHtml
+    )}
+    ${govSubsection(
+      "Performance guarantee",
+      "proj-contract-gov-pg-grid",
+      govStatCell("Amount", escapeHtml(formatBDT(project.performanceGuaranteeAmount || 0)))
+    )}
+  `;
 
   const bgLabel = BG_TYPES.find((t) => t.id === project.bgType)?.label || project.bgType || "—";
-  const bgShell = govBlockShell(
-    "Bank guarantee",
-    [
-      govStatCell("Type", escapeHtml(bgLabel)),
-      govStatCell("Amount", escapeHtml(formatBDT(project.bgAmount || 0))),
-      govStatCell("Bank", escapeHtml(project.bgBank || "—")),
-      govStatCell("Expiry", escapeHtml(project.bgExpiryDate || "—")),
-      govStatCell("Status", statusChip(project.bgStatus || "active")),
-    ].join("")
-  );
+  const guaranteesShell = document.createElement("div");
+  guaranteesShell.className =
+    "reports-table-wrap proj-contract-gov-guarantees-shell proj-contract-gov-bg-shell";
+  guaranteesShell.innerHTML = `
+    <h4 class="proj-boq-section-title proj-contract-gov-guarantees-head">Guarantees & securities</h4>
+    <div class="proj-contract-gov-table">
+      <table class="dash-table projects-table">
+        <colgroup>
+          <col class="proj-contract-gov-bg-col-type">
+          <col class="proj-contract-gov-bg-col-amount">
+          <col class="proj-contract-gov-bg-col-bank">
+          <col class="proj-contract-gov-bg-col-expiry">
+          <col class="proj-contract-gov-bg-col-status">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th class="proj-contract-gov-amount-h">Amount</th>
+            <th>Bank</th>
+            <th>Expiry</th>
+            <th class="rep-col-status">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${escapeHtml(bgLabel)}</td>
+            <td class="proj-contract-gov-amount-cell">${escapeHtml(formatBDT(project.bgAmount || 0))}</td>
+            <td>${escapeHtml(project.bgBank || "—")}</td>
+            <td>${escapeHtml(project.bgExpiryDate || "—")}</td>
+            <td class="rep-col-status"><span class="proj-contract-gov-status-wrap">${statusChip(project.bgStatus || "active")}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="reports-widget-foot">
+      <span class="reports-widget-foot-meta">Contract fields are maintained in the project profile.</span>
+    </div>
+  `;
 
-  const foot = document.createElement("div");
-  foot.className = "proj-contract-gov-foot";
-  foot.innerHTML = `<p class="text-muted proj-contract-note">Contract fields are maintained in the project profile to avoid duplicate entry.</p>`;
-  const editBtn = document.createElement("button");
-  editBtn.type = "button";
-  editBtn.className = "btn btn-primary btn-sm";
-  editBtn.textContent = "Edit profile";
-  editBtn.onclick = () => opts.onEditMaster?.();
-  const complianceBtn = document.createElement("button");
-  complianceBtn.type = "button";
-  complianceBtn.className = "btn btn-ghost btn-sm";
-  complianceBtn.textContent = "View compliance checklist →";
-  complianceBtn.onclick = () => opts.onNavigateTab?.("compliance");
-  const footActions = document.createElement("div");
-  footActions.className = "proj-contract-gov-foot-actions";
-  footActions.append(editBtn, complianceBtn);
-  foot.appendChild(footActions);
-
-  root.append(metricsSection, agencyBanner, tenderShell, woShell, pgShell, bgShell, foot);
+  root.append(metricsSection, termsShell, particularsShell, guaranteesShell);
   return root;
 }
 
@@ -540,6 +572,82 @@ async function createIpcBill(state, project, { billType = "running" } = {}) {
   return billId;
 }
 
+function boqSelectOptions(state) {
+  return [
+    { value: "", label: "Select BOQ item" },
+    ...(state.boqItems || []).map((b) => ({
+      value: b.id,
+      label: `${b.itemCode || ""} ${b.item || b.description || ""}`.trim() || b.id,
+    })),
+  ];
+}
+
+function openAddMeasurementDialog(state, opts = {}) {
+  if (!state.selectedProjectId) {
+    showToast("Select a project first", "error");
+    return;
+  }
+  openCustFormDialog({
+    title: "Add measurement",
+    subtitle: "Record a measurement book entry against a BOQ line.",
+    submitLabel: "Add measurement",
+    modalClass: "proj-measurement-modal",
+    values: {
+      boqId: "",
+      qty: "",
+      measureDate: new Date().toISOString().slice(0, 10),
+      locationRef: "",
+      remarks: "",
+    },
+    sections: [
+      {
+        title: "Measurement",
+        fields: [
+          {
+            name: "boqId",
+            label: "BOQ item *",
+            type: "select",
+            required: true,
+            options: boqSelectOptions(state),
+          },
+          { name: "qty", label: "Measured qty *", type: "number", step: "0.01", required: true },
+          { name: "measureDate", label: "Date", type: "date" },
+          { name: "locationRef", label: "Chainage / location", type: "text" },
+          { name: "remarks", label: "Remarks", type: "textarea", fullWidth: true },
+        ],
+      },
+    ],
+    onSave: async (data) => {
+      if (!data.boqId) {
+        showToast("Select a BOQ item", "error");
+        throw new Error("validation");
+      }
+      try {
+        const id = await create(`${GOV_PATHS.measurementEntries}/${state.selectedProjectId}`, {
+          ...govBase(),
+          boqId: data.boqId,
+          qty: Number(data.qty) || 0,
+          measureDate: data.measureDate || "",
+          locationRef: String(data.locationRef || "").trim(),
+          measuredBy: getCurrentUserId(),
+          remarks: String(data.remarks || "").trim(),
+        });
+        await auditProject(state, {
+          entityType: "measurementEntry",
+          entityId: id,
+          action: "create",
+          diffSummary: `Measurement ${data.qty} on BOQ ${data.boqId}`,
+        });
+        showToast("Measurement recorded");
+        opts.onRefresh?.();
+      } catch (err) {
+        showToast(err.message, "error");
+        throw err;
+      }
+    },
+  });
+}
+
 function buildBoqCompareTable(state) {
   const measured = cumulativeMeasuredByBoq(state.measurementEntries || []);
   const rows = (state.boqItems || []).map((b) => {
@@ -549,23 +657,55 @@ function buildBoqCompareTable(state) {
     const variance = contractQty > 0 ? Math.round((executed / contractQty) * 100) : 0;
     return { b, contractQty, executed, remaining, variance };
   });
+  const countLabel =
+    rows.length === 1
+      ? "Showing 1 of 1 BOQ line"
+      : `Showing ${rows.length} of ${rows.length} BOQ lines`;
   const wrap = document.createElement("div");
-  wrap.className = "table-wrap gov-boq-compare";
+  wrap.className = "reports-table-wrap proj-measurement-table proj-measurement-boq-shell";
   wrap.innerHTML = `
-    <h4 class="r3-subhead">Quantity executed vs BOQ</h4>
-    <table class="dash-table">
-      <thead><tr><th>BOQ item</th><th>Contract qty</th><th>Measured</th><th>Remaining</th><th>Progress</th></tr></thead>
+    <div class="proj-measurement-boq-head-row">
+      <h4 class="proj-boq-section-title proj-measurement-boq-head">Quantity executed vs BOQ</h4>
+    </div>
+    <table class="dash-table projects-table">
+      <colgroup>
+        <col class="proj-measurement-boq-col-item" />
+        <col class="proj-measurement-boq-col-equal" />
+        <col class="proj-measurement-boq-col-equal" />
+        <col class="proj-measurement-boq-col-equal" />
+        <col class="proj-measurement-boq-col-progress" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>BOQ item</th>
+          <th>Contract qty</th>
+          <th>Measured</th>
+          <th>Remaining</th>
+          <th>Progress</th>
+        </tr>
+      </thead>
       <tbody>
-        ${rows.length ? rows.map(({ b, contractQty, executed, remaining, variance }) => `
+        ${
+          rows.length
+            ? rows
+                .map(
+                  ({ b, contractQty, executed, remaining, variance }) => `
           <tr>
             <td><strong>${escapeHtml(b.itemCode || "")}</strong> ${escapeHtml(b.item || b.description || "")}</td>
             <td>${contractQty}</td>
             <td>${executed}</td>
             <td>${remaining}</td>
             <td>${variance}%</td>
-          </tr>`).join("") : '<tr class="empty-row"><td colspan="5">Add BOQ lines first</td></tr>'}
+          </tr>`
+                )
+                .join("")
+            : '<tr class="empty-row"><td colspan="5">Add BOQ lines first</td></tr>'
+        }
       </tbody>
     </table>
+    <div class="reports-widget-foot">
+      <span class="reports-widget-foot-meta">${escapeHtml(countLabel)}</span>
+    </div>
   `;
   return wrap;
 }
@@ -670,157 +810,195 @@ export function buildGovBillingTab(state, opts = {}) {
 }
 
 export function buildMeasurementTab(state, opts = {}) {
+  const root = document.createElement("div");
+  root.className = "proj-measurement-tab";
   const project = state.projects.find((p) => p.id === state.selectedProjectId);
-  const card = sectionCard("Measurement Book (MB) & IPC", "Measurement Book (MB) → certification → RA Bill");
-  const body = card.querySelector(".section-card-body");
   if (!project) {
-    body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-    return card;
+    root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+    return root;
   }
 
-  const boqOpts = (state.boqItems || [])
-    .map((b) => `<option value="${b.id}">${escapeHtml(b.itemCode || "")} ${escapeHtml(b.item)}</option>`)
-    .join("");
-
-  const mbForm = document.createElement("form");
-  mbForm.className = "form-grid proj-form";
-  mbForm.innerHTML = `
-    <select name="boqId" required><option value="">BOQ item *</option>${boqOpts}</select>
-    <input name="qty" type="number" step="0.01" placeholder="Measured qty *" required />
-    <input name="measureDate" type="date" value="${new Date().toISOString().slice(0, 10)}" />
-    <input name="locationRef" placeholder="Chainage / location" />
-    <input name="remarks" placeholder="Remarks" />
-    <button type="submit" class="btn btn-primary btn-sm">Add measurement</button>
-  `;
-
-  mbForm.onsubmit = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(mbForm);
-    try {
-      const id = await create(`${GOV_PATHS.measurementEntries}/${state.selectedProjectId}`, {
-        ...govBase(),
-        boqId: fd.get("boqId"),
-        qty: Number(fd.get("qty")) || 0,
-        measureDate: fd.get("measureDate"),
-        locationRef: fd.get("locationRef") || "",
-        measuredBy: getCurrentUserId(),
-        remarks: fd.get("remarks") || "",
-      });
-      await auditProject(state, {
-        entityType: "measurementEntry",
-        entityId: id,
-        action: "create",
-        diffSummary: `Measurement ${fd.get("qty")} on BOQ ${fd.get("boqId")}`,
-      });
-      mbForm.reset();
-      showToast("Measurement recorded");
-    } catch (err) {
-      showToast(err.message, "error");
-    }
-  };
-
   const mbRows = state.measurementEntries || [];
+  const kpis = computeProjectKpis({
+    project,
+    boqItems: state.boqItems,
+    measurements: mbRows,
+    ipcBills: state.ipcBills,
+    retentionLedger: state.retentionLedger,
+    eotRequests: state.eotRequests,
+    milestones: state.milestones,
+  });
+  const approvedMb = mbRows.filter((m) => m.status === "approved").length;
+
+  const metricsSection = document.createElement("section");
+  metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-measurement-metrics";
+  metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Measurement overview</h4>`;
+  metricsSection.appendChild(
+    renderBoqStatGrid([
+      { label: "MB entries", value: mbRows.length },
+      { label: "Approved MB", value: approvedMb },
+      { label: "Open IPCs", value: kpis.openIpcs, attention: kpis.openIpcs > 0 },
+      { label: "Financial progress", value: `${kpis.financialPct}%` },
+    ])
+  );
+  const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+  if (statGrid) statGrid.classList.add("proj-measurement-stat-grid");
+
+  const mbCountLabel =
+    mbRows.length === 1
+      ? "Showing 1 of 1 measurement"
+      : `Showing ${mbRows.length} of ${mbRows.length} measurements`;
+
   const mbTable = document.createElement("div");
-  mbTable.className = "table-wrap";
+  mbTable.className = "reports-table-wrap proj-measurement-table proj-measurement-mb-shell";
   mbTable.innerHTML = `
-    <h4 class="r3-subhead">Measurement book</h4>
-    <table class="dash-table">
-      <thead><tr><th>Date</th><th>BOQ</th><th>Qty</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
+    <div class="proj-measurement-mb-head-row">
+      <h4 class="proj-boq-section-title proj-measurement-mb-head">Measurement book</h4>
+      <button type="button" class="btn btn-primary btn-sm proj-measurement-add-btn">Add measurement</button>
+    </div>
+    <table class="dash-table projects-table">
+      <colgroup>
+        <col class="proj-measurement-mb-col-date" />
+        <col class="proj-measurement-mb-col-boq" />
+        <col class="proj-measurement-mb-col-qty" />
+        <col class="proj-measurement-mb-col-loc" />
+        <col class="proj-measurement-mb-col-status" />
+        <col class="proj-measurement-mb-col-actions" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>BOQ</th>
+          <th>Qty</th>
+          <th>Location</th>
+          <th class="rep-col-status">Status</th>
+          <th class="rep-col-actions">Actions</th>
+        </tr>
+      </thead>
       <tbody>
-        ${mbRows.length ? mbRows.map((r) => {
-          const boq = (state.boqItems || []).find((b) => b.id === r.boqId);
-          const path = `${GOV_PATHS.measurementEntries}/${state.selectedProjectId}/${r.id}`;
-          return `<tr>
-            <td>${r.measureDate || "—"}</td>
+        ${
+          mbRows.length
+            ? mbRows
+                .map((r) => {
+                  const boq = (state.boqItems || []).find((b) => b.id === r.boqId);
+                  const path = `${GOV_PATHS.measurementEntries}/${state.selectedProjectId}/${r.id}`;
+                  const editBtn =
+                    (r.status || "draft") === "draft"
+                      ? `<button type="button" class="btn btn-ghost btn-sm mb-edit-btn" data-id="${escapeHtml(r.id)}">Edit</button>`
+                      : "";
+                  return `<tr data-measurement-id="${escapeHtml(r.id)}">
+            <td>${escapeHtml(r.measureDate || "—")}</td>
             <td>${escapeHtml(boq?.item || r.boqId)}</td>
-            <td>${r.qty}</td>
+            <td>${escapeHtml(String(r.qty ?? "—"))}</td>
             <td>${escapeHtml(r.locationRef || "—")}</td>
-            <td>${statusChip(r.status)}</td>
-            <td class="proj-row-actions-cell">${workflowButtonsHtml(r, path, "measurementEntry")} ${(r.status || "draft") === "draft" ? `<button type="button" class="btn btn-ghost btn-sm mb-edit-btn" data-id="${r.id}">Edit</button>` : ""}</td>
+            <td class="rep-col-status">${statusChip(r.status)}</td>
+            <td class="rep-col-actions proj-row-actions-cell">
+              <span class="proj-measurement-mb-actions">${workflowButtonsHtml(r, path, "measurementEntry")}${editBtn}</span>
+            </td>
           </tr>`;
-        }).join("") : '<tr class="empty-row"><td colspan="6">No measurements</td></tr>'}
+                })
+                .join("")
+            : '<tr class="empty-row"><td colspan="6">No measurements — click Add measurement</td></tr>'
+        }
       </tbody>
     </table>
+    <div class="reports-widget-foot">
+      <span class="reports-widget-foot-meta">${escapeHtml(mbCountLabel)}</span>
+    </div>
   `;
 
   const ipcFilter = state.ipcBillFilter || "all";
-
-  const ipcToolbar = document.createElement("div");
-  ipcToolbar.className = "form-actions gov-ipc-toolbar";
-  const genBtn = document.createElement("button");
-  genBtn.type = "button";
-  genBtn.className = "btn btn-secondary btn-sm";
-  genBtn.textContent = "Generate running bill (IPC)";
-  genBtn.onclick = async () => {
-    try {
-      await createIpcBill(state, project, { billType: "running" });
-      showToast("Running IPC bill generated");
-    } catch (err) {
-      showToast(err.message, "error");
-    }
-  };
-  const finalBtn = document.createElement("button");
-  finalBtn.type = "button";
-  finalBtn.className = "btn btn-primary btn-sm";
-  finalBtn.textContent = "Generate final bill";
-  finalBtn.onclick = async () => {
-    if (!(await confirmAction({ title: "Generate final bill?", message: "Generate final bill for project close-out?", confirmLabel: "Generate" }))) return;
-    try {
-      await createIpcBill(state, project, { billType: "final" });
-      showToast("Final bill generated");
-    } catch (err) {
-      showToast(err.message, "error");
-    }
-  };
-  ipcToolbar.append(genBtn, finalBtn);
-
-  const filterWrap = document.createElement("div");
-  filterWrap.className = "portfolio-view-toggle gov-ipc-filter";
-  filterWrap.innerHTML = `
-    <button type="button" class="portfolio-view-btn${ipcFilter === "all" ? " is-active" : ""}" data-filter="all">All</button>
-    <button type="button" class="portfolio-view-btn${ipcFilter === "running" ? " is-active" : ""}" data-filter="running">Running</button>
-    <button type="button" class="portfolio-view-btn${ipcFilter === "final" ? " is-active" : ""}" data-filter="final">Final</button>
-  `;
-  filterWrap.querySelectorAll("[data-filter]").forEach((btn) => {
-    btn.onclick = () => {
-      state.ipcBillFilter = btn.dataset.filter;
-      opts.onRefresh?.();
-    };
-  });
-
   const ipcRows = (state.ipcBills || []).filter((r) => {
     if (ipcFilter === "all") return true;
     return (r.billType || "running") === ipcFilter;
   });
+  const ipcCountLabel =
+    ipcRows.length === 1
+      ? "Showing 1 of 1 bill"
+      : `Showing ${ipcRows.length} of ${ipcRows.length} bills`;
+
   const ipcTable = document.createElement("div");
-  ipcTable.className = "table-wrap";
+  ipcTable.className = "reports-table-wrap proj-measurement-table proj-measurement-ipc-shell";
   ipcTable.innerHTML = `
-    <h4 class="r3-subhead">IPC / RA Bills</h4>
-    <table class="dash-table">
-      <thead><tr><th>Bill</th><th>Type</th><th>Date</th><th>This bill</th><th>Retention</th><th>LD</th><th>Net</th><th>Stage</th><th>Status</th><th>Actions</th></tr></thead>
+    <div class="proj-measurement-ipc-head-row">
+      <h4 class="proj-boq-section-title proj-measurement-ipc-head">IPC / RA Bills</h4>
+      <div class="proj-measurement-ipc-head-actions">
+        <div class="portfolio-view-toggle proj-measurement-ipc-filter">
+          <button type="button" class="portfolio-view-btn${ipcFilter === "all" ? " is-active" : ""}" data-filter="all">All</button>
+          <button type="button" class="portfolio-view-btn${ipcFilter === "running" ? " is-active" : ""}" data-filter="running">Running</button>
+          <button type="button" class="portfolio-view-btn${ipcFilter === "final" ? " is-active" : ""}" data-filter="final">Final</button>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm proj-measurement-gen-ipc-btn">Generate running bill (IPC)</button>
+        <button type="button" class="btn btn-primary btn-sm proj-measurement-gen-final-btn">Generate final bill</button>
+      </div>
+    </div>
+    <table class="dash-table projects-table">
+      <colgroup>
+        <col class="proj-measurement-ipc-col-bill" />
+        <col class="proj-measurement-ipc-col-type" />
+        <col class="proj-measurement-ipc-col-date" />
+        <col class="proj-measurement-ipc-col-amount" />
+        <col class="proj-measurement-ipc-col-amount" />
+        <col class="proj-measurement-ipc-col-amount" />
+        <col class="proj-measurement-ipc-col-amount" />
+        <col class="proj-measurement-ipc-col-stage" />
+        <col class="proj-measurement-ipc-col-status" />
+        <col class="proj-measurement-ipc-col-actions" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Bill</th>
+          <th>Type</th>
+          <th>Date</th>
+          <th class="proj-measurement-amount-h">This bill</th>
+          <th class="proj-measurement-amount-h">Retention</th>
+          <th class="proj-measurement-amount-h">LD</th>
+          <th class="proj-measurement-amount-h">Net</th>
+          <th>Stage</th>
+          <th class="rep-col-status">Status</th>
+          <th class="rep-col-actions">Actions</th>
+        </tr>
+      </thead>
       <tbody>
-        ${ipcRows.length ? ipcRows.map((r) => {
-          const path = `${GOV_PATHS.ipcBills}/${state.selectedProjectId}/${r.id}`;
-          const stage = CERT_STAGES.find((s) => s.id === r.certificationStage)?.label || r.certificationStage;
-          const typeLabel = (r.billType || "running") === "final" ? "Final" : "Running";
-          return `<tr>
-            <td><strong>${escapeHtml(r.billNo || r.id)}</strong></td>
-            <td>${typeLabel}</td>
-            <td>${r.billDate || "—"}</td>
-            <td>${formatBDT(r.thisBill)}</td>
-            <td>${formatBDT(r.retentionAmount)}</td>
-            <td>${formatBDT(r.ldAmount)}</td>
-            <td>${formatBDT(r.netPayable)}</td>
+        ${
+          ipcRows.length
+            ? ipcRows
+                .map((r) => {
+                  const path = `${GOV_PATHS.ipcBills}/${state.selectedProjectId}/${r.id}`;
+                  const stage =
+                    CERT_STAGES.find((s) => s.id === r.certificationStage)?.label ||
+                    r.certificationStage;
+                  const typeLabel = (r.billType || "running") === "final" ? "Final" : "Running";
+                  return `<tr data-ipc-id="${escapeHtml(r.id)}">
+            <td><strong class="proj-measurement-bill-no">${escapeHtml(r.billNo || r.id)}</strong></td>
+            <td>${escapeHtml(typeLabel)}</td>
+            <td>${escapeHtml(r.billDate || "—")}</td>
+            <td class="proj-measurement-amount-cell">${formatBDT(r.thisBill)}</td>
+            <td class="proj-measurement-amount-cell">${formatBDT(r.retentionAmount)}</td>
+            <td class="proj-measurement-amount-cell">${formatBDT(r.ldAmount)}</td>
+            <td class="proj-measurement-amount-cell">${formatBDT(r.netPayable)}</td>
             <td>${escapeHtml(stage || "—")}</td>
-            <td>${statusChip(r.status)}</td>
-            <td>${workflowButtonsHtml(r, path, "ipcBill")}</td>
+            <td class="rep-col-status">${statusChip(r.status)}</td>
+            <td class="rep-col-actions proj-row-actions-cell">
+              <span class="proj-measurement-ipc-actions">${workflowButtonsHtml(r, path, "ipcBill")}</span>
+            </td>
           </tr>`;
-        }).join("") : '<tr class="empty-row"><td colspan="10">No IPC bills</td></tr>'}
+                })
+                .join("")
+            : '<tr class="empty-row"><td colspan="10">No IPC bills</td></tr>'
+        }
       </tbody>
     </table>
+    <div class="reports-widget-foot">
+      <span class="reports-widget-foot-meta">${escapeHtml(ipcCountLabel)}</span>
+    </div>
   `;
 
-  body.append(buildBoqCompareTable(state), mbForm, mbTable, filterWrap, ipcToolbar, ipcTable);
+  root.append(metricsSection, buildBoqCompareTable(state), mbTable, ipcTable);
+
+  mbTable.querySelector(".proj-measurement-add-btn")?.addEventListener("click", () =>
+    openAddMeasurementDialog(state, opts)
+  );
 
   mbTable.querySelectorAll(".mb-edit-btn").forEach((btn) => {
     btn.onclick = () => {
@@ -848,6 +1026,40 @@ export function buildMeasurementTab(state, opts = {}) {
         }
       );
     };
+  });
+
+  ipcTable.querySelectorAll("[data-filter]").forEach((btn) => {
+    btn.onclick = () => {
+      state.ipcBillFilter = btn.dataset.filter;
+      opts.onRefresh?.();
+    };
+  });
+
+  ipcTable.querySelector(".proj-measurement-gen-ipc-btn")?.addEventListener("click", async () => {
+    try {
+      await createIpcBill(state, project, { billType: "running" });
+      showToast("Running IPC bill generated");
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  });
+
+  ipcTable.querySelector(".proj-measurement-gen-final-btn")?.addEventListener("click", async () => {
+    if (
+      !(await confirmAction({
+        title: "Generate final bill?",
+        message: "Generate final bill for project close-out?",
+        confirmLabel: "Generate",
+      }))
+    ) {
+      return;
+    }
+    try {
+      await createIpcBill(state, project, { billType: "final" });
+      showToast("Final bill generated");
+    } catch (err) {
+      showToast(err.message, "error");
+    }
   });
 
   wireWorkflowButtons(mbTable, (btn) => ({
@@ -890,147 +1102,292 @@ export function buildMeasurementTab(state, opts = {}) {
     };
   });
 
-  return card;
+  return root;
 }
 
-export function buildRetentionTab(state) {
+const FINAL_BILL_STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "submitted", label: "Submitted" },
+  { value: "certified", label: "Certified" },
+  { value: "closed", label: "Closed" },
+];
+
+function openEditRetentionConditionsDialog(state, project, opts = {}) {
+  openCustFormDialog({
+    title: "Edit release conditions",
+    subtitle: "Certificate, DLP, and defects liability requirements for retention release.",
+    submitLabel: "Save conditions",
+    modalClass: "proj-retention-conditions-modal",
+    values: {
+      retentionReleaseConditions: project.retentionReleaseConditions || "",
+    },
+    sections: [
+      {
+        title: "Release conditions",
+        fields: [
+          {
+            name: "retentionReleaseConditions",
+            label: "Conditions",
+            type: "textarea",
+            fullWidth: true,
+            hint: "Retention release conditions (certificate, DLP, defects liability...)",
+          },
+        ],
+      },
+    ],
+    onSave: async (data) => {
+      try {
+        await updatePath(`projects/${project.id}`, {
+          ...project,
+          retentionReleaseConditions: String(data.retentionReleaseConditions || "").trim(),
+          updatedAt: Date.now(),
+        });
+        showToast("Release conditions saved");
+        opts.onRefresh?.();
+      } catch (err) {
+        showToast(err.message, "error");
+        throw err;
+      }
+    },
+  });
+}
+
+function openRecordRetentionReleaseDialog(state, project, balance, opts = {}) {
+  openCustFormDialog({
+    title: "Record retention release",
+    subtitle: `Available balance: ${formatBDT(balance)}`,
+    submitLabel: "Record release",
+    modalClass: "proj-retention-release-modal",
+    values: {
+      amount: "",
+      releaseDate: new Date().toISOString().slice(0, 10),
+      remarks: "",
+    },
+    sections: [
+      {
+        title: "Release details",
+        fields: [
+          { name: "amount", label: "Release amount (BDT) *", type: "number", step: "0.01", required: true },
+          { name: "releaseDate", label: "Release date", type: "date" },
+          { name: "remarks", label: "Certificate ref / remarks", type: "text", fullWidth: true },
+        ],
+      },
+    ],
+    onSave: async (data) => {
+      const amount = Number(data.amount) || 0;
+      if (amount <= 0) {
+        showToast("Amount must be positive", "error");
+        throw new Error("validation");
+      }
+      if (amount > balance) {
+        showToast(`Release amount cannot exceed balance (${formatBDT(balance)})`, "error");
+        throw new Error("validation");
+      }
+      if (
+        !(await confirmAction({
+          title: "Record retention release?",
+          message: `Release ${formatBDT(amount)} from retention balance ${formatBDT(balance)}?`,
+          confirmLabel: "Release",
+        }))
+      ) {
+        throw new Error("cancelled");
+      }
+      const now = Date.now();
+      try {
+        await create(`${GOV_PATHS.retentionLedger}/${state.selectedProjectId}`, {
+          entryType: "release",
+          amount,
+          balance: Math.max(0, balance - amount),
+          releaseDate: data.releaseDate || "",
+          entryDate: data.releaseDate || "",
+          remarks: String(data.remarks || "").trim() || "Retention release",
+          status: "released",
+          createdBy: getCurrentUserId(),
+          createdAt: now,
+          updatedAt: now,
+        });
+        showToast("Retention release recorded");
+        opts.onRefresh?.();
+      } catch (err) {
+        if (err.message !== "cancelled" && err.message !== "validation") {
+          showToast(err.message, "error");
+        }
+        throw err;
+      }
+    },
+  });
+}
+
+function openUpdateFinalBillDialog(state, project, opts = {}) {
+  openCustFormDialog({
+    title: "Update DLP / final bill",
+    subtitle: "Defects liability period end date and final bill workflow status.",
+    submitLabel: "Save updates",
+    modalClass: "proj-retention-final-modal",
+    values: {
+      dlpEndDate: project.dlpEndDate || "",
+      finalBillStatus: project.finalBillStatus || "pending",
+    },
+    sections: [
+      {
+        title: "Close-out",
+        fields: [
+          { name: "dlpEndDate", label: "DLP end date", type: "date" },
+          {
+            name: "finalBillStatus",
+            label: "Final bill status",
+            type: "select",
+            options: FINAL_BILL_STATUS_OPTIONS,
+          },
+        ],
+      },
+    ],
+    onSave: async (data) => {
+      try {
+        await updatePath(`projects/${project.id}`, {
+          ...project,
+          dlpEndDate: data.dlpEndDate || null,
+          finalBillStatus: data.finalBillStatus || "pending",
+          updatedAt: Date.now(),
+        });
+        showToast("Final bill status updated");
+        opts.onRefresh?.();
+      } catch (err) {
+        showToast(err.message, "error");
+        throw err;
+      }
+    },
+  });
+}
+
+export function buildRetentionTab(state, opts = {}) {
+  const root = document.createElement("div");
+  root.className = "proj-retention-tab";
   const project = state.projects.find((p) => p.id === state.selectedProjectId);
-  const card = sectionCard("Retention & Final Bill", "Retention ledger, DLP tracker, project close-out");
-  const body = card.querySelector(".section-card-body");
   if (!project) {
-    body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-    return card;
+    root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+    return root;
   }
 
   const { held, released, balance } = computeRetentionBalance(state.retentionLedger);
   const dlpEnd = project.dlpEndDate || project.completionDate || "—";
+  const finalBillLabel =
+    FINAL_BILL_STATUS_OPTIONS.find((o) => o.value === (project.finalBillStatus || "pending"))?.label ||
+    project.finalBillStatus ||
+    "Pending";
 
-  const conditionsForm = document.createElement("form");
-  conditionsForm.className = "form-grid proj-form";
-  conditionsForm.innerHTML = `
-    <textarea name="retentionReleaseConditions" rows="2" placeholder="Retention release conditions (certificate, DLP, defects liability...)">${escapeHtml(project.retentionReleaseConditions || "")}</textarea>
-    <button type="submit" class="btn btn-ghost btn-sm">Save release conditions</button>
-  `;
-  conditionsForm.onsubmit = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(conditionsForm);
-    try {
-      await updatePath(`projects/${project.id}`, {
-        ...project,
-        retentionReleaseConditions: String(fd.get("retentionReleaseConditions") || "").trim(),
-        updatedAt: Date.now(),
-      });
-      showToast("Release conditions saved");
-    } catch (err) {
-      showToast(err.message, "error");
-    }
-  };
+  const metricsSection = document.createElement("section");
+  metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-retention-metrics";
+  metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Retention overview</h4>`;
+  metricsSection.appendChild(
+    renderBoqStatGrid([
+      { label: "Retention held", value: formatBDT(balance) },
+      { label: "Total held", value: formatBDT(held) },
+      { label: "Released", value: formatBDT(released) },
+      { label: "DLP end", value: String(dlpEnd) },
+    ])
+  );
+  const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+  if (statGrid) statGrid.classList.add("proj-retention-stat-grid");
 
-  const releaseForm = document.createElement("form");
-  releaseForm.className = "form-grid proj-form";
-  releaseForm.innerHTML = `
-    <input name="amount" type="number" step="0.01" placeholder="Release amount (BDT) *" required />
-    <input name="releaseDate" type="date" value="${new Date().toISOString().slice(0, 10)}" />
-    <input name="remarks" placeholder="Certificate ref / remarks" />
-    <button type="submit" class="btn btn-primary btn-sm">Record retention release</button>
-  `;
-  releaseForm.onsubmit = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(releaseForm);
-    const amount = Number(fd.get("amount")) || 0;
-    if (amount <= 0) {
-      showToast("Amount must be positive", "error");
-      return;
-    }
-    if (amount > balance) {
-      showToast(`Release amount cannot exceed balance (${formatBDT(balance)})`, "error");
-      return;
-    }
-    if (!(await confirmAction({
-      title: "Record retention release?",
-      message: `Release ${formatBDT(amount)} from retention balance ${formatBDT(balance)}?`,
-      confirmLabel: "Release",
-    }))) return;
-    const now = Date.now();
-    try {
-      await create(`${GOV_PATHS.retentionLedger}/${state.selectedProjectId}`, {
-        entryType: "release",
-        amount,
-        balance: Math.max(0, balance - amount),
-        releaseDate: fd.get("releaseDate"),
-        entryDate: fd.get("releaseDate"),
-        remarks: fd.get("remarks") || "Retention release",
-        status: "released",
-        createdBy: getCurrentUserId(),
-        createdAt: now,
-        updatedAt: now,
-      });
-      releaseForm.reset();
-      showToast("Retention release recorded");
-    } catch (err) {
-      showToast(err.message, "error");
-    }
-  };
+  const conditionsText = project.retentionReleaseConditions?.trim()
+    ? escapeHtml(project.retentionReleaseConditions)
+    : `<span class="text-muted">No conditions set — click Edit conditions to add release requirements.</span>`;
 
-  const finalForm = document.createElement("form");
-  finalForm.className = "form-grid proj-form";
-  finalForm.innerHTML = `
-    <input name="dlpEndDate" type="date" value="${project.dlpEndDate || ""}" />
-    <select name="finalBillStatus">
-      <option value="pending" ${project.finalBillStatus === "pending" ? "selected" : ""}>pending</option>
-      <option value="submitted" ${project.finalBillStatus === "submitted" ? "selected" : ""}>submitted</option>
-      <option value="certified" ${project.finalBillStatus === "certified" ? "selected" : ""}>certified</option>
-      <option value="closed" ${project.finalBillStatus === "closed" ? "selected" : ""}>closed</option>
-    </select>
-    <button type="submit" class="btn btn-secondary btn-sm">Update final bill / DLP</button>
+  const conditionsShell = document.createElement("div");
+  conditionsShell.className = "reports-table-wrap proj-retention-conditions-shell";
+  conditionsShell.innerHTML = `
+    <div class="proj-retention-conditions-head-row">
+      <h4 class="proj-boq-section-title proj-retention-conditions-head">Release conditions</h4>
+      <button type="button" class="btn btn-ghost btn-sm proj-retention-edit-conditions-btn">Edit conditions</button>
+    </div>
+    <p class="proj-retention-conditions-text">${conditionsText}</p>
+    <div class="proj-retention-final-bill-meta">
+      <span class="text-muted">Final bill:</span> ${statusChip(project.finalBillStatus || "pending")}
+      <span class="proj-retention-final-bill-label text-muted">${escapeHtml(finalBillLabel)}</span>
+    </div>
   `;
-  finalForm.onsubmit = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(finalForm);
-    try {
-      await updatePath(`projects/${project.id}`, {
-        ...project,
-        dlpEndDate: fd.get("dlpEndDate") || null,
-        finalBillStatus: fd.get("finalBillStatus"),
-        updatedAt: Date.now(),
-      });
-      showToast("Final bill status updated");
-    } catch (err) {
-      showToast(err.message, "error");
-    }
-  };
 
   const ledgerRows = state.retentionLedger || [];
-  body.innerHTML = `
-    <div class="r2-budget-summary gov-contract-summary">
-      <div class="r2-stat"><span class="cust-detail-label">Retention amount (held)</span><strong>${formatBDT(balance)}</strong></div>
-      <div class="r2-stat"><span class="cust-detail-label">Total held</span><strong>${formatBDT(held)}</strong></div>
-      <div class="r2-stat"><span class="cust-detail-label">Released</span><strong>${formatBDT(released)}</strong></div>
-      <div class="r2-stat"><span class="cust-detail-label">DLP end</span><strong>${escapeHtml(String(dlpEnd))}</strong></div>
-      <div class="r2-stat"><span class="cust-detail-label">Final bill</span>${statusChip(project.finalBillStatus || "pending")}</div>
+  const countLabel =
+    ledgerRows.length === 1
+      ? "Showing 1 of 1 entry"
+      : `Showing ${ledgerRows.length} of ${ledgerRows.length} entries`;
+
+  const ledgerShell = document.createElement("div");
+  ledgerShell.className = "reports-table-wrap proj-retention-table proj-retention-ledger-shell";
+  ledgerShell.innerHTML = `
+    <div class="proj-retention-ledger-head-row">
+      <h4 class="proj-boq-section-title proj-retention-ledger-head">Retention ledger</h4>
+      <div class="proj-retention-ledger-head-actions">
+        <button type="button" class="btn btn-primary btn-sm proj-retention-release-btn">Record retention release</button>
+        <button type="button" class="btn btn-secondary btn-sm proj-retention-final-btn">Update DLP / final bill</button>
+      </div>
     </div>
-    <div class="table-wrap">
-      <table class="dash-table">
-        <thead><tr><th>Type</th><th>Date</th><th>Amount</th><th>Balance</th><th>Remarks</th><th>Status</th></tr></thead>
-        <tbody>
-          ${ledgerRows.length ? ledgerRows.map((r) => `
-            <tr>
-              <td>${escapeHtml(r.entryType)}</td>
-              <td>${r.entryDate || r.releaseDate || "—"}</td>
-              <td>${formatBDT(r.amount)}</td>
-              <td>${formatBDT(r.balance)}</td>
-              <td>${escapeHtml(r.remarks || "—")}</td>
-              <td>${statusChip(r.status || "held")}</td>
-            </tr>`).join("") : '<tr class="empty-row"><td colspan="6">No retention entries</td></tr>'}
-        </tbody>
-      </table>
+    <table class="dash-table projects-table">
+      <colgroup>
+        <col class="proj-retention-col-type" />
+        <col class="proj-retention-col-date" />
+        <col class="proj-retention-col-amount" />
+        <col class="proj-retention-col-amount" />
+        <col class="proj-retention-col-remarks" />
+        <col class="proj-retention-col-status" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Date</th>
+          <th class="proj-retention-amount-h">Amount</th>
+          <th class="proj-retention-amount-h">Balance</th>
+          <th>Remarks</th>
+          <th class="rep-col-status">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${
+          ledgerRows.length
+            ? ledgerRows
+                .map(
+                  (r) => `
+          <tr>
+            <td>${escapeHtml(r.entryType || "—")}</td>
+            <td>${escapeHtml(r.entryDate || r.releaseDate || "—")}</td>
+            <td class="proj-retention-amount-cell">${formatBDT(r.amount)}</td>
+            <td class="proj-retention-amount-cell">${formatBDT(r.balance)}</td>
+            <td>${escapeHtml(r.remarks || "—")}</td>
+            <td class="rep-col-status">${statusChip(r.status || "held")}</td>
+          </tr>`
+                )
+                .join("")
+            : '<tr class="empty-row"><td colspan="6">No retention entries — record a release when eligible</td></tr>'
+        }
+      </tbody>
+    </table>
+    <div class="reports-widget-foot">
+      <span class="reports-widget-foot-meta">${escapeHtml(countLabel)}</span>
     </div>
   `;
-  body.prepend(finalForm);
-  body.insertBefore(conditionsForm, body.firstChild);
-  body.insertBefore(releaseForm, body.children[2]);
 
-  return card;
+  root.append(metricsSection, conditionsShell, ledgerShell);
+
+  conditionsShell.querySelector(".proj-retention-edit-conditions-btn")?.addEventListener("click", () =>
+    openEditRetentionConditionsDialog(state, project, opts)
+  );
+  ledgerShell.querySelector(".proj-retention-release-btn")?.addEventListener("click", () =>
+    openRecordRetentionReleaseDialog(state, project, balance, opts)
+  );
+  ledgerShell.querySelector(".proj-retention-final-btn")?.addEventListener("click", () =>
+    openUpdateFinalBillDialog(state, project, opts)
+  );
+
+  return root;
+}
+
+function checklistStatusChip(status) {
+  const s = String(status || "pending").toLowerCase();
+  if (s === "done") return `<span class="chip chip-success">Done</span>`;
+  if (s === "na") return `<span class="chip chip-muted">N/A</span>`;
+  return `<span class="chip chip-warning">Pending</span>`;
 }
 
 async function syncProjectComplianceStatus(state, project) {
@@ -1044,52 +1401,101 @@ async function syncProjectComplianceStatus(state, project) {
 }
 
 export function buildComplianceTab(state, opts = {}) {
+  const root = document.createElement("div");
+  root.className = "proj-compliance-tab";
   const project = state.projects.find((p) => p.id === state.selectedProjectId);
-  const card = sectionCard("Regulatory compliance", "PWD / LGED / RAJUK checklist for audit readiness");
-  const body = card.querySelector(".section-card-body");
   if (!project) {
-    body.innerHTML = `<p class="proj-empty">Select a project first</p>`;
-    return card;
+    root.innerHTML = `<p class="proj-empty">Select a project first</p>`;
+    return root;
   }
 
   const items = state.govComplianceChecklist || [];
-  const statusRow = document.createElement("div");
-  statusRow.className = "gov-compliance-head";
-  statusRow.innerHTML = `
-    <span>Overall status: ${complianceChip(project.complianceStatus || computeComplianceStatus(items))}</span>
-    <label class="gov-compliance-override">Override
-      <select id="gov-compliance-override">
-        <option value="pending" ${project.complianceStatus === "pending" ? "selected" : ""}>Pending</option>
-        <option value="compliant" ${project.complianceStatus === "compliant" ? "selected" : ""}>Compliant</option>
-        <option value="non_compliant" ${project.complianceStatus === "non_compliant" ? "selected" : ""}>Non-compliant</option>
-      </select>
-    </label>
-  `;
+  const overallStatus = project.complianceStatus || computeComplianceStatus(items);
+  const doneCount = items.filter((i) => i.status === "done").length;
+  const pendingCount = items.filter((i) => i.status === "pending").length;
+  const agencyTemplate = project.employerAgency || items[0]?.agency || "—";
+  const countLabel =
+    items.length === 1
+      ? "Showing 1 of 1 requirement"
+      : `Showing ${items.length} of ${items.length} requirements`;
 
-  const tableWrap = document.createElement("div");
-  tableWrap.className = "table-wrap gov-compliance-table";
-  tableWrap.innerHTML = `
-    <table class="dash-table">
-      <thead><tr><th>Requirement</th><th>Agency</th><th>Status</th><th></th></tr></thead>
+  const metricsSection = document.createElement("section");
+  metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning proj-compliance-metrics";
+  metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Compliance overview</h4>`;
+  metricsSection.appendChild(
+    renderBoqStatGrid([
+      { label: "Checklist items", value: items.length },
+      { label: "Completed", value: doneCount },
+      { label: "Pending", value: pendingCount, attention: pendingCount > 0 },
+      { label: "Overall status", value: complianceStatusLabel(overallStatus) },
+    ])
+  );
+  const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+  if (statGrid) statGrid.classList.add("proj-compliance-stat-grid");
+
+  const checklistShell = document.createElement("div");
+  checklistShell.className = "reports-table-wrap proj-compliance-table proj-compliance-checklist-shell";
+  checklistShell.innerHTML = `
+    <div class="proj-compliance-checklist-head-row">
+      <h4 class="proj-boq-section-title proj-compliance-checklist-head">Regulatory checklist</h4>
+      <label class="proj-compliance-override">
+        Override status
+        <select class="toolbar-select" id="gov-compliance-override">
+          <option value="pending" ${project.complianceStatus === "pending" ? "selected" : ""}>Pending</option>
+          <option value="compliant" ${project.complianceStatus === "compliant" ? "selected" : ""}>Compliant</option>
+          <option value="non_compliant" ${project.complianceStatus === "non_compliant" ? "selected" : ""}>Non-compliant</option>
+        </select>
+      </label>
+    </div>
+    <div class="proj-compliance-overall-meta">
+      <span>Overall:</span> ${complianceChip(overallStatus)}
+      <span class="text-muted">Agency template: ${escapeHtml(agencyTemplate)}</span>
+    </div>
+    <table class="dash-table projects-table">
+      <colgroup>
+        <col class="proj-compliance-col-req">
+        <col class="proj-compliance-col-agency">
+        <col class="proj-compliance-col-status">
+        <col class="proj-compliance-col-actions">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Requirement</th>
+          <th class="proj-compliance-agency-h">Agency</th>
+          <th class="rep-col-status">Status</th>
+          <th class="rep-col-actions">Update status</th>
+        </tr>
+      </thead>
       <tbody>
-        ${items.length ? items.map((item) => `
+        ${
+          items.length
+            ? items
+                .map(
+                  (item) => `
           <tr data-id="${escapeHtml(item.id)}">
-            <td>${escapeHtml(item.label || item.title || "")}</td>
-            <td>${escapeHtml(item.agency || project.employerAgency || "—")}</td>
-            <td>${statusChip(item.status || "pending")}</td>
-            <td>
-              <select class="gov-checklist-status" data-id="${escapeHtml(item.id)}">
+            <td class="proj-compliance-req-cell">${escapeHtml(item.label || item.title || "")}</td>
+            <td class="proj-compliance-agency-cell">${escapeHtml(item.agency || project.employerAgency || "—")}</td>
+            <td class="rep-col-status"><span class="proj-compliance-status-wrap">${checklistStatusChip(item.status || "pending")}</span></td>
+            <td class="rep-col-actions">
+              <select class="toolbar-select gov-checklist-status" data-id="${escapeHtml(item.id)}">
                 <option value="pending" ${item.status === "pending" ? "selected" : ""}>Pending</option>
                 <option value="done" ${item.status === "done" ? "selected" : ""}>Done</option>
                 <option value="na" ${item.status === "na" ? "selected" : ""}>N/A</option>
               </select>
             </td>
-          </tr>`).join("") : '<tr class="empty-row"><td colspan="4">No checklist items — re-save project profile to seed</td></tr>'}
+          </tr>`
+                )
+                .join("")
+            : '<tr class="empty-row"><td colspan="4">No checklist items — re-save project profile to seed</td></tr>'
+        }
       </tbody>
     </table>
+    <div class="reports-widget-foot">
+      <span class="reports-widget-foot-meta">${escapeHtml(countLabel)}</span>
+    </div>
   `;
 
-  tableWrap.querySelectorAll(".gov-checklist-status").forEach((sel) => {
+  checklistShell.querySelectorAll(".gov-checklist-status").forEach((sel) => {
     sel.onchange = async () => {
       const item = items.find((i) => i.id === sel.dataset.id);
       if (!item) return;
@@ -1109,7 +1515,7 @@ export function buildComplianceTab(state, opts = {}) {
     };
   });
 
-  statusRow.querySelector("#gov-compliance-override")?.addEventListener("change", async (e) => {
+  checklistShell.querySelector("#gov-compliance-override")?.addEventListener("change", async (e) => {
     try {
       await updatePath(`projects/${project.id}`, {
         ...project,
@@ -1123,6 +1529,6 @@ export function buildComplianceTab(state, opts = {}) {
     }
   });
 
-  body.append(statusRow, tableWrap);
-  return card;
+  root.append(metricsSection, checklistShell);
+  return root;
 }

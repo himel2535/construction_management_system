@@ -536,6 +536,7 @@ export function mountClients(container) {
         <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="cust-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
         <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="cust-export">${icon("download", { size: 16 })} Export</button>
         <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--import" id="cust-import">${icon("upload", { size: 16 })} Import</button>
+        <button type="button" class="btn btn-primary btn-sm" id="cust-add-client">+ Add New Client</button>
       </div>
     </div>
   `;
@@ -594,6 +595,7 @@ export function mountClients(container) {
   const clearBtn = toolbar.querySelector("#cust-clear-filters");
   const exportBtn = toolbar.querySelector("#cust-export");
   const importBtn = toolbar.querySelector("#cust-import");
+  const addClientBtn = toolbar.querySelector("#cust-add-client");
   const countEl = directoryCard.querySelector("#cust-count");
   const tbody = tableWrap.querySelector("tbody");
 
@@ -605,8 +607,6 @@ export function mountClients(container) {
     title: "Clients / Owners",
     subtitle: "Manage project owners, employers, and contract contacts.",
     showDateRange: false,
-    quickActionLabel: "+ Add New Client",
-    onQuickAction: () => goToClientForm(),
   });
 
   let detailOverlay = null;
@@ -827,6 +827,8 @@ export function mountClients(container) {
   importBtn.onclick = () => {
     showToast("Import is available in the full ERP — demo mode uses seed data");
   };
+
+  addClientBtn.onclick = () => goToClientForm();
 
   const unsubClients = listenList("clients", (items) => {
     allClients = items;

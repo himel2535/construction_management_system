@@ -104,6 +104,7 @@ export const R4_ACTIONS = {
   resolve_sync_conflict: ["owner", "project_manager", "manager"],
   replay_offline: ["owner", "project_manager", "manager", "site_engineer"],
   manage_users: ["owner"],
+  manage_company: ["owner"],
 };
 
 /**

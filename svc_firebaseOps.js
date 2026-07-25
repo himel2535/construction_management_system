@@ -148,11 +148,19 @@ export async function ensureFirebaseSeed() {
   if (!companySnap.exists()) {
     await set(ref(db, "companyProfile/main"), {
       name: "Triniti Construction",
-      address: "Dhaka, Bangladesh",
-      phone: "",
+      tradingName: "Triniti",
+      about: "General contractor for government and private construction projects across Bangladesh.",
+      address: "House 12, Road 5, Gulshan-2, Dhaka, Bangladesh",
+      phone: "+880 1712-345678",
       email: "info@triniti.demo",
+      website: "https://triniti.demo",
+      tradeLicense: "TL-DHA-2018-004521",
+      tinVatNo: "123456789",
+      companyRegNo: "C-987654",
       currency: "BDT",
       receiptPrefix: "RCP",
+      bankName: "Demo Bank Ltd.",
+      bankAccount: "0123456789012",
       source: "demo",
       updatedAt: now,
     });

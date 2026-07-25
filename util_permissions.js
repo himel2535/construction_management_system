@@ -50,7 +50,7 @@ export const PERMISSION_GROUPS = [
   {
     id: "admin",
     label: "Administration",
-    actions: ["manage_users"],
+    actions: ["manage_users", "manage_company"],
   },
 ];
 

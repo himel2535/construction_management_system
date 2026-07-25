@@ -1,5 +1,5 @@
-import { listenList, listenProjectSub, create } from "./svc_data.js";
-import { showToast } from "./cmp_toast.js";
+import { listenList, listenProjectSub, create, getList } from "./svc_data.js";
+import { showToast, actionFeedback } from "./cmp_toast.js";
 import { confirmAction } from "./cmp_confirm.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
@@ -65,8 +65,18 @@ import {
   sectionCard,
   renderMaterialVarianceTable,
   renderActivityFeed,
+  renderOverviewEmptyPanel,
   renderSettlementForm,
+  renderSettlementStatGrid,
 } from "./cmp_siteInchargeHub.js";
+
+const SIC_OVERVIEW_PROJECT_CARD_TONES = [
+  "sic-overview-project-card--blue",
+  "sic-overview-project-card--mint",
+  "sic-overview-project-card--lavender",
+  "sic-overview-project-card--peach",
+];
+import { renderBoqStatGrid } from "./page_projects_r2.js";
 
 function escapeHtml(s) {
   return String(s)
@@ -164,6 +174,19 @@ export function mountSiteIncharge(container) {
   const kpiHost = root.querySelector("#sic-kpi-host");
   const listPanel = root.querySelector("#sic-list-panel");
   const detailPanel = root.querySelector("#sic-detail-panel");
+  let boundProjectId = null;
+
+  const PROJECT_COLLECTION_STATE = {
+    siteMaterialLogs: "materialLogs",
+    siteDiaries: "siteDiaries",
+    equipmentLogs: "equipmentLogs",
+    materialRequests: "materialRequests",
+    projectRoster: "roster",
+    siteSettlements: "settlements",
+    goodsReceipts: "goodsReceipts",
+    issueVouchers: "issueVouchers",
+    boqItems: "boqItems",
+  };
 
   function selectedInCharge() {
     return state.siteInCharges.find((s) => s.id === state.selectedId) || null;
@@ -178,12 +201,32 @@ export function mountSiteIncharge(container) {
   function syncContextProject() {
     const active = activeAssignmentsForSelected();
     if (!active.length) {
+      if (!state.assignments.length && state.contextProjectId) return;
       state.contextProjectId = "";
       return;
     }
     if (!active.some((a) => a.projectId === state.contextProjectId)) {
       state.contextProjectId = active[0].projectId;
     }
+  }
+
+  async function refreshProjectCollection(projectId, key) {
+    if (!projectId) return;
+    const stateKey = PROJECT_COLLECTION_STATE[key];
+    if (!stateKey) return;
+    state[stateKey] = await getList(`${key}/${projectId}`);
+    renderDetail();
+  }
+
+  function ensureProjectSubs() {
+    syncContextProject();
+    const pid = state.contextProjectId;
+    if (!pid || !selectedInCharge()) {
+      if (boundProjectId) bindProjectSubs(null);
+      return;
+    }
+    if (boundProjectId === pid) return;
+    bindProjectSubs(pid);
   }
 
   function contextProject() {
@@ -197,6 +240,7 @@ export function mountSiteIncharge(container) {
   }
 
   function bindProjectSubs(projectId) {
+    boundProjectId = projectId || null;
     state.unsubMaterial?.();
     state.unsubRoster?.();
     state.unsubSettlements?.();
@@ -257,15 +301,14 @@ export function mountSiteIncharge(container) {
 
   function onSelectInCharge(id) {
     state.selectedId = id;
-    syncContextProject();
-    bindProjectSubs(state.contextProjectId || null);
+    ensureProjectSubs();
     updateHashParams({ id, projectId: state.contextProjectId, tab: state.activeTab });
     render();
   }
 
   function onContextChange(projectId) {
     state.contextProjectId = projectId;
-    bindProjectSubs(projectId);
+    ensureProjectSubs();
     updateHashParams({ projectId, id: state.selectedId, tab: state.activeTab });
     renderDetail();
   }
@@ -405,7 +448,7 @@ export function mountSiteIncharge(container) {
           startDate: data.startDate || todayISO(),
         });
         state.contextProjectId = data.projectId;
-        bindProjectSubs(data.projectId);
+        ensureProjectSubs();
         showToast("Project assigned — previous in-charge on this project was ended");
         render();
       },
@@ -468,7 +511,7 @@ export function mountSiteIncharge(container) {
             await endAssignment(a.id);
           }
           state.contextProjectId = "";
-          bindProjectSubs(null);
+          ensureProjectSubs();
         }
         showToast("Saved");
         render();
@@ -525,7 +568,7 @@ export function mountSiteIncharge(container) {
         state.contextProjectId = data.projectId || "";
         state.activeTab = "overview";
         updateHashParams({ id, projectId: state.contextProjectId, tab: state.activeTab });
-        if (data.projectId) bindProjectSubs(data.projectId);
+        ensureProjectSubs();
         showToast("Site in-charge created");
         render();
       },
@@ -536,16 +579,17 @@ export function mountSiteIncharge(container) {
     const head = `<div class="sic-mat-row sic-mat-row--head" aria-hidden="true">
       <span>Material</span><span>Used</span><span>Wasted</span><span>Reason</span><span>Used for</span><span>Unit</span>
     </div>`;
-    const rows = MATERIAL_PRESETS.map((p) => {
+    const rows = MATERIAL_PRESETS.map((p, i) => {
       const item = itemsByKey[p.materialKey];
       const used = item?.usedQty ?? item?.qty ?? "";
       const wasted = item?.wastedQty ?? "";
-      return `<div class="sic-mat-row sic-mat-row--usage">
+      const evenClass = i % 2 === 1 ? " sic-mat-row--even" : "";
+      return `<div class="sic-mat-row sic-mat-row--usage${evenClass}">
         <label class="sic-mat-label">${escapeHtml(p.label)}</label>
-        <input type="number" min="0" step="any" class="cust-form-input sic-mat-used" data-key="${p.materialKey}" data-unit="${p.unit}" value="${used}" placeholder="Used" />
-        <input type="number" min="0" step="any" class="cust-form-input sic-mat-wasted" data-key="${p.materialKey}" value="${wasted}" placeholder="Wasted" />
-        <input type="text" class="cust-form-input sic-mat-waste-reason" data-key="${p.materialKey}" value="${escapeHtml(item?.wasteReason || "")}" placeholder="Waste reason" />
-        <input type="text" class="cust-form-input sic-mat-used-for" data-key="${p.materialKey}" value="${escapeHtml(item?.usedFor || "")}" placeholder="Used for" />
+        <input type="number" min="0" step="any" class="cust-form-input sic-mat-used" data-key="${p.materialKey}" data-unit="${p.unit}" value="${used}" />
+        <input type="number" min="0" step="any" class="cust-form-input sic-mat-wasted" data-key="${p.materialKey}" value="${wasted}" />
+        <input type="text" class="cust-form-input sic-mat-waste-reason" data-key="${p.materialKey}" value="${escapeHtml(item?.wasteReason || "")}" />
+        <input type="text" class="cust-form-input sic-mat-used-for" data-key="${p.materialKey}" value="${escapeHtml(item?.usedFor || "")}" />
         <span class="sic-mat-unit">${escapeHtml(p.unit)}</span>
       </div>`;
     }).join("");
@@ -602,6 +646,10 @@ export function mountSiteIncharge(container) {
         const form = modal.querySelector("form");
         const shell = form?.querySelector(".cust-form-shell");
         if (!shell) return;
+        const hasSiteStock = siteLedgerForProject(proj.id).some((r) => r.qtyIssued > 0 || r.qtyUsed > 0);
+        const stockHint = hasSiteStock
+          ? ""
+          : `<p class="text-muted sic-mat-stock-hint">Log saves as submitted. Approve after materials are issued to site.</p>`;
         const row = document.createElement("div");
         row.className = "cust-form-row sic-mat-modal-row";
         row.innerHTML = `
@@ -610,7 +658,8 @@ export function mountSiteIncharge(container) {
               <h4 class="cust-form-section-title">Materials</h4>
               <button type="button" class="btn btn-ghost btn-sm" id="sic-copy-last-log" ${lastLog ? "" : "disabled"}>Copy last log</button>
             </div>
-            <div class="cust-form-section-body">${materialUsageGridHtml(itemsByKey)}</div>
+            ${stockHint}
+            <div class="cust-form-section-body sic-mat-modal-body">${materialUsageGridHtml(itemsByKey)}</div>
           </div>`;
         shell.appendChild(row);
         row.querySelector("#sic-copy-last-log")?.addEventListener("click", () => {
@@ -640,24 +689,38 @@ export function mountSiteIncharge(container) {
           showToast("Enter at least one quantity", "error");
           throw new Error("empty");
         }
-        if (isEdit) {
-          await updateMaterialLog(proj.id, log.id, {
-            logDate,
-            items,
-            remarks: data.remarks,
-          });
-          showToast("Log updated");
-        } else {
-          await createMaterialLog(proj.id, {
-            siteInChargeId: sic.id,
-            logDate,
-            items,
-            remarks: data.remarks,
-            status: "submitted",
-          });
-          showToast("Material log saved");
+        for (const item of items) {
+          if (item.wastedQty > 0 && !item.wasteReason) {
+            showToast(`Waste reason required for ${item.label || item.materialKey}`, "error");
+            throw new Error("waste-reason");
+          }
         }
-        renderDetail();
+        try {
+          if (isEdit) {
+            await updateMaterialLog(proj.id, log.id, {
+              logDate,
+              items,
+              remarks: data.remarks,
+            });
+            await actionFeedback("material_log_updated", { sicId: sic.id, projectId: proj.id });
+          } else {
+            await createMaterialLog(proj.id, {
+              siteInChargeId: sic.id,
+              logDate,
+              items,
+              remarks: data.remarks,
+              status: "submitted",
+            });
+            await actionFeedback("material_log_saved", {
+              sicId: sic.id,
+              projectId: proj.id,
+            });
+          }
+          await refreshProjectCollection(proj.id, "siteMaterialLogs");
+        } catch (err) {
+          showToast(err.message || "Could not save material log", "error");
+          throw err;
+        }
       },
     });
   }
@@ -724,62 +787,140 @@ export function mountSiteIncharge(container) {
     };
   }
 
-  function renderOverviewTab(sic, proj, assignments) {
+  function renderOverviewTab(sic, proj, assignments, overviewMeta = {}) {
     const host = document.createElement("div");
-    host.className = "sic-tab-content";
+    host.className = "sic-overview-tab sic-tab-content";
     const month = state.filterMonth;
     const active = activeAssignmentsForInCharge(assignments, sic.id);
     const existingSettlement = proj
       ? state.settlements.find((s) => s.month === month && s.siteInChargeId === sic.id)
       : null;
+    const materialLogsMonth =
+      overviewMeta.materialLogsMonth ??
+      state.materialLogs.filter(
+        (l) => l.siteInChargeId === sic.id && (l.logDate || "").startsWith(month)
+      ).length;
+    const laborMonth = overviewMeta.laborMonth ?? 0;
+    const settlementLabel = existingSettlement
+      ? String(existingSettlement.status || "draft").replace(/_/g, " ")
+      : "Not saved";
 
-    host.innerHTML = `
-      <div class="sic-month-bar">
-        <label>Month <input type="month" id="sic-overview-month" value="${month}" /></label>
-        ${existingSettlement ? `<span>Settlement: ${statusChip(existingSettlement.status)}</span>` : "<span>Settlement: not saved</span>"}
+    const metricsSection = document.createElement("section");
+    metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning sic-overview-metrics";
+    metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Overview summary</h4>`;
+    metricsSection.appendChild(
+      renderBoqStatGrid([
+        { label: "Assigned projects", value: active.length },
+        { label: "Material logs", value: materialLogsMonth },
+        { label: "Labor (month)", value: formatBDT(laborMonth) },
+        { label: "Settlement", value: settlementLabel, attention: !existingSettlement },
+      ])
+    );
+    const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+    if (statGrid) statGrid.classList.add("sic-overview-stat-grid");
+
+    const toolbarShell = document.createElement("div");
+    toolbarShell.className = "reports-table-wrap sic-overview-toolbar-shell";
+    toolbarShell.innerHTML = `
+      <div class="sic-overview-toolbar-head-row">
+        <h4 class="proj-boq-section-title sic-overview-toolbar-head">Overview — ${escapeHtml(monthLabel(month))}</h4>
+        <div class="sic-overview-toolbar-actions">
+          <label class="sic-overview-month-label">Month
+            <input type="month" class="cust-form-input sic-overview-month-input" id="sic-overview-month" value="${month}" />
+          </label>
+          <span class="sic-overview-settlement-meta">${
+            existingSettlement
+              ? `Settlement: ${statusChip(existingSettlement.status)}`
+              : `<span class="text-muted">Settlement: not saved</span>`
+          }</span>
+        </div>
       </div>
     `;
-    host.querySelector("#sic-overview-month")?.addEventListener("change", (e) => {
+    toolbarShell.querySelector("#sic-overview-month")?.addEventListener("change", (e) => {
       state.filterMonth = e.target.value;
       renderDetail();
     });
 
-    const cards =
+    const projectsShell = document.createElement("div");
+    projectsShell.className = "reports-table-wrap sic-overview-projects-shell";
+    const projectsBody =
       active.length === 0
-        ? `<p class="proj-empty">No active project. Use Assign project to link.</p>`
-        : active
+        ? renderOverviewEmptyPanel(
+            "No active project assigned",
+            "Use Assign project in the header to link a site in-charge to a project."
+          )
+        : `<div class="sic-overview-projects-grid">${active
             .map(
-              (a) => `
-        <div class="sic-project-card card">
-          <strong>${escapeHtml(a.projectName || a.projectId)}</strong>
-          <span>Since ${escapeHtml(a.startDate || "—")}</span>
-          <button type="button" class="btn btn-ghost btn-sm" data-switch-project="${escapeHtml(a.projectId)}">Use as context</button>
-          <a href="/projects?id=${encodeURIComponent(a.projectId)}" class="btn btn-ghost btn-sm">Open project</a>
-        </div>`
+              (a, i) => `
+          <article class="sic-overview-project-card ${SIC_OVERVIEW_PROJECT_CARD_TONES[i % SIC_OVERVIEW_PROJECT_CARD_TONES.length]}">
+            <strong class="sic-overview-project-name">${escapeHtml(a.projectName || a.projectId)}</strong>
+            <span class="sic-overview-project-since">Since ${escapeHtml(a.startDate || "—")}</span>
+            <div class="sic-overview-project-actions">
+              <button type="button" class="btn btn-ghost btn-sm" data-switch-project="${escapeHtml(a.projectId)}">Use as context</button>
+              <a href="/projects?id=${encodeURIComponent(a.projectId)}" class="btn btn-ghost btn-sm">Open project</a>
+            </div>
+          </article>`
             )
-            .join("");
-    host.appendChild(sectionCard("Assigned projects", cards));
-    host.querySelectorAll("[data-switch-project]").forEach((btn) => {
+            .join("")}</div>`;
+    projectsShell.innerHTML = `
+      <h4 class="proj-boq-section-title sic-overview-shell-head">Assigned projects</h4>
+      ${projectsBody}
+    `;
+    projectsShell.querySelectorAll("[data-switch-project]").forEach((btn) => {
       btn.addEventListener("click", () => onContextChange(btn.dataset.switchProject));
     });
 
     const mat = aggregateMaterialByMonth(state.materialLogs, month, { siteInChargeId: sic.id });
-    const matHtml =
+    const matCountLabel =
+      mat.length === 1
+        ? `Showing 1 material · ${monthLabel(month)}`
+        : mat.length
+          ? `Showing ${mat.length} materials · ${monthLabel(month)}`
+          : `0 materials logged · ${monthLabel(month)}`;
+    const materialShell = document.createElement("div");
+    materialShell.className = "reports-table-wrap sic-overview-material-shell";
+    materialShell.innerHTML =
       mat.length === 0
-        ? '<p class="proj-empty">No material logged this month</p>'
-        : `<table class="data-table"><thead><tr><th>Material</th><th class="cust-col-center">Qty</th><th>Unit</th></tr></thead><tbody>${mat
+        ? `
+      <h4 class="proj-boq-section-title sic-overview-shell-head">Material summary — ${escapeHtml(monthLabel(month))}</h4>
+      ${renderOverviewEmptyPanel(
+        "No material logged this month",
+        "Open Material log tab to record site usage for this month."
+      )}
+      <div class="reports-widget-foot">
+        <span class="reports-widget-foot-meta">${escapeHtml(matCountLabel)}</span>
+      </div>`
+        : `
+      <h4 class="proj-boq-section-title sic-overview-shell-head">Material summary — ${escapeHtml(monthLabel(month))}</h4>
+      <table class="dash-table projects-table">
+        <colgroup>
+          <col class="sic-overview-mat-col-label">
+          <col class="sic-overview-mat-col-qty">
+          <col class="sic-overview-mat-col-unit">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Material</th>
+            <th class="cust-col-center">Qty</th>
+            <th class="cust-col-center">Unit</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${mat
             .map(
               (m) =>
-                `<tr><td>${escapeHtml(m.label)}</td><td>${m.totalQty}</td><td>${escapeHtml(m.unit)}</td></tr>`
+                `<tr><td>${escapeHtml(m.label)}</td><td class="cust-col-center">${m.totalQty}</td><td class="cust-col-center">${escapeHtml(m.unit)}</td></tr>`
             )
-            .join("")}</tbody></table>`;
-    host.appendChild(
-      sectionCard(
-        `Material summary — ${monthLabel(month)}`,
-        mat.length === 0 ? matHtml : projectsTableHtml(matHtml)
-      )
-    );
+            .join("")}
+        </tbody>
+      </table>
+      <div class="reports-widget-foot">
+        <span class="reports-widget-foot-meta">${escapeHtml(matCountLabel)}</span>
+      </div>`;
 
+    const varianceShell = document.createElement("div");
+    varianceShell.className = "reports-table-wrap sic-overview-variance-shell";
+    let varianceInner = "";
     if (proj) {
       const varianceRows = issuedVsUsedVariance(siteLedgerForProject(proj.id)).map((r) => ({
         label: r.materialName,
@@ -787,48 +928,72 @@ export function mountSiteIncharge(container) {
         used: r.qtyUsed + r.qtyWasted,
         variance: r.variance,
       }));
-      host.appendChild(
-        sectionCard("Issued vs used variance", renderMaterialVarianceTable(varianceRows))
-      );
       const logTotals = aggregateMaterialByMonth(state.materialLogs, month, { siteInChargeId: sic.id });
       const grnTotals = aggregateGrnByMaterial(state.goodsReceipts, month);
-      host.appendChild(
-        sectionCard("GRN vs logged (procurement)", renderMaterialVarianceTable(materialVariance(logTotals, grnTotals)))
+      varianceInner = `
+        <section class="sic-overview-subsection">
+          <h5 class="sic-overview-subsection-title">Issued vs used</h5>
+          ${renderMaterialVarianceTable(varianceRows, {
+            emptyHint: "Issue vouchers and material logs create issued vs used comparison.",
+          })}
+        </section>
+        <section class="sic-overview-subsection">
+          <h5 class="sic-overview-subsection-title">GRN vs logged (procurement)</h5>
+          ${renderMaterialVarianceTable(materialVariance(logTotals, grnTotals), {
+            emptyHint: "GRN receipts and site material logs enable procurement variance.",
+          })}
+        </section>`;
+    } else {
+      varianceInner = renderOverviewEmptyPanel(
+        "No project context selected",
+        "Use as context on an assigned project to view variance reports."
       );
     }
+    varianceShell.innerHTML = `
+      <h4 class="proj-boq-section-title sic-overview-shell-head">Variance reports</h4>
+      ${varianceInner}
+    `;
 
     const activity = buildActivityFeed(state.materialLogs, state.payrollEntries, {
       siteInChargeId: sic.id,
       projectId: proj?.id,
       limit: 5,
     });
-    host.appendChild(sectionCard("Recent activity", renderActivityFeed(activity)));
-
+    const activityShell = document.createElement("div");
+    activityShell.className = "reports-table-wrap sic-overview-activity-shell";
+    const quickActions = proj
+      ? `<div class="sic-overview-activity-head-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="sic-go-material">Log material</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="sic-go-roster">Manage roster</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="sic-go-settlement">Settlement</button>
+        </div>`
+      : "";
+    activityShell.innerHTML = `
+      <div class="sic-overview-activity-head-row">
+        <h4 class="proj-boq-section-title sic-overview-shell-head">Recent activity</h4>
+        ${quickActions}
+      </div>
+      ${renderActivityFeed(activity, { variant: "hub" })}
+    `;
     if (proj) {
-      host.appendChild(
-        sectionCard(
-          "Quick actions",
-          `<button type="button" class="btn btn-primary btn-sm" id="sic-go-material">Log material</button>
-           <button type="button" class="btn btn-ghost btn-sm" id="sic-go-roster">Manage roster</button>
-           <button type="button" class="btn btn-ghost btn-sm" id="sic-go-settlement">Settlement</button>`
-        )
-      );
-      host.querySelector("#sic-go-material")?.addEventListener("click", () => {
+      activityShell.querySelector("#sic-go-material")?.addEventListener("click", () => {
         state.activeTab = "material";
         updateHashParams({ tab: "material" });
         renderDetail();
       });
-      host.querySelector("#sic-go-roster")?.addEventListener("click", () => {
+      activityShell.querySelector("#sic-go-roster")?.addEventListener("click", () => {
         state.activeTab = "roster";
         updateHashParams({ tab: "roster" });
         renderDetail();
       });
-      host.querySelector("#sic-go-settlement")?.addEventListener("click", () => {
+      activityShell.querySelector("#sic-go-settlement")?.addEventListener("click", () => {
         state.activeTab = "settlement";
         updateHashParams({ tab: "settlement" });
         renderDetail();
       });
     }
+
+    host.append(metricsSection, toolbarShell, projectsShell, materialShell, varianceShell, activityShell);
     return host;
   }
 
@@ -838,22 +1003,101 @@ export function mountSiteIncharge(container) {
   }
 
   function siteLedgerForProject(projId) {
-    return rollupSiteLedger(projId, state.issueVouchers, state.materialLogs);
+    return rollupSiteLedger(projId, state.issueVouchers, state.materialLogs, null, { usageStatus: "approved" });
   }
 
-  function renderSiteBalanceStrip(projId) {
-    const rows = siteLedgerForProject(projId).filter((r) => r.qtyIssued > 0 || r.qtyUsed > 0);
-    if (!rows.length) return `<p class="site-balance-strip text-muted">No issued materials on site yet — request from central stock first.</p>`;
-    return `<div class="site-balance-strip"><strong>Site stock balance</strong><div class="table-wrap projects-table-wrap"><table class="dash-table projects-table"><thead><tr><th>Material</th><th class="cust-col-center">Issued</th><th class="cust-col-center">Used</th><th class="cust-col-center">Wasted</th><th class="cust-col-center">Balance</th></tr></thead><tbody>${rows
-      .map(
-        (r) => `<tr><td>${escapeHtml(r.materialName)}</td><td>${r.qtyIssued}</td><td>${r.qtyUsed}</td><td>${r.qtyWasted}</td><td><strong>${r.balance}</strong></td></tr>`
-      )
-      .join("")}</tbody></table></div>`;
+  function materialLogApproveReason(projId, log) {
+    const approvedLogs = state.materialLogs.filter((l) => l.status === "approved" && l.id !== log.id);
+    const ledger = rollupSiteLedger(projId, state.issueVouchers, approvedLogs, null, { usageStatus: "approved" });
+    const pendingByMaterial = {};
+    for (const item of log.items || []) {
+      const mid = item.inventoryMaterialId || item.materialKey;
+      if (!mid) continue;
+      const usedQty = Number(item.usedQty ?? item.qty) || 0;
+      const wastedQty = Number(item.wastedQty) || 0;
+      pendingByMaterial[mid] = (pendingByMaterial[mid] || 0) + usedQty + wastedQty;
+    }
+    for (const [mid, pending] of Object.entries(pendingByMaterial)) {
+      const row = ledger.find((r) => r.materialId === mid);
+      const available = Math.max(0, row?.balance ?? 0);
+      const issued = row?.qtyIssued ?? 0;
+      const name = row?.materialName || log.items?.find((i) => (i.inventoryMaterialId || i.materialKey) === mid)?.label || mid;
+      const unit = row?.unit || log.items?.find((i) => (i.inventoryMaterialId || i.materialKey) === mid)?.unit || "unit";
+      if (pending > available + 0.001) {
+        if (issued <= 0.001) return `No ${name} issued to site — issue from Inventory first`;
+        return `Cannot approve — only ${available} ${unit} remaining (this log needs ${pending})`;
+      }
+    }
+    return "";
+  }
+
+  function materialLogItemsHtml(items = []) {
+    if (!items.length) return "—";
+    const chips = items
+      .map((i) => {
+        const label = escapeHtml(i.label || i.materialKey);
+        const used = i.usedQty ?? i.qty ?? 0;
+        const wasted = i.wastedQty || 0;
+        const unit = escapeHtml(i.unit || "");
+        return `<span class="sic-material-item-chip">${label} · used ${used} · wasted ${wasted}${unit ? ` · ${unit}` : ""}</span>`;
+      })
+      .join("");
+    return `<div class="sic-material-items-list">${chips}</div>`;
+  }
+
+  function renderSiteBalanceStrip(projId, sicId) {
+    const rows = siteLedgerForProject(projId).filter(
+      (r) => r.qtyIssued > 0 || r.qtyUsed > 0 || r.qtyWasted > 0
+    );
+    const pendingCount = state.materialLogs.filter(
+      (l) => l.siteInChargeId === sicId && l.status === "submitted"
+    ).length;
+    const pendingNote =
+      pendingCount > 0
+        ? `<p class="sic-material-pending-note">${pendingCount} usage log${pendingCount === 1 ? "" : "s"} pending approval — not deducted until approved</p>`
+        : "";
+
+    if (!rows.length) {
+      return `<p class="text-muted sic-material-balance-empty">No issued materials on site yet — request from central stock first.</p>${pendingNote}`;
+    }
+
+    return `<div class="sic-material-balance-table-wrap">
+      <table class="dash-table projects-table sic-material-balance-table">
+        <colgroup>
+          <col class="sic-material-balance-col-name">
+          <col class="sic-material-balance-col-num">
+          <col class="sic-material-balance-col-num">
+          <col class="sic-material-balance-col-num">
+          <col class="sic-material-balance-col-num">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Material</th>
+            <th class="cust-col-center">Issued</th>
+            <th class="cust-col-center">Used</th>
+            <th class="cust-col-center">Wasted</th>
+            <th class="cust-col-center">Balance</th>
+          </tr>
+        </thead>
+        <tbody>${rows
+          .map((r) => {
+            const balClass = r.balance < 0 ? "sic-balance-negative" : "";
+            return `<tr>
+              <td>${escapeHtml(r.materialName)}</td>
+              <td class="cust-col-center">${r.qtyIssued}</td>
+              <td class="cust-col-center">${r.qtyUsed}</td>
+              <td class="cust-col-center">${r.qtyWasted}</td>
+              <td class="cust-col-center"><strong class="${balClass}">${r.balance}</strong></td>
+            </tr>`;
+          })
+          .join("")}</tbody>
+      </table>
+    </div>${pendingNote}`;
   }
 
   function renderMaterialTab(sic, proj) {
     const host = document.createElement("div");
-    host.className = "sic-tab-content";
+    host.className = "sic-material-tab sic-tab-content";
     if (!proj) {
       host.innerHTML = `<p class="proj-empty">Select a project context to log materials.</p>`;
       return host;
@@ -862,47 +1106,93 @@ export function mountSiteIncharge(container) {
       .filter((l) => l.siteInChargeId === sic.id)
       .sort((a, b) => (b.logDate || "").localeCompare(a.logDate || ""));
 
-    host.appendChild(sectionCard("Site stock balance", renderSiteBalanceStrip(proj.id)));
+    const balanceShell = document.createElement("div");
+    balanceShell.className = "reports-table-wrap sic-material-balance-shell";
+    balanceShell.innerHTML = `
+      <h4 class="proj-boq-section-title sic-material-shell-head">Site stock balance</h4>
+      ${renderSiteBalanceStrip(proj.id, sic.id)}
+    `;
 
-    const historyInner =
+    const countLabel =
+      logs.length === 1
+        ? "Showing 1 of 1 log"
+        : logs.length
+          ? `Showing ${logs.length} of ${logs.length} logs`
+          : "No usage logs yet";
+
+    const historyShell = document.createElement("div");
+    historyShell.className = "reports-table-wrap sic-material-history-shell";
+    const historyBody =
       logs.length === 0
-        ? `<p class="proj-empty">No logs yet</p>`
-        : `<table class="data-table"><thead><tr><th>Date</th><th>Items</th><th class="cust-col-center">Status</th><th class="cust-col-center">Actions</th></tr></thead><tbody>${logs
+        ? renderOverviewEmptyPanel(
+            "No usage logs yet",
+            "Click + Log usage to record material used or wasted on site."
+          )
+        : `
+      <table class="dash-table projects-table">
+        <colgroup>
+          <col class="sic-material-col-date">
+          <col class="sic-material-col-items">
+          <col class="sic-material-col-status">
+          <col class="sic-material-col-actions">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Items</th>
+            <th class="rep-col-status">Status</th>
+            <th class="rep-col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${logs
             .map((l) => {
-              const items = (l.items || [])
-                .map(
-                  (i) =>
-                    `${escapeHtml(i.label || i.materialKey)}: used ${i.usedQty ?? i.qty} wasted ${i.wastedQty || 0} ${escapeHtml(i.unit || "")}`
-                )
-                .join("; ");
               const canApprove = l.status === "submitted";
+              const approveBlock = canApprove ? materialLogApproveReason(proj.id, l) : "";
+              const approveBtn = canApprove
+                ? approveBlock
+                  ? `<button type="button" class="btn btn-primary btn-sm sic-approve-blocked" disabled title="${escapeHtml(approveBlock)}">Approve</button>`
+                  : `<button type="button" class="btn btn-primary btn-sm" data-approve-log="${l.id}">Approve</button>`
+                : "";
               return `<tr data-log-id="${l.id}">
                 <td>${escapeHtml(l.logDate)}</td>
-                <td>${items || "—"}</td>
-                <td class="cust-col-center">${statusChip(l.status || "submitted")}</td>
-                <td class="cust-col-center sic-row-actions proj-row-actions-cell">
-                  <button type="button" class="btn btn-ghost btn-sm" data-edit-log="${l.id}">Edit</button>
-                  <button type="button" class="btn btn-ghost btn-sm" data-del-log="${l.id}">Delete</button>
-                  ${canApprove ? `<button type="button" class="btn btn-primary btn-sm" data-approve-log="${l.id}">Approve</button>` : ""}
+                <td class="sic-material-items-cell">${materialLogItemsHtml(l.items)}</td>
+                <td class="rep-col-status"><span class="sic-material-status-wrap">${statusChip(l.status || "submitted")}</span></td>
+                <td class="rep-col-actions">
+                  <span class="sic-material-log-actions sic-row-actions">
+                    <button type="button" class="btn btn-ghost btn-sm" data-edit-log="${l.id}">Edit</button>
+                    <button type="button" class="btn btn-ghost btn-sm" data-del-log="${l.id}">Delete</button>
+                    ${approveBtn}
+                  </span>
                 </td>
               </tr>`;
             })
-            .join("")}</tbody></table>`;
+            .join("")}
+        </tbody>
+      </table>`;
 
-    const historySection = sectionWithToolbar(
-      "Usage history",
-      `<button type="button" class="btn btn-primary btn-sm" id="sic-open-mat-log">+ Log usage</button>`,
-      projectsTableHtml(historyInner)
-    );
-    host.appendChild(historySection);
+    historyShell.innerHTML = `
+      <div class="sic-material-history-head-row">
+        <h4 class="proj-boq-section-title sic-material-shell-head">Usage history</h4>
+        <div class="sic-material-history-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="sic-open-mat-log">+ Log usage</button>
+        </div>
+      </div>
+      ${historyBody}
+      <div class="reports-widget-foot">
+        <span class="reports-widget-foot-meta">${escapeHtml(countLabel)}</span>
+      </div>
+    `;
 
-    historySection.querySelector("#sic-open-mat-log")?.addEventListener("click", () => openMaterialLogDialog(sic, proj));
+    host.append(balanceShell, historyShell);
 
-    host.querySelectorAll("[data-edit-log]").forEach((btn) => {
+    historyShell.querySelector("#sic-open-mat-log")?.addEventListener("click", () => openMaterialLogDialog(sic, proj));
+
+    historyShell.querySelectorAll("[data-edit-log]").forEach((btn) => {
       const log = logs.find((l) => l.id === btn.dataset.editLog);
       if (log) btn.addEventListener("click", () => openMaterialEditDialog(sic, proj, log));
     });
-    host.querySelectorAll("[data-del-log]").forEach((btn) => {
+    historyShell.querySelectorAll("[data-del-log]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         if (!(await confirmAction({ title: "Delete material log?", message: "Delete this material log?", confirmLabel: "Delete", variant: "danger" }))) return;
         try {
@@ -913,11 +1203,12 @@ export function mountSiteIncharge(container) {
         }
       });
     });
-    host.querySelectorAll("[data-approve-log]").forEach((btn) => {
+    historyShell.querySelectorAll("[data-approve-log]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         try {
           await approveMaterialLog(proj.id, btn.dataset.approveLog);
-          showToast("Log approved");
+          await actionFeedback("material_log_approved", { sicId: sic.id, projectId: proj.id });
+          await refreshProjectCollection(proj.id, "siteMaterialLogs");
         } catch (err) {
           showToast(err.message, "error");
         }
@@ -996,7 +1287,7 @@ export function mountSiteIncharge(container) {
           status: "draft",
         });
         showToast("Diary saved as draft");
-        renderDetail();
+        await refreshProjectCollection(proj.id, "siteDiaries");
       },
     });
   }
@@ -1038,7 +1329,7 @@ export function mountSiteIncharge(container) {
 
     host.appendChild(
       sectionWithToolbar(
-        "Diary history",
+        "Daily diary history",
         `<button type="button" class="btn btn-primary btn-sm" id="sic-open-diary">+ Save diary</button>`,
         projectsTableHtml(historyInner)
       )
@@ -1049,7 +1340,8 @@ export function mountSiteIncharge(container) {
       btn.addEventListener("click", async () => {
         try {
           await submitSiteDiary(proj.id, btn.dataset.submitDiary);
-          showToast("Diary submitted");
+          await actionFeedback("diary_submitted", { sicId: sic.id, projectId: proj.id });
+          await refreshProjectCollection(proj.id, "siteDiaries");
         } catch (err) {
           showToast(err.message, "error");
         }
@@ -1059,7 +1351,8 @@ export function mountSiteIncharge(container) {
       btn.addEventListener("click", async () => {
         try {
           await approveSiteDiary(proj.id, btn.dataset.approveDiary);
-          showToast("Diary approved — progress updated");
+          await actionFeedback("diary_approved", { sicId: sic.id, projectId: proj.id });
+          await refreshProjectCollection(proj.id, "siteDiaries");
         } catch (err) {
           showToast(err.message, "error");
         }
@@ -1097,7 +1390,7 @@ export function mountSiteIncharge(container) {
           createdBy: getCurrentUserId?.() || "",
         });
         showToast("Equipment logged");
-        renderDetail();
+        await refreshProjectCollection(proj.id, "equipmentLogs");
       },
     });
   }
@@ -1178,8 +1471,13 @@ export function mountSiteIncharge(container) {
           updatedAt: Date.now(),
         });
         await submitMaterialRequest(proj.id, id);
-        showToast("Central requisition submitted");
-        renderDetail();
+        await actionFeedback("central_requisition_submit", {
+          sicId: sic.id,
+          projectId: proj.id,
+          title: String(data.title || "").trim(),
+          entityId: id,
+        });
+        await refreshProjectCollection(proj.id, "materialRequests");
       },
     });
   }
@@ -1270,7 +1568,7 @@ export function mountSiteIncharge(container) {
           dailyWage: Number(data.dailyWage) || worker?.dailyWage || 0,
         });
         showToast("Added to roster");
-        renderDetail();
+        await refreshProjectCollection(proj.id, "projectRoster");
       },
     });
   }
@@ -1415,69 +1713,381 @@ export function mountSiteIncharge(container) {
     return host;
   }
 
+  function payrollEntryTypeChip(type) {
+    const t = String(type || "other").toLowerCase();
+    return `<span class="sic-payroll-entry-chip sic-payroll-entry-chip--${escapeHtml(t)}">${escapeHtml(t)}</span>`;
+  }
+
+  function paymentModeChip(mode) {
+    const m = String(mode || "cash").toLowerCase();
+    return `<span class="sic-payroll-mode-chip sic-payroll-mode-chip--${escapeHtml(m)}">${escapeHtml(m)}</span>`;
+  }
+
+  function payrollCalcStatusCell(calc) {
+    if (!calc) return "—";
+    const label = calc.status === "paid" ? "paid" : calc.status === "confirmed" ? "confirmed" : "pending";
+    const chipKey = calc.status === "paid" ? "on_time" : calc.status === "confirmed" ? "submitted" : "pending";
+    return `<span class="sic-payroll-status-wrap" title="${escapeHtml(label)}">${statusChip(chipKey)}</span>`;
+  }
+
+  function validatePayrollPaymentData(data) {
+    const workerId = data.workerId;
+    if (!workerId) {
+      showToast("Select a worker before confirming payment", "error");
+      return null;
+    }
+    const rawAmount = data.amount;
+    if (rawAmount === "" || rawAmount == null) {
+      showToast("Enter payment amount (BDT)", "error");
+      return null;
+    }
+    const amount = Number(rawAmount);
+    if (Number.isNaN(amount)) {
+      showToast("Enter a valid amount", "error");
+      return null;
+    }
+    if (amount <= 0) {
+      showToast("Amount must be greater than 0 BDT", "error");
+      return null;
+    }
+    return { workerId, amount, paymentMode: data.paymentMode || "cash" };
+  }
+
+  function payrollWorkerFieldOptions() {
+    return [
+      { value: "", label: "Select" },
+      ...state.workers
+        .filter((w) => w.status !== "inactive")
+        .map((w) => ({ value: w.id, label: w.name })),
+    ];
+  }
+
+  async function submitDisbursement(validated, sic, proj, bounds) {
+    let calcId = "";
+    try {
+      calcId = await calculateSalary(validated.workerId, proj.id, {
+        cycle: state.payCycle,
+        periodStart: bounds.periodStart,
+        siteInChargeId: sic.id,
+      });
+    } catch (_) {
+      /* calc optional */
+    }
+    await confirmSalaryPayment({
+      workerId: validated.workerId,
+      calcId,
+      amount: validated.amount,
+      paymentMode: validated.paymentMode,
+      projectId: proj.id,
+      siteInChargeId: sic.id,
+      postExpense: true,
+    });
+    const worker = state.workers.find((w) => w.id === validated.workerId);
+    await actionFeedback("payroll_confirm_disbursement", {
+      sicId: sic.id,
+      projectId: proj.id,
+      workerName: worker?.name || "Worker",
+      amountLabel: formatBDT(validated.amount),
+      entityId: validated.workerId,
+    });
+    renderDetail();
+  }
+
+  function openConfirmDisbursementDialog(sic, proj, bounds) {
+    openCustFormDialog({
+      title: "Confirm disbursement",
+      subtitle: "Manual payment — any worker, any amount",
+      modalClass: "sic-profile-modal",
+      submitLabel: "Confirm payment",
+      values: { workerId: "", amount: "", paymentMode: "cash" },
+      sections: [
+        {
+          title: "Payment",
+          fields: [
+            {
+              name: "workerId",
+              label: "Worker",
+              type: "select",
+              options: payrollWorkerFieldOptions(),
+            },
+            {
+              name: "amount",
+              label: "Amount (BDT)",
+              type: "number",
+              min: "0",
+              step: "0.01",
+              hint: "Enter amount",
+            },
+            {
+              name: "paymentMode",
+              label: "Payment mode",
+              type: "select",
+              required: true,
+              options: PAYMENT_MODES.map((m) => ({ value: m.id, label: m.label })),
+            },
+          ],
+        },
+      ],
+      onSave: async (data) => {
+        const validated = validatePayrollPaymentData(data);
+        if (!validated) throw new Error("validation");
+        try {
+          await submitDisbursement(validated, sic, proj, bounds);
+        } catch (err) {
+          if (err.message === "validation") throw err;
+          showToast(formatPayrollError(err), "error");
+          throw err;
+        }
+      },
+    });
+  }
+
+  function openPayrollEntryDialog(sic, proj) {
+    openCustFormDialog({
+      title: "New payroll entry",
+      subtitle: "Log attendance, advance, or wage",
+      modalClass: "sic-profile-modal",
+      submitLabel: "Save payroll entry",
+      values: { workerId: "", type: "attendance", days: "1", amount: "", date: todayISO() },
+      sections: [
+        {
+          title: "Entry",
+          fields: [
+            {
+              name: "workerId",
+              label: "Worker",
+              type: "select",
+              options: payrollWorkerFieldOptions(),
+            },
+            {
+              name: "type",
+              label: "Type",
+              type: "select",
+              options: [
+                { value: "attendance", label: "Attendance" },
+                { value: "advance", label: "Advance" },
+                { value: "wage", label: "Wage" },
+              ],
+            },
+            { name: "days", label: "Days", type: "number", min: "1", step: "1" },
+            { name: "amount", label: "Amount (advance/manual)", type: "number", min: "0", step: "0.01" },
+            { name: "date", label: "Date", type: "date", required: true },
+          ],
+        },
+      ],
+      onSave: async (data) => {
+        if (!data.workerId) {
+          showToast("Select a worker before saving", "error");
+          throw new Error("validation");
+        }
+        const worker = state.workers.find((w) => w.id === data.workerId);
+        try {
+          await createPayrollEntry({
+            worker,
+            projectId: proj.id,
+            siteInChargeId: sic.id,
+            type: data.type,
+            days: Number(data.days) || 1,
+            amount: Number(data.amount) || undefined,
+            date: data.date,
+            postExpense: true,
+          });
+          await actionFeedback("payroll_entry_saved", {
+            sicId: sic.id,
+            projectId: proj.id,
+            workerName: worker?.name,
+            entityId: worker?.id,
+          });
+          renderDetail();
+        } catch (err) {
+          showToast(err.message, "error");
+          throw err;
+        }
+      },
+    });
+  }
+
+  const PAYROLL_ZERO_NET_MSG =
+    "Nothing to pay — net salary is 0. Mark attendance on Workers tab and Calculate again.";
+
+  function formatPayrollError(err) {
+    const msg = err?.message || "Payment failed";
+    if (msg.includes("Default accounts missing")) {
+      return "Finance accounts not set up — configure accounts in Finance first";
+    }
+    return msg;
+  }
+
+  function wrapProjectsTable(tableHtml) {
+    if (!tableHtml.includes("<table") || tableHtml.includes("projects-table-wrap")) return tableHtml;
+    return `<div class="table-wrap projects-table-wrap">${tableHtml}</div>`;
+  }
+
   function renderPayrollTab(sic, proj) {
     const host = document.createElement("div");
-    host.className = "sic-tab-content";
+    host.className = "sic-tab-content sic-payroll-tab";
     const month = state.filterMonth;
     const bounds = computePeriodBounds(state.payCycle, `${month}-15`);
     const cycleOpts = PAY_CYCLES.map(
       (c) => `<option value="${c.id}" ${state.payCycle === c.id ? "selected" : ""}>${escapeHtml(c.label)}</option>`
     ).join("");
-    const modeOpts = PAYMENT_MODES.map((m) => `<option value="${m.id}">${escapeHtml(m.label)}</option>`).join("");
 
-    host.innerHTML = `
-      <div class="sic-month-bar">
-        <label>Month <input type="month" id="sic-payroll-month" value="${month}" /></label>
-        <label>Pay cycle <select id="sic-pay-cycle">${cycleOpts}</select></label>
-        <span class="text-muted">Period: ${bounds.periodStart} → ${bounds.periodEnd}</span>
-        <a href="/workers" class="btn btn-ghost btn-sm">Open Workers page</a>
+    const entries = state.payrollEntries.filter((e) => {
+      if (e.siteInChargeId && e.siteInChargeId !== sic.id) return false;
+      if (!e.siteInChargeId && proj && e.projectId !== proj.id) return false;
+      if (proj && e.projectId !== proj.id) return false;
+      const mk = e.settlementMonth || (e.date || "").slice(0, 7);
+      return mk === month;
+    });
+    const untagged = entries.filter((e) => !e.siteInChargeId);
+    const { laborTotal } = aggregatePayrollForMonth(entries);
+
+    const rosterWorkers = proj
+      ? state.roster.filter((r) => r.siteInChargeId === sic.id && r.status === "active" && r.workerId)
+      : [];
+    const calcRows = rosterWorkers.map((r) => {
+      const calc = state.salaryCalculations.find(
+        (c) =>
+          c.workerId === r.workerId &&
+          c.projectId === proj.id &&
+          c.periodStart === bounds.periodStart &&
+          c.periodEnd === bounds.periodEnd
+      );
+      return { roster: r, calc };
+    });
+    const paidCalcs = calcRows.filter(({ calc }) => calc?.status === "paid").length;
+    const pendingCalcs = calcRows.filter(({ calc }) => calc && calc.status !== "paid").length;
+
+    const metricsSection = document.createElement("section");
+    metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning sic-payroll-metrics";
+    metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Payroll summary</h4>`;
+    metricsSection.appendChild(
+      renderBoqStatGrid([
+        { label: "Roster workers", value: rosterWorkers.length },
+        { label: "Payroll logs", value: entries.length },
+        { label: "Labor (month)", value: formatBDT(laborTotal) },
+        {
+          label: "Salary calcs",
+          value: proj ? `${paidCalcs} paid / ${pendingCalcs} pending` : "—",
+          attention: pendingCalcs > 0,
+        },
+      ])
+    );
+    const statGrid = metricsSection.querySelector(".proj-boq-stat-grid");
+    if (statGrid) statGrid.classList.add("sic-payroll-stat-grid");
+    host.appendChild(metricsSection);
+
+    const toolbarShell = document.createElement("div");
+    toolbarShell.className = "reports-table-wrap sic-payroll-toolbar-shell";
+    toolbarShell.innerHTML = `
+      <div class="sic-payroll-toolbar-head-row">
+        <h4 class="proj-boq-section-title sic-overview-toolbar-head">Payroll — ${escapeHtml(monthLabel(month))}</h4>
+        <div class="sic-payroll-toolbar-controls">
+          <label class="sic-overview-month-label">Month
+            <input type="month" class="cust-form-input sic-overview-month-input" id="sic-payroll-month" value="${month}" />
+          </label>
+          <label class="sic-overview-month-label">Pay cycle
+            <select class="cust-form-input" id="sic-pay-cycle">${cycleOpts}</select>
+          </label>
+          <span class="text-muted sic-payroll-period-label">Period: ${bounds.periodStart} → ${bounds.periodEnd}</span>
+          <a href="/workers" class="btn btn-ghost btn-sm">Open Workers page</a>
+        </div>
       </div>
     `;
-    host.querySelector("#sic-payroll-month")?.addEventListener("change", (e) => {
+    host.appendChild(toolbarShell);
+
+    if (untagged.length > 0) {
+      host.insertAdjacentHTML(
+        "beforeend",
+        `<p class="sic-warn">${untagged.length} entries missing site in-charge tag (from before assignment).</p>`
+      );
+    }
+
+    toolbarShell.querySelector("#sic-payroll-month")?.addEventListener("change", (e) => {
       state.filterMonth = e.target.value;
       renderDetail();
     });
-    host.querySelector("#sic-pay-cycle")?.addEventListener("change", (e) => {
+    toolbarShell.querySelector("#sic-pay-cycle")?.addEventListener("change", (e) => {
       state.payCycle = e.target.value;
       renderDetail();
     });
 
     if (proj) {
-      const rosterWorkers = state.roster.filter((r) => r.siteInChargeId === sic.id && r.status === "active" && r.workerId);
-      const calcRows = rosterWorkers.map((r) => {
-        const calc = state.salaryCalculations.find(
-          (c) =>
-            c.workerId === r.workerId &&
-            c.projectId === proj.id &&
-            c.periodStart === bounds.periodStart &&
-            c.periodEnd === bounds.periodEnd
-        );
-        return { roster: r, calc };
-      });
+      const calcFootLabel =
+        rosterWorkers.length === 1
+          ? `Showing 1 worker · ${bounds.periodStart} → ${bounds.periodEnd}`
+          : rosterWorkers.length
+            ? `Showing ${rosterWorkers.length} workers · ${bounds.periodStart} → ${bounds.periodEnd}`
+            : `0 workers on roster · ${bounds.periodStart} → ${bounds.periodEnd}`;
 
-      const calcCard = sectionCard("Salary calculation", "");
-      calcCard.querySelector(".sic-section-body").innerHTML = `
-        <button type="button" class="btn btn-primary btn-sm" id="sic-calc-all">Calculate all roster workers</button>
-        <div class="table-wrap projects-table-wrap" style="margin-top:0.75rem">
-          <table class="dash-table projects-table">
-            <thead><tr><th>Worker</th><th class="cust-col-center">Days</th><th class="cust-col-center">Gross</th><th class="cust-col-center">Advance</th><th class="cust-col-center">Net</th><th class="cust-col-center">Status</th><th class="cust-col-center">Actions</th></tr></thead>
-            <tbody>
-              ${calcRows.length ? calcRows.map(({ roster: r, calc }) => `
-                <tr>
+      const calcBody =
+        calcRows.length === 0
+          ? renderOverviewEmptyPanel(
+              "No workers on roster",
+              "Add workers on the Workers tab first, then calculate salary from attendance."
+            )
+          : wrapProjectsTable(`<table class="dash-table projects-table sic-payroll-calc-table">
+            <colgroup>
+              <col class="sic-payroll-col-worker">
+              <col class="sic-payroll-col-num">
+              <col class="sic-payroll-col-num">
+              <col class="sic-payroll-col-num">
+              <col class="sic-payroll-col-num">
+              <col class="sic-payroll-col-status">
+              <col class="sic-payroll-col-actions">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Worker</th>
+                <th class="cust-col-center">Days</th>
+                <th class="cust-col-center">Gross</th>
+                <th class="cust-col-center">Advance</th>
+                <th class="cust-col-center">Net</th>
+                <th class="cust-col-center">Status</th>
+                <th class="cust-col-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>${calcRows
+              .map(({ roster: r, calc }) => {
+                const netClass = calc && calc.status !== "paid" && calc.netPayable > 0 ? "sic-payroll-net-unpaid" : "";
+                const canPay = calc && calc.status !== "paid";
+                const payBlocked = canPay && (calc.netPayable ?? 0) <= 0;
+                const payBtn = canPay
+                  ? payBlocked
+                    ? `<button type="button" class="btn btn-primary btn-sm sic-pay-worker sic-pay-worker--blocked" disabled title="${escapeHtml(PAYROLL_ZERO_NET_MSG)}">Pay</button>`
+                    : `<button type="button" class="btn btn-primary btn-sm sic-pay-worker" data-calc="${calc.id}" data-worker="${r.workerId}" data-worker-name="${escapeHtml(r.workerName)}" title="Pay calculated net salary">Pay</button>`
+                  : "";
+                return `<tr>
                   <td>${escapeHtml(r.workerName)}</td>
                   <td class="cust-col-center">${calc?.totalDays ?? "—"}</td>
                   <td class="cust-col-center">${calc ? formatBDT(calc.grossAmount) : "—"}</td>
                   <td class="cust-col-center">${calc ? formatBDT(calc.advanceDeducted) : "—"}</td>
-                  <td class="cust-col-center">${calc ? formatBDT(calc.netPayable) : "—"}</td>
-                  <td class="cust-col-center">${calc ? statusChip(calc.status === "paid" ? "on_time" : "pending") : "—"}</td>
-                  <td class="cust-col-center proj-row-actions-cell">${calc && calc.status !== "paid" ? `<button type="button" class="btn btn-ghost btn-sm sic-pay-worker" data-calc="${calc.id}" data-worker="${r.workerId}">Pay</button>` : ""}</td>
-                </tr>`).join("") : `<tr class="empty-row"><td colspan="7">No linked workers on roster</td></tr>`}
-            </tbody>
-          </table>
-        </div>`;
-      host.appendChild(calcCard);
+                  <td class="cust-col-center"><strong class="${netClass}">${calc ? formatBDT(calc.netPayable) : "—"}</strong></td>
+                  <td class="cust-col-center">${payrollCalcStatusCell(calc)}</td>
+                  <td class="cust-col-center proj-row-actions-cell">${payBtn}</td>
+                </tr>`;
+              })
+              .join("")}</tbody>
+          </table>`);
 
-      calcCard.querySelector("#sic-calc-all")?.addEventListener("click", async () => {
+      const calcShell = document.createElement("div");
+      calcShell.className = "reports-table-wrap sic-payroll-calc-shell";
+      calcShell.innerHTML = `
+        <div class="sic-material-history-head-row">
+          <h4 class="proj-boq-section-title sic-material-shell-head">Salary calculation</h4>
+          <div class="sic-material-history-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="sic-calc-all">Calculate all roster workers</button>
+          </div>
+        </div>
+        ${calcBody}
+        <p class="sic-material-pending-note">Based on attendance &amp; advances from <a href="/workers">Workers page</a>. Use <strong>Pay</strong> for calculated salary, or <strong>Confirm disbursement</strong> below for a manual amount.</p>
+        <div class="reports-widget-foot">
+          <span class="reports-widget-foot-meta">${escapeHtml(calcFootLabel)}</span>
+        </div>
+      `;
+      host.appendChild(calcShell);
+
+      calcShell.querySelector("#sic-calc-all")?.addEventListener("click", async () => {
         try {
           for (const r of rosterWorkers) {
             await calculateSalary(r.workerId, proj.id, {
@@ -1493,12 +2103,18 @@ export function mountSiteIncharge(container) {
         }
       });
 
-      calcCard.querySelectorAll(".sic-pay-worker").forEach((btn) => {
+      calcShell.querySelectorAll(".sic-pay-worker:not([disabled])").forEach((btn) => {
         btn.addEventListener("click", () => {
           const calc = state.salaryCalculations.find((c) => c.id === btn.dataset.calc);
           if (!calc) return;
+          if ((calc.netPayable ?? 0) <= 0) {
+            showToast(PAYROLL_ZERO_NET_MSG, "error");
+            return;
+          }
+          const workerName = btn.dataset.workerName || calc.workerName || "Worker";
           openCustFormDialog({
             title: "Confirm payment",
+            subtitle: `Pay ${workerName} — ${formatBDT(calc.netPayable)}`,
             modalClass: "sic-profile-modal",
             submitLabel: "Pay",
             values: { paymentMode: "cash" },
@@ -1517,183 +2133,335 @@ export function mountSiteIncharge(container) {
               },
             ],
             onSave: async (data) => {
-              await confirmSalaryPayment({
-                workerId: btn.dataset.worker,
-                calcId: calc.id,
-                amount: calc.netPayable,
-                paymentMode: data.paymentMode,
-                projectId: proj.id,
-                siteInChargeId: sic.id,
-                postExpense: true,
-              });
-              showToast("Payment confirmed");
-              renderDetail();
+              try {
+                await confirmSalaryPayment({
+                  workerId: btn.dataset.worker,
+                  calcId: calc.id,
+                  amount: calc.netPayable,
+                  paymentMode: data.paymentMode,
+                  projectId: proj.id,
+                  siteInChargeId: sic.id,
+                  postExpense: true,
+                });
+                await actionFeedback("payroll_confirm_salary", {
+                  sicId: sic.id,
+                  projectId: proj.id,
+                  workerName,
+                  amountLabel: formatBDT(calc.netPayable),
+                  entityId: btn.dataset.worker,
+                });
+                renderDetail();
+              } catch (err) {
+                showToast(formatPayrollError(err), "error");
+                throw err;
+              }
             },
           });
         });
       });
 
-      const payForm = document.createElement("form");
-      payForm.className = "sic-payroll-form cust-form-grid cust-form-grid--2";
-      const workerOpts = state.workers
-        .filter((w) => w.status !== "inactive")
-        .map((w) => `<option value="${w.id}">${escapeHtml(w.name)}</option>`)
-        .join("");
-      payForm.innerHTML = `
-        <label class="cust-form-field">Worker<select class="cust-form-input" name="workerId" required><option value="">Select</option>${workerOpts}</select></label>
-        <label class="cust-form-field">Amount<input class="cust-form-input" type="number" name="amount" min="0" required /></label>
-        <label class="cust-form-field">Mode<select class="cust-form-input" name="paymentMode">${modeOpts}</select></label>
-        <button type="submit" class="btn btn-primary cust-form-field--full">Confirm payment</button>
+      const actionsShell = document.createElement("div");
+      actionsShell.className = "reports-table-wrap sic-payroll-actions-shell";
+      actionsShell.innerHTML = `
+        <div class="sic-material-history-head-row">
+          <h4 class="proj-boq-section-title sic-material-shell-head">Record payments &amp; entries</h4>
+          <div class="sic-material-history-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="sic-open-disburse">Confirm disbursement</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="sic-open-payroll-entry">+ New payroll entry</button>
+          </div>
+        </div>
+        <p class="sic-material-pending-note">Confirm disbursement saves to <strong>Payment history</strong> below. New payroll entry logs appear in <strong>Payroll entries</strong>.</p>
       `;
-      host.appendChild(sectionCard("Confirm disbursement", payForm));
-      payForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const fd = new FormData(payForm);
-        const workerId = fd.get("workerId");
-        if (!workerId) {
-          showToast("Select worker", "error");
-          return;
-        }
-        try {
-          let calcId = "";
-          try {
-            calcId = await calculateSalary(workerId, proj.id, {
-              cycle: state.payCycle,
-              periodStart: bounds.periodStart,
-              siteInChargeId: sic.id,
-            });
-          } catch (_) { /* calc optional */ }
-          await confirmSalaryPayment({
-            workerId,
-            calcId,
-            amount: Number(fd.get("amount")) || 0,
-            paymentMode: fd.get("paymentMode") || "cash",
-            projectId: proj.id,
-            siteInChargeId: sic.id,
-            postExpense: true,
-          });
-          payForm.reset();
-          showToast("Payment recorded");
-          renderDetail();
-        } catch (err) {
-          showToast(err.message, "error");
-        }
-      });
-
-      const entryForm = document.createElement("form");
-      entryForm.className = "sic-payroll-form form-grid";
-      entryForm.innerHTML = `
-        <label>Worker<select name="workerId" required><option value="">Select</option>${workerOpts}</select></label>
-        <label>Type<select name="type">
-          <option value="attendance">Attendance</option>
-          <option value="advance">Advance</option>
-          <option value="wage">Wage</option>
-        </select></label>
-        <label>Days<input type="number" name="days" value="1" min="1" /></label>
-        <label>Amount (advance/manual)<input type="number" name="amount" min="0" /></label>
-        <label>Date<input type="date" name="date" value="${todayISO()}" /></label>
-        <button type="submit" class="btn btn-primary">Save payroll entry</button>
-      `;
-      host.appendChild(sectionCard("New payroll entry", entryForm));
-      entryForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const fd = new FormData(entryForm);
-        const worker = state.workers.find((w) => w.id === fd.get("workerId"));
-        if (!worker) {
-          showToast("Select worker", "error");
-          return;
-        }
-        try {
-          await createPayrollEntry({
-            worker,
-            projectId: proj.id,
-            siteInChargeId: sic.id,
-            type: fd.get("type"),
-            days: Number(fd.get("days")) || 1,
-            amount: Number(fd.get("amount")) || undefined,
-            date: fd.get("date"),
-            postExpense: true,
-          });
-          entryForm.reset();
-          entryForm.querySelector('[name="date"]').value = todayISO();
-          showToast("Payroll saved");
-        } catch (err) {
-          showToast(err.message, "error");
-        }
-      });
+      actionsShell.querySelector("#sic-open-disburse")?.addEventListener("click", () =>
+        openConfirmDisbursementDialog(sic, proj, bounds)
+      );
+      actionsShell.querySelector("#sic-open-payroll-entry")?.addEventListener("click", () =>
+        openPayrollEntryDialog(sic, proj)
+      );
+      host.appendChild(actionsShell);
+    } else {
+      const noProjShell = document.createElement("div");
+      noProjShell.className = "reports-table-wrap sic-payroll-calc-shell";
+      noProjShell.innerHTML = renderOverviewEmptyPanel(
+        "Select a project context",
+        "Choose a work context above to calculate salary and record payments."
+      );
+      host.appendChild(noProjShell);
     }
 
-    const entries = state.payrollEntries.filter((e) => {
-      if (e.siteInChargeId && e.siteInChargeId !== sic.id) return false;
-      if (!e.siteInChargeId && proj && e.projectId !== proj.id) return false;
-      if (proj && e.projectId !== proj.id) return false;
-      const mk = e.settlementMonth || (e.date || "").slice(0, 7);
+    const payments = state.salaryPayments.filter((p) => {
+      if (p.siteInChargeId && p.siteInChargeId !== sic.id) return false;
+      if (proj && p.projectId && p.projectId !== proj.id) return false;
+      const mk = p.monthKey || (p.date || "").slice(0, 7);
       return mk === month;
     });
-    const untagged = entries.filter((e) => !e.siteInChargeId);
-    const { laborTotal } = aggregatePayrollForMonth(entries);
 
-    const warn =
-      untagged.length > 0
-        ? `<p class="sic-warn">${untagged.length} entries missing site in-charge tag (from before assignment).</p>`
-        : "";
+    const paymentsCountLabel =
+      payments.length === 1
+        ? "Showing 1 payment"
+        : payments.length
+          ? `Showing ${payments.length} payments`
+          : "No payments this month";
 
-    host.insertAdjacentHTML(
-      "beforeend",
-      `<p class="sic-summary-line">Total labor: <strong>${formatBDT(laborTotal)}</strong> (${entries.length} entries)</p>${warn}`
-    );
+    const paymentsBody =
+      payments.length === 0
+        ? renderOverviewEmptyPanel(
+            "No salary payments this month",
+            "Confirm disbursement or Pay from Salary calculation to record payments here."
+          )
+        : wrapProjectsTable(`<table class="dash-table projects-table sic-payroll-payments-table">
+            <colgroup>
+              <col class="sic-payroll-col-date">
+              <col class="sic-payroll-col-worker">
+              <col class="sic-payroll-col-type">
+              <col class="sic-payroll-col-month">
+              <col class="sic-payroll-col-amount">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Worker</th>
+                <th class="cust-col-center">Mode</th>
+                <th class="cust-col-center">Month</th>
+                <th class="cust-col-center">Amount</th>
+              </tr>
+            </thead>
+            <tbody>${payments
+              .map((p) => {
+                const workerName =
+                  state.workers.find((w) => w.id === p.workerId)?.name || p.workerName || p.workerId || "—";
+                return `<tr>
+                  <td>${escapeHtml(p.date || "—")}</td>
+                  <td>${escapeHtml(workerName)}</td>
+                  <td class="cust-col-center">${paymentModeChip(p.paymentMode)}</td>
+                  <td class="cust-col-center">${escapeHtml(p.monthKey || "—")}</td>
+                  <td class="cust-col-center"><strong>${formatBDT(p.amount)}</strong></td>
+                </tr>`;
+              })
+              .join("")}</tbody>
+          </table>`);
 
-    const table =
+    const paymentsShell = document.createElement("div");
+    paymentsShell.className = "reports-table-wrap sic-payroll-payments-shell";
+    paymentsShell.id = "sic-payment-history";
+    paymentsShell.innerHTML = `
+      <div class="sic-material-history-head-row">
+        <h4 class="proj-boq-section-title sic-material-shell-head">Payment history</h4>
+      </div>
+      ${paymentsBody}
+      <p class="sic-material-pending-note">Salary disbursements from <strong>Confirm disbursement</strong> and <strong>Pay</strong>. Finance voucher posted automatically.</p>
+      <div class="reports-widget-foot">
+        <span class="reports-widget-foot-meta">${escapeHtml(paymentsCountLabel)}</span>
+      </div>
+    `;
+    host.appendChild(paymentsShell);
+
+    const entriesCountLabel =
+      entries.length === 1
+        ? "Showing 1 of 1 entry"
+        : entries.length
+          ? `Showing ${entries.length} of ${entries.length} entries`
+          : "No payroll entries this month";
+
+    const entriesBody =
       entries.length === 0
-        ? `<p class="proj-empty">No payroll this month for this context.</p>`
-        : `<table class="data-table"><thead><tr><th>Date</th><th>Worker</th><th>Type</th><th>Month</th><th>Amount</th></tr></thead><tbody>${entries
-            .map(
-              (e) =>
-                `<tr><td>${escapeHtml(e.date)}</td><td>${escapeHtml(e.workerName)}</td><td>${escapeHtml(e.type)}</td><td>${escapeHtml(e.settlementMonth || "—")}</td><td>${formatBDT(e.amount)}</td></tr>`
-            )
-            .join("")}</tbody></table>`;
-    host.appendChild(sectionCard("Payroll entries", entries.length === 0 ? table : projectsTableHtml(table)));
+        ? renderOverviewEmptyPanel(
+            "No payroll logs this month",
+            "Use + New payroll entry to log attendance, advance, or wage."
+          )
+        : wrapProjectsTable(`<table class="dash-table projects-table sic-payroll-history-table">
+            <colgroup>
+              <col class="sic-payroll-col-date">
+              <col class="sic-payroll-col-worker">
+              <col class="sic-payroll-col-type">
+              <col class="sic-payroll-col-month">
+              <col class="sic-payroll-col-amount">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Worker</th>
+                <th class="cust-col-center">Type</th>
+                <th class="cust-col-center">Month</th>
+                <th class="cust-col-center">Amount</th>
+              </tr>
+            </thead>
+            <tbody>${entries
+              .map(
+                (e) =>
+                  `<tr>
+                    <td>${escapeHtml(e.date)}</td>
+                    <td>${escapeHtml(e.workerName)}</td>
+                    <td class="cust-col-center">${payrollEntryTypeChip(e.type)}</td>
+                    <td class="cust-col-center">${escapeHtml(e.settlementMonth || "—")}</td>
+                    <td class="cust-col-center"><strong>${formatBDT(e.amount)}</strong></td>
+                  </tr>`
+              )
+              .join("")}</tbody>
+          </table>`);
+
+    const historyShell = document.createElement("div");
+    historyShell.className = "reports-table-wrap sic-payroll-history-shell";
+    historyShell.id = "sic-payroll-entries";
+    historyShell.innerHTML = `
+      <div class="sic-material-history-head-row">
+        <h4 class="proj-boq-section-title sic-material-shell-head">Payroll entries</h4>
+      </div>
+      ${entriesBody}
+      <p class="sic-material-pending-note">Monthly settlement approval is on the <strong>Settlement</strong> tab — not the Approvals inbox.</p>
+      <div class="reports-widget-foot">
+        <span class="reports-widget-foot-meta">${escapeHtml(entriesCountLabel)}</span>
+      </div>
+    `;
+    host.appendChild(historyShell);
+
     return host;
   }
 
   function renderSettlementTab(sic, proj) {
     const host = document.createElement("div");
-    host.className = "sic-tab-content";
+    host.className = "sic-tab-content sic-settlement-tab";
     if (!proj) {
-      host.innerHTML = `<p class="proj-empty">Select a project context for monthly settlement.</p>`;
+      host.innerHTML = renderOverviewEmptyPanel(
+        "Select a project context",
+        "Choose a work context above to view monthly settlement."
+      );
       return host;
     }
     const month = state.filterMonth;
     const existing = state.settlements.find((s) => s.month === month && s.siteInChargeId === sic.id);
     let draft = getSettlementDraft(sic, proj);
     const readOnly = existing?.status === "paid";
+    const status = existing?.status || "draft";
+    const statusLabel = String(status).replace(/_/g, " ");
+    const materialRows = draft.materialSummary || [];
+    const materialCountLabel =
+      materialRows.length === 1
+        ? "Showing 1 material line"
+        : materialRows.length
+          ? `Showing ${materialRows.length} material lines`
+          : "No material logged this month";
 
-    host.innerHTML = `
-      <div class="sic-month-bar projects-toolbar">
-        <label class="cust-form-field">Month <input type="month" class="cust-form-input" id="sic-settle-month" value="${month}" /></label>
-        <button type="button" class="btn btn-ghost btn-sm" id="sic-print-settlement">Print summary</button>
-      </div>
-      <section class="dash-widget dash-widget--projects card sic-report-block" id="sic-settlement-print">
-        <div class="dash-widget-head"><h3 class="dash-widget-title">Settlement — ${escapeHtml(monthLabel(month))}</h3></div>
-        <div class="dash-widget-body">
-          <p>Status: ${existing ? statusChip(existing.status) : "draft (not saved)"}</p>
-          <div id="sic-settle-form-host"></div>
-          <h4 class="dash-widget-sub">Material (informational)</h4>
-          <ul class="sic-settle-list" id="sic-settle-mat-list"></ul>
-          <div class="sic-settle-actions cust-toolbar-btn-group" id="sic-settle-actions"></div>
+    const metricsSection = document.createElement("section");
+    metricsSection.className = "proj-boq-metrics proj-boq-metrics--planning sic-settlement-metrics";
+    metricsSection.innerHTML = `<h4 class="proj-boq-section-title">Settlement summary</h4>`;
+    metricsSection.appendChild(
+      renderSettlementStatGrid({
+        statusChipHtml: existing ? statusChip(existing.status) : statusChip("draft"),
+        labor: formatBDT(draft.laborTotal || 0),
+        net: formatBDT(draft.netPayable || 0),
+        materialCount: materialRows.length,
+        netAttention: (draft.netPayable || 0) > 0 && status !== "paid",
+        statusAttention: status === "draft" || !existing,
+      })
+    );
+    host.appendChild(metricsSection);
+
+    const toolbarShell = document.createElement("div");
+    toolbarShell.className = "reports-table-wrap sic-settlement-toolbar-shell";
+    toolbarShell.innerHTML = `
+      <div class="sic-settlement-toolbar-head-row">
+        <h4 class="proj-boq-section-title sic-overview-toolbar-head">Settlement — ${escapeHtml(monthLabel(month))}</h4>
+        <div class="sic-settlement-toolbar-controls">
+          <label class="sic-overview-month-label">Month
+            <input type="month" class="cust-form-input sic-overview-month-input" id="sic-settle-month" value="${month}" />
+          </label>
+          <button type="button" class="btn btn-ghost btn-sm" id="sic-print-settlement">Print summary</button>
         </div>
-      </section>
+      </div>
     `;
+    host.appendChild(toolbarShell);
 
-    const formHost = host.querySelector("#sic-settle-form-host");
+    const amountsShell = document.createElement("div");
+    amountsShell.className = "reports-table-wrap sic-settlement-amounts-shell";
+    amountsShell.id = "sic-settlement-print";
+    amountsShell.innerHTML = `
+      <div class="sic-material-history-head-row">
+        <h4 class="proj-boq-section-title sic-material-shell-head">Settlement calculation</h4>
+        <span class="sic-settlement-calc-status">${existing ? statusChip(existing.status) : statusChip("draft")}</span>
+      </div>
+      <div id="sic-settle-form-host"></div>
+      <p class="sic-material-pending-note">${
+        readOnly
+          ? "This settlement is <strong>paid</strong> — amounts are read-only."
+          : "Net payable = monthly rate + labor total − advance − deductions."
+      }</p>
+      <div class="reports-widget-foot">
+        <span class="reports-widget-foot-meta">${
+          existing
+            ? `Saved as ${escapeHtml(statusLabel)} · ${formatBDT(draft.netPayable || 0)}`
+            : "Not saved yet — use Save draft below"
+        }</span>
+      </div>
+    `;
+    host.appendChild(amountsShell);
+
     const settleForm = renderSettlementForm(draft, { readOnly });
-    formHost.appendChild(settleForm);
+    amountsShell.querySelector("#sic-settle-form-host")?.appendChild(settleForm);
 
-    const matList = host.querySelector("#sic-settle-mat-list");
-    matList.innerHTML =
-      (draft.materialSummary || [])
-        .map((m) => `<li>${escapeHtml(m.label)}: ${m.totalQty} ${escapeHtml(m.unit)}</li>`)
-        .join("") || "<li>No material logged</li>";
+    const materialBody =
+      materialRows.length === 0
+        ? renderOverviewEmptyPanel(
+            "No material logged this month",
+            "Material usage from the Material log tab appears here for reference."
+          )
+        : wrapProjectsTable(`<table class="dash-table projects-table sic-settlement-material-table">
+            <colgroup>
+              <col class="sic-settlement-col-material">
+              <col class="sic-settlement-col-qty">
+              <col class="sic-settlement-col-unit">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th class="cust-col-center">Qty</th>
+                <th class="cust-col-center">Unit</th>
+              </tr>
+            </thead>
+            <tbody>${materialRows
+              .map(
+                (m) => `<tr>
+                  <td>${escapeHtml(m.label)}</td>
+                  <td class="cust-col-center">${m.totalQty}</td>
+                  <td class="cust-col-center">${escapeHtml(m.unit)}</td>
+                </tr>`
+              )
+              .join("")}</tbody>
+          </table>`);
+
+    const materialShell = document.createElement("div");
+    materialShell.className = "reports-table-wrap sic-settlement-material-shell";
+    materialShell.innerHTML = `
+      <div class="sic-material-history-head-row">
+        <h4 class="proj-boq-section-title sic-material-shell-head">Material (informational)</h4>
+      </div>
+      ${materialBody}
+      <p class="sic-material-pending-note">Aggregated from approved material logs — not deducted from net payable.</p>
+      <div class="reports-widget-foot">
+        <span class="reports-widget-foot-meta">${escapeHtml(materialCountLabel)}</span>
+      </div>
+    `;
+    host.appendChild(materialShell);
+
+    const actionsShell = document.createElement("div");
+    actionsShell.className = "reports-table-wrap sic-settlement-actions-shell";
+    if (readOnly) {
+      actionsShell.innerHTML = `
+        <div class="sic-material-history-head-row">
+          <h4 class="proj-boq-section-title sic-material-shell-head">Workflow</h4>
+        </div>
+        <p class="sic-settlement-paid-banner">Settlement marked <strong>paid</strong> — no further actions.</p>
+      `;
+    } else {
+      actionsShell.innerHTML = `
+        <div class="sic-material-history-head-row">
+          <h4 class="proj-boq-section-title sic-material-shell-head">Workflow</h4>
+          <div class="sic-material-history-actions" id="sic-settle-actions"></div>
+        </div>
+        <p class="sic-material-pending-note">Save draft, approve for payment, then mark paid when disbursed.</p>
+      `;
+    }
+    host.appendChild(actionsShell);
 
     const recalc = () => {
       const monthlyRate = Number(settleForm.querySelector('[name="monthlyRate"]')?.value) || 0;
@@ -1703,21 +2471,23 @@ export function mountSiteIncharge(container) {
       draft = { ...draft, monthlyRate, advancePaid, deductions, netPayable: net };
       const netEl = settleForm.querySelector(".sic-net-value");
       if (netEl) netEl.textContent = formatBDT(net);
+      const metricsNet = host.querySelector("#sic-settlement-metrics-net");
+      if (metricsNet) metricsNet.textContent = formatBDT(net);
       const key = `${sic.id}-${proj.id}-${month}`;
       state.settlementOverrides[key] = { monthlyRate, advancePaid, deductions };
     };
 
     if (!readOnly) {
       settleForm.querySelectorAll("input").forEach((inp) => inp.addEventListener("input", recalc));
-    }
 
-    const actions = host.querySelector("#sic-settle-actions");
-    if (!readOnly) {
-      actions.innerHTML = `
-        <button type="button" class="btn btn-primary" id="sic-save-settlement">Save draft</button>
-        ${existing?.status === "draft" || !existing ? '<button type="button" class="btn btn-ghost" id="sic-approve-settlement">Approve</button>' : ""}
-        ${existing?.status === "approved" ? '<button type="button" class="btn btn-primary" id="sic-paid-settlement">Mark paid</button>' : ""}
-      `;
+      const actions = actionsShell.querySelector("#sic-settle-actions");
+      if (actions) {
+        actions.innerHTML = `
+          <button type="button" class="btn btn-primary btn-sm" id="sic-save-settlement">Save draft</button>
+          ${existing?.status === "draft" || !existing ? '<button type="button" class="btn btn-ghost btn-sm" id="sic-approve-settlement">Approve</button>' : ""}
+          ${existing?.status === "approved" ? '<button type="button" class="btn btn-primary btn-sm" id="sic-paid-settlement">Mark paid</button>' : ""}
+        `;
+      }
     }
 
     host.querySelector("#sic-settle-month")?.addEventListener("change", (e) => {
@@ -1727,9 +2497,12 @@ export function mountSiteIncharge(container) {
 
     host.querySelector("#sic-print-settlement")?.addEventListener("click", () => {
       const printEl = host.querySelector("#sic-settlement-print");
+      const matEl = host.querySelector(".sic-settlement-material-shell");
       const w = window.open("", "_blank");
       if (!w) return;
-      w.document.write(`<html><head><title>Settlement ${monthLabel(month)}</title></head><body>${printEl.innerHTML}</body></html>`);
+      w.document.write(
+        `<html><head><title>Settlement ${monthLabel(month)}</title></head><body>${printEl?.innerHTML || ""}${matEl?.innerHTML || ""}</body></html>`
+      );
       w.document.close();
       w.print();
     });
@@ -1738,7 +2511,12 @@ export function mountSiteIncharge(container) {
       recalc();
       try {
         await upsertSettlement(proj.id, { ...draft, status: "draft" });
-        showToast("Settlement saved");
+        await actionFeedback("settlement_saved", {
+          sicId: sic.id,
+          projectId: proj.id,
+          amountLabel: formatBDT(draft.netPayable),
+        });
+        renderDetail();
       } catch (err) {
         showToast(err.message, "error");
       }
@@ -1747,7 +2525,8 @@ export function mountSiteIncharge(container) {
       recalc();
       try {
         await upsertSettlement(proj.id, { ...draft, ...existing, status: "approved" });
-        showToast("Settlement approved");
+        await actionFeedback("settlement_approved", { sicId: sic.id, projectId: proj.id });
+        renderDetail();
       } catch (err) {
         showToast(err.message, "error");
       }
@@ -1774,7 +2553,7 @@ export function mountSiteIncharge(container) {
             paymentRef: data.paymentRef,
             siteInChargeName: sic.name,
           });
-          showToast("Settlement paid and posted to accounts");
+          await actionFeedback("settlement_paid", { sicId: sic.id, projectId: proj.id });
           renderDetail();
         },
       });
@@ -1791,7 +2570,7 @@ export function mountSiteIncharge(container) {
     const html =
       rows.length === 0
         ? `<p class="proj-empty">No assignments</p>`
-        : projectsTableHtml(`<table class="data-table"><thead><tr><th>Project</th><th>Start</th><th>End</th><th class="cust-col-center">Status</th><th class="cust-col-center">Logs</th><th class="cust-col-center">Actions</th></tr></thead><tbody>${rows
+        : projectsTableHtml(`<table class="data-table"><thead><tr><th>Project</th><th>Start</th><th class="cust-col-center">End</th><th class="cust-col-center">Status</th><th class="cust-col-center">Logs</th><th class="cust-col-center">Actions</th></tr></thead><tbody>${rows
             .map((a) => {
               const logCount =
                 a.status === "active" && a.projectId === state.contextProjectId
@@ -1808,10 +2587,10 @@ export function mountSiteIncharge(container) {
               return `<tr>
                 <td><a href="/projects?id=${encodeURIComponent(a.projectId)}">${escapeHtml(a.projectName || a.projectId)}</a></td>
                 <td>${escapeHtml(a.startDate || "—")}</td>
-                <td>${escapeHtml(a.endDate || "—")}</td>
-                <td>${escapeHtml(a.status)}</td>
-                <td>${logCount}</td>
-                <td>${endBtn}</td>
+                <td class="cust-col-center">${escapeHtml(a.endDate || "—")}</td>
+                <td class="cust-col-center">${escapeHtml(a.status)}</td>
+                <td class="cust-col-center">${logCount}</td>
+                <td class="cust-col-center">${endBtn ? `<div class="sic-row-actions">${endBtn}</div>` : ""}</td>
               </tr>`;
             })
             .join("")}</tbody></table>`);
@@ -1825,7 +2604,7 @@ export function mountSiteIncharge(container) {
             const still = activeAssignmentsForInCharge(state.assignments, sic.id);
             if (!still.some((a) => a.projectId === state.contextProjectId)) {
               state.contextProjectId = still[0]?.projectId || "";
-              bindProjectSubs(state.contextProjectId || null);
+              ensureProjectSubs();
             }
           }
           showToast("Assignment ended");
@@ -1897,7 +2676,11 @@ export function mountSiteIncharge(container) {
     wrap.appendChild(tabHost);
     const body = document.createElement("div");
     body.className = "sic-detail-body";
-    if (state.activeTab === "overview") body.appendChild(renderOverviewTab(sic, proj, assignments));
+    if (state.activeTab === "overview") {
+      body.appendChild(
+        renderOverviewTab(sic, proj, assignments, { materialLogsMonth, laborMonth: laborTotal })
+      );
+    }
     else if (state.activeTab === "diary") body.appendChild(renderDiaryTab(sic, proj));
     else if (state.activeTab === "material") body.appendChild(renderMaterialTab(sic, proj));
     else if (state.activeTab === "equipment") body.appendChild(renderEquipmentTab(sic, proj));
@@ -1908,6 +2691,10 @@ export function mountSiteIncharge(container) {
     else if (state.activeTab === "projects") body.appendChild(renderProjectsTab(sic, assignments));
     wrap.appendChild(body);
     detailPanel.appendChild(wrap);
+    const hash = location.hash?.replace(/^#/, "");
+    if (hash) {
+      requestAnimationFrame(() => document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
   }
 
   function render() {
@@ -1922,11 +2709,12 @@ export function mountSiteIncharge(container) {
       if (state.selectedId && state.selectedId !== "__new__" && !rows.find((s) => s.id === state.selectedId)) {
         state.selectedId = null;
       }
+      ensureProjectSubs();
       render();
     }),
     listenList("siteInChargeAssignments", (rows) => {
       state.assignments = rows;
-      syncContextProject();
+      ensureProjectSubs();
       render();
     }),
     listenList("projects", (rows) => {
@@ -1960,15 +2748,7 @@ export function mountSiteIncharge(container) {
   ];
 
   if (state.selectedId && state.selectedId !== "__new__") {
-    syncContextProject();
-    if (state.contextProjectId) bindProjectSubs(state.contextProjectId);
-    else {
-      const a = activeAssignmentsForInCharge(state.assignments, state.selectedId)[0];
-      if (a?.projectId) {
-        state.contextProjectId = a.projectId;
-        bindProjectSubs(a.projectId);
-      }
-    }
+    ensureProjectSubs();
   }
 
   render();

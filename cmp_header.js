@@ -21,19 +21,14 @@ const ROUTE_CHROME = {
     title: "Dashboard",
     subtitle: "Welcome back! Here's what's happening with your business today.",
     showDateRange: true,
-    quickActionLabel: "+ Quick Action",
   },
   "/clients": {
     title: "Clients / Owners",
     subtitle: "Manage project owners, employers, and contract contacts.",
-    quickActionLabel: "+ Add New Client",
-    quickActionPath: "/clients/new",
   },
   "/customers": {
     title: "Clients / Owners",
     subtitle: "Manage project owners, employers, and contract contacts.",
-    quickActionLabel: "+ Add New Client",
-    quickActionPath: "/clients/new",
   },
   "/clients/new": { title: "Add Client", subtitle: "Create a new client or project owner record." },
   "/customers/new": { title: "Add Client", subtitle: "Create a new client or project owner record." },
@@ -212,11 +207,14 @@ export function createAppHeader() {
           ${iconSvg("bell")}
           <span class="notify-badge" id="header-notify-badge" hidden>0</span>
         </button>
-        <div class="notify-dropdown" id="header-notify-dropdown" hidden role="menu" aria-label="Notifications"></div>
+        <div class="notify-dropdown notify-panel" id="header-notify-dropdown" hidden role="menu" aria-label="Notifications"></div>
         <button type="button" class="date-range-btn" id="page-chrome-date" style="display:none">
           <span class="date-icon">${iconSvg("calendar")}</span>
           <span class="date-range-text"></span>
           <span class="date-chevron">${iconSvg("chevron")}</span>
+        </button>
+        <button type="button" class="btn btn-primary header-quick-action" id="header-quick-action">
+          + Quick Action <span class="qa-chevron">${iconSvg("chevron")}</span>
         </button>
         <div class="header-user-wrap">
           <button type="button" class="header-user" id="header-user-btn" aria-label="User menu" aria-expanded="false" aria-haspopup="true">
@@ -228,9 +226,6 @@ export function createAppHeader() {
           </button>
           <div class="header-user-dropdown notify-dropdown" id="header-user-dropdown" hidden role="menu" aria-label="Demo user menu"></div>
         </div>
-        <button type="button" class="btn btn-primary header-quick-action" id="header-quick-action">
-          + Quick Action <span class="qa-chevron">${iconSvg("chevron")}</span>
-        </button>
       </div>
     </div>
   `;
@@ -442,6 +437,49 @@ function escapeNotifyHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+function formatNotifyTime(ts) {
+  if (!ts) return "";
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function notifyIconSvg(name) {
+  const icons = {
+    check: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+    bell: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+    alert: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    message: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+    user: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    task: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  };
+  return icons[name] || icons.bell;
+}
+
+function notifyVisual(type) {
+  const map = {
+    approval: { icon: "check", tone: "amber", label: "Approval" },
+    action_handoff: { icon: "check", tone: "amber", label: "Approval" },
+    action_reminder: { icon: "bell", tone: "blue", label: "Saved" },
+    task: { icon: "task", tone: "violet", label: "Task" },
+    task_deadline: { icon: "task", tone: "violet", label: "Task" },
+    bg_expiry: { icon: "alert", tone: "red", label: "Alert" },
+    bill_due: { icon: "alert", tone: "red", label: "Alert" },
+    permit_expiry: { icon: "alert", tone: "red", label: "Alert" },
+    project_message: { icon: "message", tone: "sky", label: "Message" },
+    assignment: { icon: "user", tone: "indigo", label: "Team" },
+    over_allocation: { icon: "user", tone: "indigo", label: "Team" },
+  };
+  return map[type] || { icon: "bell", tone: "slate", label: "" };
+}
+
 function initUserMenu() {
   const btn = document.getElementById("header-user-btn");
   const dropdown = document.getElementById("header-user-dropdown");
@@ -564,25 +602,54 @@ function initNotificationBell() {
     }
 
     const sorted = [...notifications].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    dropdown.innerHTML = sorted.length
-      ? sorted.slice(0, 8).map((n) => {
-          const typeLabel = {
-            task_deadline: "Task",
-            bg_expiry: "BG",
-            bill_due: "Bill",
-            permit_expiry: "Permit",
-            project_message: "Message",
-          }[n.type] || "";
-          return `
-          <button type="button" class="notify-dropdown-item${n.read ? "" : " is-unread"}" data-id="${n.id}" data-link="${escapeNotifyHtml(n.link || "")}">
-            ${typeLabel ? `<span class="notify-type-chip">${escapeNotifyHtml(typeLabel)}</span>` : ""}
-            <strong>${escapeNotifyHtml(n.title || "Notification")}</strong>
-            <span>${escapeNotifyHtml(n.message || "")}</span>
-          </button>`;
-        }).join("")
-      : `<p class="notify-dropdown-empty">No notifications</p>`;
+    const visible = sorted.slice(0, 8);
 
-    dropdown.querySelectorAll(".notify-dropdown-item").forEach((item) => {
+    const headerHtml = `
+      <div class="notify-panel-head">
+        <div class="notify-panel-head__row">
+          <span class="notify-panel-title">Notifications</span>
+          ${unread.length ? `<span class="notify-panel-count">${unread.length} unread</span>` : ""}
+        </div>
+        ${unread.length ? `<button type="button" class="notify-panel-mark-all" data-action="mark-all-read">Mark all read</button>` : ""}
+      </div>`;
+
+    const listHtml = visible.length
+      ? `<div class="notify-panel-body"><div class="notify-panel-list" role="group" aria-label="Recent notifications">
+          ${visible.map((n) => {
+            const vis = notifyVisual(n.type);
+            const time = formatNotifyTime(n.createdAt);
+            return `
+            <button type="button" class="notify-card${n.read ? "" : " is-unread"}" data-id="${escapeNotifyHtml(n.id)}" data-link="${escapeNotifyHtml(n.link || "")}" role="menuitem">
+              <span class="notify-card__icon notify-card__icon--${vis.tone}" aria-hidden="true">${notifyIconSvg(vis.icon)}</span>
+              <span class="notify-card__body">
+                <span class="notify-card__top">
+                  ${vis.label ? `<span class="notify-card__label">${escapeNotifyHtml(vis.label)}</span>` : ""}
+                  <span class="notify-card__title">${escapeNotifyHtml(n.title || "Notification")}</span>
+                  ${!n.read ? `<span class="notify-card__dot" aria-label="Unread"></span>` : ""}
+                </span>
+                ${n.message ? `<span class="notify-card__message">${escapeNotifyHtml(n.message)}</span>` : ""}
+                ${time ? `<span class="notify-card__time">${escapeNotifyHtml(time)}</span>` : ""}
+              </span>
+            </button>`;
+          }).join("")}
+        </div></div>`
+      : `<div class="notify-panel-empty">
+          <span class="notify-panel-empty__icon" aria-hidden="true">${iconSvg("bell")}</span>
+          <p class="notify-panel-empty__title">You're all caught up</p>
+          <p class="notify-panel-empty__text">No notifications right now</p>
+        </div>`;
+
+    dropdown.innerHTML = headerHtml + listHtml;
+
+    dropdown.querySelector('[data-action="mark-all-read"]')?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try {
+        const { markAllNotificationsRead } = await import("./svc_notifications.js");
+        await markAllNotificationsRead(getCurrentUserId());
+      } catch (_) { /* ignore */ }
+    });
+
+    dropdown.querySelectorAll(".notify-card").forEach((item) => {
       item.onclick = async () => {
         const id = item.dataset.id;
         const link = item.dataset.link;

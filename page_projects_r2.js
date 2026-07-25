@@ -691,11 +691,11 @@ export function buildProgressTab(state) {
     <table class="dash-table projects-table">
       <colgroup>
         <col class="proj-progress-col-activity" />
+        <col class="proj-progress-col-boq" />
         <col class="proj-progress-col-equal" />
         <col class="proj-progress-col-equal" />
-        <col class="proj-progress-col-equal" />
-        <col class="proj-progress-col-equal" />
-        <col class="proj-progress-col-equal" />
+        <col class="proj-progress-col-date" />
+        <col class="proj-progress-col-actions" />
       </colgroup>
       <thead>
         <tr>
@@ -731,8 +731,10 @@ export function buildProgressTab(state) {
               <td>${varianceChip(p._vKey, `${p._pct}%`)}</td>
               <td class="text-muted proj-progress-date">${escapeHtml(dateLabel)}</td>
               <td class="rep-col-actions proj-row-actions-cell">
-                <button type="button" class="btn btn-ghost btn-sm prog-edit-btn" data-id="${p.id}">Edit</button>
-                <button type="button" class="btn btn-ghost btn-sm prog-del-btn" data-id="${p.id}">Delete</button>
+                <span class="proj-progress-actions">
+                  <button type="button" class="btn btn-ghost btn-sm prog-edit-btn" data-id="${p.id}">Edit</button>
+                  <button type="button" class="btn btn-ghost btn-sm prog-del-btn" data-id="${p.id}">Delete</button>
+                </span>
               </td>
             </tr>`;
                 })
@@ -1080,12 +1082,12 @@ export function buildResourcesTab(state) {
     <table class="dash-table projects-table">
       <colgroup>
         <col class="proj-resources-col-name" />
-        <col class="proj-resources-col-equal" />
-        <col class="proj-resources-col-equal" />
-        <col class="proj-resources-col-equal" />
-        <col class="proj-resources-col-equal" />
-        <col class="proj-resources-col-equal" />
-        <col class="proj-resources-col-equal" />
+        <col class="proj-resources-col-boq" />
+        <col class="proj-resources-col-contract" />
+        <col class="proj-resources-col-billed" />
+        <col class="proj-resources-col-rating" />
+        <col class="proj-resources-col-status" />
+        <col class="proj-resources-col-actions" />
       </colgroup>
       <thead>
         <tr>
@@ -1125,8 +1127,10 @@ export function buildResourcesTab(state) {
               <td>${rating}</td>
               <td>${statusChip(s.status || "draft")}</td>
               <td class="rep-col-actions proj-row-actions-cell">
-                <button type="button" class="btn btn-ghost btn-sm sub-edit-btn" data-id="${escapeHtml(s.id)}">Edit billed</button>
-                ${completeBtn}
+                <span class="proj-resources-actions">
+                  <button type="button" class="btn btn-ghost btn-sm sub-edit-btn" data-id="${escapeHtml(s.id)}">Edit billed</button>
+                  ${completeBtn}
+                </span>
               </td>
             </tr>`;
                 })

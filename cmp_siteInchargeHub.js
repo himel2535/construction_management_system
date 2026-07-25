@@ -122,7 +122,7 @@ export function renderSiteInchargeListItem(s, { selected = false, projectName = 
 
 export function renderSiteInchargeHeader(s, meta = {}, handlers = {}) {
   const section = document.createElement("section");
-  section.className = "dash-widget dash-widget--projects card sic-detail-header";
+  section.className = "dash-widget dash-widget--projects card sic-detail-header sic-detail-header--hero";
   const assignments = meta.contextAssignments || [];
   const contextOpts =
     assignments.length > 0
@@ -134,37 +134,52 @@ export function renderSiteInchargeHeader(s, meta = {}, handlers = {}) {
           .join("")
       : "";
   const projects = meta.projectNames?.length ? meta.projectNames.join(", ") : "No active project";
+  const activeContext =
+    assignments.find((a) => a.projectId === meta.contextProjectId) || assignments[0] || null;
+  const contextBar =
+    assignments.length > 0
+      ? `<div class="sic-context-bar">
+          <span class="sic-context-bar-label">Work context</span>
+          ${
+            assignments.length > 1
+              ? `<select class="cust-form-input sic-context-select" id="sic-context-project">${contextOpts}</select>`
+              : `<span class="sic-context-bar-value">${escapeHtml(activeContext?.projectName || activeContext?.projectId || "—")}</span>`
+          }
+        </div>`
+      : "";
 
   section.innerHTML = `
-    <div class="dash-widget-head dash-widget-head--split sic-detail-header-inner">
+    <div class="dash-widget-head dash-widget-head--split sic-detail-header-inner sic-detail-header-hero">
       <div class="sic-detail-header-main">
-        <span class="sup-avatar sup-avatar--lg sic-avatar" aria-hidden="true">${escapeHtml(initials(s.name))}</span>
-        <div>
+        <span class="sup-avatar sup-avatar--lg sic-avatar sic-avatar--hero" aria-hidden="true">${escapeHtml(initials(s.name))}</span>
+        <div class="sic-detail-header-copy">
           <div class="sic-detail-title-row">
             <h2 class="dash-widget-title sic-detail-title">${escapeHtml(s.name)}</h2>
             ${statusChip(s.status || "active")}
           </div>
-          <p class="dash-widget-sub">Field PM · ${escapeHtml(s.phone || "—")}</p>
+          <p class="dash-widget-sub sic-detail-sub">Field PM · ${escapeHtml(s.phone || "—")}</p>
           <p class="sic-detail-projects text-muted">Projects: ${escapeHtml(projects)}</p>
-          ${
-            assignments.length > 1
-              ? `<label class="sic-context-select-label">Work context
-            <select class="cust-form-input sic-context-select" id="sic-context-project">
-              ${contextOpts}
-            </select></label>`
-              : ""
-          }
+          ${contextBar}
         </div>
       </div>
-      <div class="cust-toolbar-btn-group">
+      <div class="cust-toolbar-btn-group sic-detail-header-actions">
         <button type="button" class="btn btn-ghost btn-sm" id="sic-header-edit">Edit</button>
         <button type="button" class="btn btn-primary btn-sm" id="sic-header-assign">Assign project</button>
       </div>
     </div>
-    <div class="dash-widget-body sic-header-stats">
-      <span class="sic-stat"><strong>${meta.rosterCount ?? 0}</strong> workers</span>
-      <span class="sic-stat"><strong>${meta.materialLogsMonth ?? 0}</strong> logs (${escapeHtml(meta.monthLabel || "month")})</span>
-      <span class="sic-stat"><strong>${formatBDT(meta.laborMonth ?? 0)}</strong> labor</span>
+    <div class="dash-widget-body sic-header-stats sic-header-stat-grid">
+      <div class="sic-header-stat-tile">
+        <span class="sic-header-stat-value">${meta.rosterCount ?? 0}</span>
+        <span class="sic-header-stat-label">Workers</span>
+      </div>
+      <div class="sic-header-stat-tile">
+        <span class="sic-header-stat-value">${meta.materialLogsMonth ?? 0}</span>
+        <span class="sic-header-stat-label">Logs (${escapeHtml(meta.monthLabel || "month")})</span>
+      </div>
+      <div class="sic-header-stat-tile">
+        <span class="sic-header-stat-value">${formatBDT(meta.laborMonth ?? 0)}</span>
+        <span class="sic-header-stat-label">Labor</span>
+      </div>
     </div>
   `;
   section.querySelector("#sic-header-edit")?.addEventListener("click", () => handlers.onEdit?.());
@@ -207,8 +222,20 @@ export function sectionCard(title, bodyEl) {
   return section;
 }
 
-export function renderMaterialVarianceTable(rows = []) {
-  if (!rows.length) return `<p class="proj-empty">No variance data</p>`;
+export function renderOverviewEmptyPanel(message, hint = "") {
+  return `<div class="sic-overview-empty-panel">
+    <p class="sic-overview-empty-msg">${escapeHtml(message)}</p>
+    ${hint ? `<p class="sic-overview-empty-hint">${escapeHtml(hint)}</p>` : ""}
+  </div>`;
+}
+
+export function renderMaterialVarianceTable(rows = [], { emptyHint = "" } = {}) {
+  if (!rows.length) {
+    return renderOverviewEmptyPanel(
+      "No variance data",
+      emptyHint || "Variance appears when issued and used quantities are recorded."
+    );
+  }
   return `<div class="table-wrap projects-table-wrap"><table class="dash-table projects-table sic-table"><thead><tr><th>Material</th><th class="cust-col-center">Issued / Logged</th><th class="cust-col-center">Used / Received</th><th class="cust-col-center">Variance</th></tr></thead><tbody>${rows
     .map((r) => {
       const issued = r.issued ?? r.logged ?? 0;
@@ -225,8 +252,36 @@ export function renderMaterialVarianceTable(rows = []) {
     .join("")}</tbody></table></div>`;
 }
 
-export function renderActivityFeed(items = []) {
-  if (!items.length) return `<p class="proj-empty">No recent activity</p>`;
+function activityTypeLabel(type) {
+  if (type === "payroll") return "Payroll";
+  if (type === "material") return "Material";
+  return "Activity";
+}
+
+export function renderActivityFeed(items = [], { variant = "default" } = {}) {
+  if (!items.length) {
+    return variant === "hub"
+      ? renderOverviewEmptyPanel(
+          "No recent activity",
+          "Material logs and payroll entries will appear here."
+        )
+      : `<p class="proj-empty">No recent activity</p>`;
+  }
+  if (variant === "hub") {
+    return `<ul class="sic-overview-activity-list sic-activity-list--hub">${items
+      .map(
+        (a) => `<li class="sic-activity-item--hub sic-activity-item--${escapeHtml(a.type || "other")}">
+          <div class="sic-activity-item-head">
+            <span class="sic-activity-type">${escapeHtml(activityTypeLabel(a.type))}</span>
+            <span class="sic-activity-date">${escapeHtml(a.date || "—")}</span>
+            ${statusChip(a.status || "submitted")}
+          </div>
+          <span class="sic-activity-label">${escapeHtml(a.label)}</span>
+          ${a.amount != null ? `<span class="sic-activity-amt">${formatBDT(a.amount)}</span>` : ""}
+        </li>`
+      )
+      .join("")}</ul>`;
+  }
   return `<ul class="sic-activity-list">${items
     .map(
       (a) => `<li>
@@ -239,27 +294,68 @@ export function renderActivityFeed(items = []) {
     .join("")}</ul>`;
 }
 
-export function renderSettlementForm(draft, { readOnly = false } = {}) {
-  const form = document.createElement("div");
-  form.className = "sic-settlement-form-inner cust-form-grid cust-form-grid--2";
-  form.innerHTML = `
-    <label class="cust-form-field">
-      <span class="cust-form-label">Monthly rate (BDT)</span>
-      <input name="monthlyRate" type="number" class="cust-form-input" min="0" step="0.01" value="${draft.monthlyRate ?? ""}" ${readOnly ? "readonly" : ""} />
-    </label>
-    <label class="cust-form-field">
-      <span class="cust-form-label">Advance paid</span>
-      <input name="advancePaid" type="number" class="cust-form-input" min="0" step="0.01" value="${draft.advancePaid ?? ""}" ${readOnly ? "readonly" : ""} />
-    </label>
-    <label class="cust-form-field">
-      <span class="cust-form-label">Deductions</span>
-      <input name="deductions" type="number" class="cust-form-input" min="0" step="0.01" value="${draft.deductions ?? ""}" ${readOnly ? "readonly" : ""} />
-    </label>
-    <div class="cust-form-field">
-      <span class="cust-form-label">Net payable</span>
-      <div class="sic-net-value">${formatBDT(draft.netPayable || 0)}</div>
+export function renderSettlementStatGrid({
+  statusChipHtml,
+  labor,
+  net,
+  materialCount,
+  netAttention = false,
+  statusAttention = false,
+}) {
+  const grid = document.createElement("div");
+  grid.className = "sic-settlement-stat-grid";
+  grid.innerHTML = `
+    <div class="sic-settlement-stat-tile sic-settlement-stat-tile--rose${statusAttention ? " sic-settlement-stat-tile--attention" : ""}">
+      <span class="sic-settlement-stat-value sic-settlement-stat-value--chip">${statusChipHtml}</span>
+      <span class="sic-settlement-stat-label">Status</span>
     </div>
-    <p class="cust-form-field cust-form-field--full text-muted">Labor total: <strong>${formatBDT(draft.laborTotal || 0)}</strong></p>
+    <div class="sic-settlement-stat-tile sic-settlement-stat-tile--mint">
+      <span class="sic-settlement-stat-value">${escapeHtml(String(labor ?? "—"))}</span>
+      <span class="sic-settlement-stat-label">Labor (month)</span>
+    </div>
+    <div class="sic-settlement-stat-tile sic-settlement-stat-tile--blue${netAttention ? " sic-settlement-stat-tile--attention" : ""}">
+      <span class="sic-settlement-stat-value" id="sic-settlement-metrics-net">${escapeHtml(String(net ?? "—"))}</span>
+      <span class="sic-settlement-stat-label">Net payable</span>
+    </div>
+    <div class="sic-settlement-stat-tile sic-settlement-stat-tile--lavender">
+      <span class="sic-settlement-stat-value">${escapeHtml(String(materialCount ?? 0))}</span>
+      <span class="sic-settlement-stat-label">Material items</span>
+    </div>
+  `;
+  return grid;
+}
+
+export function renderSettlementForm(draft, { readOnly = false } = {}) {
+  const ro = readOnly ? "readonly disabled" : "";
+  const form = document.createElement("div");
+  form.className = `sic-settlement-form${readOnly ? " sic-settlement-form--readonly" : ""}`;
+  form.innerHTML = `
+    <div class="sic-settlement-formula-board">
+      <div class="sic-settlement-formula-card sic-settlement-formula-card--rose">
+        <span class="sic-settlement-formula-card-label">Monthly rate (BDT)</span>
+        <input name="monthlyRate" type="number" class="sic-settlement-formula-input" min="0" step="0.01" value="${draft.monthlyRate ?? ""}" placeholder="0" ${ro} />
+      </div>
+      <span class="sic-settlement-formula-op" aria-hidden="true">+</span>
+      <div class="sic-settlement-formula-card sic-settlement-formula-card--mint">
+        <span class="sic-settlement-formula-card-label">Labor (month)</span>
+        <strong class="sic-settlement-formula-readonly">${formatBDT(draft.laborTotal || 0)}</strong>
+      </div>
+      <span class="sic-settlement-formula-op" aria-hidden="true">−</span>
+      <div class="sic-settlement-formula-card sic-settlement-formula-card--lavender">
+        <span class="sic-settlement-formula-card-label">Advance paid</span>
+        <input name="advancePaid" type="number" class="sic-settlement-formula-input" min="0" step="0.01" value="${draft.advancePaid ?? ""}" placeholder="0" ${ro} />
+      </div>
+      <span class="sic-settlement-formula-op" aria-hidden="true">−</span>
+      <div class="sic-settlement-formula-card sic-settlement-formula-card--peach">
+        <span class="sic-settlement-formula-card-label">Deductions</span>
+        <input name="deductions" type="number" class="sic-settlement-formula-input" min="0" step="0.01" value="${draft.deductions ?? ""}" placeholder="0" ${ro} />
+      </div>
+      <span class="sic-settlement-formula-op sic-settlement-formula-op--equals" aria-hidden="true">=</span>
+      <div class="sic-settlement-net-hero">
+        <span class="sic-settlement-net-label">Net payable</span>
+        <strong class="sic-net-value">${formatBDT(draft.netPayable || 0)}</strong>
+      </div>
+    </div>
   `;
   return form;
 }

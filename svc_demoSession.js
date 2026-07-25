@@ -75,6 +75,7 @@ export function switchDemoUser(userId, opts = {}) {
   if (toast) {
     showToast(`Switched to ${row.displayName || roleLabel(role)}`);
   }
+  window.dispatchEvent(new CustomEvent("erp:session-user-changed"));
   return { id: userId, role, displayName: row.displayName };
 }
 

@@ -206,6 +206,139 @@ export function mountAssets(container) {
     });
   }
 
+  function openTransferDialog() {
+    const assetOptions = [
+      { value: "", label: "Select asset" },
+      ...state.assets.map((a) => ({
+        value: a.id,
+        label: `${a.assetCode || a.name} — ${a.name}`,
+      })),
+    ];
+    const projectOptions = [
+      { value: "", label: "Select destination" },
+      ...state.projects.map((p) => ({ value: p.id, label: p.name })),
+    ];
+    openCustFormDialog({
+      title: "Record transfer",
+      subtitle: "Move an asset between sites",
+      modalClass: "ast-asset-modal",
+      submitLabel: "Record transfer",
+      values: {
+        assetId: "",
+        fromProjectDisplay: "",
+        toProjectId: "",
+        date: todayISO(),
+        note: "",
+      },
+      sections: [
+        {
+          title: "Transfer",
+          fields: [
+            { name: "assetId", label: "Asset *", type: "select", required: true, options: assetOptions },
+            { name: "fromProjectDisplay", label: "From site" },
+            { name: "toProjectId", label: "To site *", type: "select", required: true, options: projectOptions },
+            { name: "date", label: "Date", type: "date" },
+          ],
+        },
+        {
+          title: "Notes",
+          fields: [{ name: "note", label: "Note", fullWidth: true }],
+        },
+      ],
+      onReady: ({ form }) => {
+        const assetSel = form.querySelector('[name="assetId"]');
+        const fromInput = form.querySelector('[name="fromProjectDisplay"]');
+        if (fromInput) fromInput.readOnly = true;
+        const syncFrom = () => {
+          const asset = getAsset(assetSel?.value);
+          if (fromInput) {
+            fromInput.value = asset ? projectName(state.projects, asset.assignedProjectId) : "";
+          }
+        };
+        assetSel?.addEventListener("change", syncFrom);
+        syncFrom();
+      },
+      onSave: async (vals) => {
+        const asset = getAsset(vals.assetId);
+        const toProjectId = vals.toProjectId;
+        if (!asset || !toProjectId) {
+          showToast("Select asset and destination site", "error");
+          throw new Error("validation");
+        }
+        try {
+          await transferAsset(asset.id, {
+            fromProjectId: asset.assignedProjectId || "",
+            toProjectId,
+            date: vals.date,
+            note: vals.note,
+          });
+          showToast("Asset transferred");
+          render();
+        } catch (err) {
+          showToast(err.message, "error");
+          throw err;
+        }
+      },
+    });
+  }
+
+  function openMaintenanceDialog() {
+    const assetOptions = [
+      { value: "", label: "Select asset" },
+      ...state.assets.map((a) => ({
+        value: a.id,
+        label: `${a.assetCode || a.name} — ${a.name}`,
+      })),
+    ];
+    openCustFormDialog({
+      title: "Log maintenance",
+      subtitle: "Record service history and next due date",
+      modalClass: "ast-asset-modal",
+      submitLabel: "Save maintenance",
+      values: {
+        assetId: "",
+        lastServiceDate: todayISO(),
+        nextServiceDue: "",
+        maintenanceCost: "",
+        description: "",
+      },
+      sections: [
+        {
+          title: "Service",
+          fields: [
+            { name: "assetId", label: "Asset *", type: "select", required: true, options: assetOptions },
+            { name: "lastServiceDate", label: "Last service date", type: "date" },
+            { name: "nextServiceDue", label: "Next service due", type: "date" },
+            { name: "maintenanceCost", label: "Cost (BDT)", type: "number", step: "0.01" },
+          ],
+        },
+        {
+          title: "Work",
+          fields: [{ name: "description", label: "Work performed", type: "textarea", fullWidth: true }],
+        },
+      ],
+      onSave: async (vals) => {
+        if (!vals.assetId) {
+          showToast("Select an asset", "error");
+          throw new Error("validation");
+        }
+        try {
+          await logMaintenance(vals.assetId, {
+            lastServiceDate: vals.lastServiceDate,
+            nextServiceDue: vals.nextServiceDue,
+            maintenanceCost: vals.maintenanceCost,
+            description: vals.description,
+          });
+          showToast("Maintenance logged");
+          render();
+        } catch (err) {
+          showToast(err.message, "error");
+          throw err;
+        }
+      },
+    });
+  }
+
   function renderKpiStrip() {
     if (!kpiHost) return;
     const { total, inUse, underRepair, overdue } = computeKpiMetrics();
@@ -326,7 +459,7 @@ export function mountAssets(container) {
         <table class="dash-table projects-table assets-table">
           <thead>
             <tr>
-              <th>Code</th><th>Name</th><th>Category</th><th class="text-right">Value</th><th>Project</th><th class="cust-col-center">Status</th><th class="cust-col-center">Action</th>
+              <th>Code</th><th>Name</th><th>Category</th><th>Value</th><th>Project</th><th class="cust-col-center">Status</th><th class="cust-col-center">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -336,7 +469,7 @@ export function mountAssets(container) {
               <td>${escapeHtml(r.assetCode || "—")}</td>
               <td>${escapeHtml(r.name)}</td>
               <td>${escapeHtml(categoryLabel(r.category))}</td>
-              <td class="text-right">${formatBDT(r.purchaseValue)}</td>
+              <td>${formatBDT(r.purchaseValue)}</td>
               <td>${escapeHtml(projectName(state.projects, r.assignedProjectId))}</td>
               <td class="cust-col-center">${statusChip(assetStatusLabel(r.status))}</td>
               <td class="cust-col-center proj-row-actions-cell">
@@ -404,93 +537,16 @@ export function mountAssets(container) {
     const wrap = document.createElement("div");
     wrap.className = "ast-tab-panel";
 
-    const transferSection = document.createElement("section");
-    transferSection.className = "dash-widget dash-widget--projects card ast-report-block";
-    transferSection.innerHTML = `
-      <div class="dash-widget-head">
-        <h3 class="dash-widget-title">Record transfer</h3>
-        <p class="dash-widget-sub">Move an asset between sites</p>
-      </div>
-      <div class="dash-widget-body ast-transfer-form-host"></div>
-    `;
-
-    const form = document.createElement("form");
-    form.className = "cust-form-grid cust-form-grid--2 ast-transfer-form";
-    form.innerHTML = `
-      <label class="cust-form-field">
-        <span class="cust-form-label">Asset *</span>
-        <select name="assetId" id="ast-transfer-asset" class="cust-form-input" required>
-          <option value="">Select asset</option>
-          ${state.assets.map((a) => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.assetCode || a.name)} — ${escapeHtml(a.name)}</option>`).join("")}
-        </select>
-      </label>
-      <label class="cust-form-field">
-        <span class="cust-form-label">From site</span>
-        <input name="fromProject" id="ast-from-project" class="cust-form-input" readonly placeholder="Current site" />
-      </label>
-      <label class="cust-form-field">
-        <span class="cust-form-label">To site *</span>
-        <select name="toProjectId" class="cust-form-input" required>
-          <option value="">Select destination</option>
-          ${state.projects.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join("")}
-        </select>
-      </label>
-      <label class="cust-form-field">
-        <span class="cust-form-label">Date</span>
-        <input name="date" type="date" class="cust-form-input" value="${todayISO()}" />
-      </label>
-      <label class="cust-form-field cust-form-field--full">
-        <span class="cust-form-label">Note</span>
-        <input name="note" class="cust-form-input" placeholder="Optional note" />
-      </label>
-      <div class="cust-form-field cust-form-field--full">
-        <button type="submit" class="btn btn-primary btn-sm">Record transfer</button>
-      </div>
-    `;
-
-    const assetSel = form.querySelector("#ast-transfer-asset");
-    const fromInput = form.querySelector("#ast-from-project");
-    const syncFrom = () => {
-      const asset = getAsset(assetSel.value);
-      fromInput.value = asset ? projectName(state.projects, asset.assignedProjectId) : "";
-    };
-    assetSel.onchange = syncFrom;
-    syncFrom();
-
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const fd = new FormData(form);
-      const asset = getAsset(fd.get("assetId"));
-      const toProjectId = fd.get("toProjectId");
-      if (!asset || !toProjectId) {
-        showToast("Select asset and destination site", "error");
-        return;
-      }
-      try {
-        await transferAsset(asset.id, {
-          fromProjectId: asset.assignedProjectId || "",
-          toProjectId,
-          date: fd.get("date"),
-          note: fd.get("note"),
-        });
-        form.reset();
-        form.querySelector('[name="date"]').value = todayISO();
-        fromInput.value = "";
-        showToast("Asset transferred");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    };
-
-    transferSection.querySelector(".ast-transfer-form-host").appendChild(form);
-    wrap.appendChild(transferSection);
-
     const log = [...state.assignments].sort((a, b) => String(b.date).localeCompare(String(a.date)));
     const logSection = document.createElement("section");
     logSection.className = "dash-widget dash-widget--projects card ast-report-block";
     logSection.innerHTML = `
-      <div class="dash-widget-head">
-        <h3 class="dash-widget-title">Transfer log</h3>
+      <div class="dash-widget-head dash-widget-head--split">
+        <div>
+          <h3 class="dash-widget-title">Transfer log</h3>
+          <p class="dash-widget-sub">Asset moves between sites</p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="ast-open-transfer">+ Record transfer</button>
       </div>
       <div class="dash-widget-body"></div>
     `;
@@ -525,6 +581,7 @@ export function mountAssets(container) {
         })
       )
     );
+    logSection.querySelector("#ast-open-transfer").onclick = () => openTransferDialog();
     wrap.appendChild(logSection);
 
     return wrap;
@@ -533,71 +590,6 @@ export function mountAssets(container) {
   function renderMaintenanceTab() {
     const wrap = document.createElement("div");
     wrap.className = "ast-tab-panel";
-
-    const logSection = document.createElement("section");
-    logSection.className = "dash-widget dash-widget--projects card ast-report-block";
-    logSection.innerHTML = `
-      <div class="dash-widget-head">
-        <h3 class="dash-widget-title">Log maintenance</h3>
-        <p class="dash-widget-sub">Record service history and next due date</p>
-      </div>
-      <div class="dash-widget-body ast-maint-form-host"></div>
-    `;
-
-    const form = document.createElement("form");
-    form.className = "cust-form-grid cust-form-grid--2 ast-maint-form";
-    form.innerHTML = `
-      <label class="cust-form-field">
-        <span class="cust-form-label">Asset *</span>
-        <select name="assetId" class="cust-form-input" required>
-          <option value="">Select asset</option>
-          ${state.assets.map((a) => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.assetCode || a.name)} — ${escapeHtml(a.name)}</option>`).join("")}
-        </select>
-      </label>
-      <label class="cust-form-field">
-        <span class="cust-form-label">Last service date</span>
-        <input name="lastServiceDate" type="date" class="cust-form-input" value="${todayISO()}" />
-      </label>
-      <label class="cust-form-field">
-        <span class="cust-form-label">Next service due</span>
-        <input name="nextServiceDue" type="date" class="cust-form-input" />
-      </label>
-      <label class="cust-form-field">
-        <span class="cust-form-label">Cost (BDT)</span>
-        <input name="maintenanceCost" type="number" step="0.01" class="cust-form-input" placeholder="0.00" />
-      </label>
-      <label class="cust-form-field cust-form-field--full">
-        <span class="cust-form-label">Work performed</span>
-        <textarea name="description" rows="2" class="cust-form-input cust-form-textarea" placeholder="Description"></textarea>
-      </label>
-      <div class="cust-form-field cust-form-field--full">
-        <button type="submit" class="btn btn-primary btn-sm">Save maintenance</button>
-      </div>
-    `;
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      const fd = new FormData(form);
-      const assetId = fd.get("assetId");
-      if (!assetId) {
-        showToast("Select an asset", "error");
-        return;
-      }
-      try {
-        await logMaintenance(assetId, {
-          lastServiceDate: fd.get("lastServiceDate"),
-          nextServiceDue: fd.get("nextServiceDue"),
-          maintenanceCost: fd.get("maintenanceCost"),
-          description: fd.get("description"),
-        });
-        form.reset();
-        form.querySelector('[name="lastServiceDate"]').value = todayISO();
-        showToast("Maintenance logged");
-      } catch (err) {
-        showToast(err.message, "error");
-      }
-    };
-    logSection.querySelector(".ast-maint-form-host").appendChild(form);
-    wrap.appendChild(logSection);
 
     const maintMap = latestMaintenanceByAsset(state.maintenance);
     const rows = state.assets
@@ -619,15 +611,19 @@ export function mountAssets(container) {
     const scheduleSection = document.createElement("section");
     scheduleSection.className = "dash-widget dash-widget--projects card ast-report-block";
     scheduleSection.innerHTML = `
-      <div class="dash-widget-head">
-        <h3 class="dash-widget-title">Maintenance schedule</h3>
+      <div class="dash-widget-head dash-widget-head--split">
+        <div>
+          <h3 class="dash-widget-title">Maintenance schedule</h3>
+          <p class="dash-widget-sub">Service history and next due dates</p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="ast-open-maintenance">+ Log maintenance</button>
       </div>
       <div class="dash-widget-body">
         <div class="table-wrap projects-table-wrap">
           <table class="dash-table projects-table assets-table">
             <thead>
               <tr>
-                <th>Asset</th><th>Last service</th><th>Next due</th><th class="text-right">Last cost</th><th class="cust-col-center">Status</th>
+                <th>Asset</th><th>Last service</th><th>Next due</th><th>Last cost</th><th class="cust-col-center">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -639,7 +635,7 @@ export function mountAssets(container) {
                 <td>${escapeHtml(r.assetCode || "")} ${escapeHtml(r.name)}</td>
                 <td>${escapeHtml(r.lastServiceDate)}</td>
                 <td>${escapeHtml(r.nextServiceDue)}</td>
-                <td class="text-right">${formatBDT(r.maintenanceCost)}</td>
+                <td>${formatBDT(r.maintenanceCost)}</td>
                 <td class="cust-col-center">${r.overdue ? '<span class="chip inv-low-badge">Overdue</span>' : statusChip("on_time")}</td>
               </tr>`
                       )
@@ -651,6 +647,7 @@ export function mountAssets(container) {
         </div>
       </div>
     `;
+    scheduleSection.querySelector("#ast-open-maintenance").onclick = () => openMaintenanceDialog();
     wrap.appendChild(scheduleSection);
 
     return wrap;
