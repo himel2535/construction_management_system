@@ -220,7 +220,7 @@ export function mountAccounting(container) {
                 <th>Date</th>
                 <th>Project</th>
                 <th>Category</th>
-                <th class="text-right">Amount</th>
+                <th>Amount</th>
                 <th>Description</th>
                 <th class="cust-col-center">Status</th>
                 <th class="cust-col-center">Stage</th>
@@ -771,7 +771,7 @@ export function mountAccounting(container) {
               <td>${escapeHtml(e.expenseDate || "—")}</td>
               <td>${escapeHtml(projectName(pid))}</td>
               <td>${escapeHtml(e.category || "—")}</td>
-              <td class="text-right">${formatBDT(e.amount)}</td>
+              <td>${formatBDT(e.amount)}</td>
               <td>${escapeHtml(e.description || "—")}</td>
               <td class="cust-col-center">${statusChip(e.status || "draft")}</td>
               <td class="cust-col-center">${escapeHtml(e.approvalStage || "—")}</td>

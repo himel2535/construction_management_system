@@ -506,11 +506,11 @@ function renderProfitabilityBlock(rows, { limit, viewAllHref, showViewAllLink = 
     : `
     <div class="reports-table-wrap">
       <table class="dash-table projects-table">
-        <thead><tr><th>Project</th><th>Sector</th><th class="text-right">Revenue</th><th class="text-right">Cost</th><th class="text-right">Margin</th><th>Margin %</th></tr></thead>
+        <thead><tr><th>Project</th><th>Sector</th><th>Revenue</th><th>Cost</th><th>Margin</th><th>Margin %</th></tr></thead>
         <tbody>${shown
           .map(
             (r) =>
-              `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.sector)}</td><td class="text-right">${formatBDT(r.revenue)}</td><td class="text-right">${formatBDT(r.cost)}</td><td class="text-right">${formatBDT(r.margin)}</td><td>${escapeHtml(r.marginPct)}%</td></tr>`
+              `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.sector)}</td><td>${formatBDT(r.revenue)}</td><td>${formatBDT(r.cost)}</td><td>${formatBDT(r.margin)}</td><td>${escapeHtml(r.marginPct)}%</td></tr>`
           )
           .join("")}</tbody>
       </table>
