@@ -65,7 +65,7 @@ function assetSparklineSvg(values = [], tone = "green") {
     })
     .join(" ");
   const strokes = {
-    blue: "#2563eb",
+    blue: "#8a2e2e",
     green: "#047857",
     orange: "#d97706",
     teal: "#0d9488",
@@ -436,7 +436,7 @@ export function mountAssets(container) {
               <input type="search" class="cust-toolbar-search-input" id="ast-list-search" placeholder="Search assets..." autocomplete="off" value="${escapeHtml(state.filterQuery)}" />
             </div>
             <div class="cust-toolbar-btn-group">
-              <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="ast-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
+              <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="ast-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
               <button type="button" class="btn btn-primary btn-sm" id="ast-add-asset">+ Add asset</button>
             </div>
           </div>
@@ -473,7 +473,7 @@ export function mountAssets(container) {
               <td>${escapeHtml(projectName(state.projects, r.assignedProjectId))}</td>
               <td class="cust-col-center">${statusChip(assetStatusLabel(r.status))}</td>
               <td class="cust-col-center proj-row-actions-cell">
-                <button type="button" class="btn btn-ghost btn-sm ast-edit-asset" data-id="${escapeHtml(r.id)}">Edit</button>
+                <button type="button" class="btn btn-edit btn-sm ast-edit-asset" data-id="${escapeHtml(r.id)}">Edit</button>
               </td>
             </tr>`
               )

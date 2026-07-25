@@ -26,7 +26,7 @@ function sparklineSvg(values = [], tone = "green") {
     yellow: "#CA8A04",
     green: "#047857",
     red: "#B91C1C",
-    blue: "#2563eb",
+    blue: "#8a2e2e",
     purple: "#7c3aed",
     orange: "#d97706",
   };

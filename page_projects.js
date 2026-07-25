@@ -142,7 +142,7 @@ function projectSparklineSvg(values = [], tone = "green") {
     })
     .join(" ");
   const strokes = {
-    blue: "#2563eb",
+    blue: "#8a2e2e",
     green: "#047857",
     orange: "#d97706",
     teal: "#0d9488",
@@ -439,8 +439,8 @@ export function mountProjects(container) {
         ${duoPhase}
       </div>
       <div class="cust-detail-actions">
-        <button type="button" class="btn btn-primary btn-sm" id="proj-detail-edit">${icon("pencil", { size: 16 })} Edit</button>
-        <button type="button" class="btn btn-ghost btn-sm" id="proj-detail-manage">Manage project</button>
+        <button type="button" class="btn btn-edit btn-sm" id="proj-detail-edit">${icon("pencil", { size: 16 })} Edit</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="proj-detail-manage">Manage project</button>
       </div>
     `;
   }
@@ -1124,8 +1124,8 @@ export function mountProjects(container) {
               <td>${phasePlannedCell(ph.plannedStart, ph.plannedEnd)}</td>
               <td>${workflowButtonsHtml({ ...ph, status: ph.status || "draft" }, `projectPhases/${state.selectedProjectId}/${ph.id}`, "phase")}</td>
               <td class="rep-col-actions proj-row-actions-cell">
-                <button type="button" class="btn btn-ghost btn-sm phase-edit-btn" data-id="${ph.id}">Edit</button>
-                ${(ph.status || "draft") === "draft" ? `<button type="button" class="btn btn-ghost btn-sm phase-del-btn" data-id="${ph.id}">Delete</button>` : ""}
+                <button type="button" class="btn btn-edit btn-sm phase-edit-btn" data-id="${ph.id}">Edit</button>
+                ${(ph.status || "draft") === "draft" ? `<button type="button" class="btn btn-reject btn-sm phase-del-btn" data-id="${ph.id}">Delete</button>` : ""}
               </td>
             </tr>`
                   )
@@ -1428,7 +1428,7 @@ export function mountProjects(container) {
               <td>${statusChip(m.status)}</td>
               <td class="rep-col-workflow proj-milestones-workflow-cell">${workflowButtonsHtml(wfRow, wfPath, "milestone")}</td>
               <td class="rep-col-actions proj-row-actions-cell">
-                <button type="button" class="btn btn-ghost btn-sm ms-edit-btn" data-id="${m.id}">Edit</button>
+                <button type="button" class="btn btn-edit btn-sm ms-edit-btn" data-id="${m.id}">Edit</button>
               </td>
             </tr>`;
                   })
@@ -1590,8 +1590,8 @@ export function mountProjects(container) {
         <div class="proj-timeline-empty">
           <p class="proj-empty">Add phases and milestones to build your schedule.</p>
           <div class="proj-timeline-empty-actions">
-            <button type="button" class="btn btn-ghost btn-sm" data-go-tab="phases">Go to Phases</button>
-            <button type="button" class="btn btn-ghost btn-sm" data-go-tab="milestones">Go to Milestones</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-go-tab="phases">Go to Phases</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-go-tab="milestones">Go to Milestones</button>
           </div>
         </div>
       `;
@@ -1820,7 +1820,7 @@ export function mountProjects(container) {
               <td>${statusChip(d.status || "draft")}</td>
               <td class="rep-col-actions proj-row-actions-cell">
                 ${workflowButtonsHtml(d, path, "document")}
-                <button type="button" class="btn btn-ghost btn-sm doc-rev-btn" data-id="${escapeHtml(d.id)}">New revision</button>
+                <button type="button" class="btn btn-secondary btn-sm doc-rev-btn" data-id="${escapeHtml(d.id)}">New revision</button>
               </td>
             </tr>${histRow}`;
                   })
@@ -2076,7 +2076,7 @@ export function mountProjects(container) {
     section.innerHTML = buildActivityTimelineHtml(logs, { variant: "home" });
     const viewAll = document.createElement("button");
     viewAll.type = "button";
-    viewAll.className = "btn btn-ghost btn-sm proj-home-view-all";
+    viewAll.className = "btn btn-secondary btn-sm proj-home-view-all";
     viewAll.textContent = "View all activity →";
     viewAll.onclick = () => navigateProjectTab("activity");
     section.appendChild(viewAll);
@@ -2151,7 +2151,7 @@ export function mountProjects(container) {
     if (isGovProject(p)) {
       const contractLink = document.createElement("button");
       contractLink.type = "button";
-      contractLink.className = "btn btn-ghost btn-sm proj-home-contract-link";
+      contractLink.className = "btn btn-secondary btn-sm proj-home-contract-link";
       contractLink.textContent = "View contract summary →";
       contractLink.onclick = () => navigateProjectTab("contract");
       glance.appendChild(contractLink);
@@ -2175,7 +2175,7 @@ export function mountProjects(container) {
       supBanner.className = "proj-home-supplier-due";
       supBanner.innerHTML = `
         <span>Supplier outstanding: <strong>${formatBDT(supDue)}</strong></span>
-        <a href="/suppliers" class="btn btn-ghost btn-sm">View suppliers →</a>
+        <a href="/suppliers" class="btn btn-secondary btn-sm">View suppliers →</a>
       `;
       healthCol.appendChild(supBanner);
     }
@@ -2440,8 +2440,8 @@ export function mountProjects(container) {
                 <input type="search" class="cust-toolbar-search-input" id="proj-search" placeholder="Search projects..." autocomplete="off" />
               </div>
               <div class="cust-toolbar-btn-group">
-                <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="proj-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
-                <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="proj-export">${icon("download", { size: 16 })} Export</button>
+                <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="proj-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
+                <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="proj-export">${icon("download", { size: 16 })} Export</button>
                 <button type="button" class="btn btn-primary btn-sm" id="proj-new-project">+ New Project</button>
               </div>
             </div>

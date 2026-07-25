@@ -29,7 +29,7 @@ export function renderPhotoGallery(photos = [], handlers = {}) {
             <img src="${escapeHtml(p.url)}" alt="${escapeHtml(p.caption || "Site photo")}" loading="lazy" />
           </a>
           ${p.caption ? `<figcaption>${escapeHtml(p.caption)}</figcaption>` : ""}
-          <button type="button" class="btn btn-ghost btn-sm photo-gallery-remove" data-idx="${i}">Remove</button>
+          <button type="button" class="btn btn-reject btn-sm photo-gallery-remove" data-idx="${i}">Remove</button>
         </figure>`
           )
           .join("")
@@ -47,7 +47,7 @@ export function renderPhotoGallery(photos = [], handlers = {}) {
     <div class="photo-gallery-add">
       <input type="url" class="photo-gallery-url" placeholder="Photo URL (https://…)" />
       <input type="text" class="photo-gallery-caption" placeholder="Caption (optional)" />
-      <button type="button" class="btn btn-ghost btn-sm photo-gallery-add-btn">Add photo</button>
+      <button type="button" class="btn btn-secondary btn-sm photo-gallery-add-btn">Add photo</button>
     </div>
     <div class="photo-gallery-grid"></div>
   `;

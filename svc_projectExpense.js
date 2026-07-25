@@ -429,13 +429,13 @@ export function expenseActionButtons(expense, projectId) {
         `<button type="button" class="btn btn-primary btn-sm exp-approve" data-pid="${projectId}" data-id="${expense.id}">${label}</button>`
       );
       btns.push(
-        `<button type="button" class="btn btn-ghost btn-sm exp-reject" data-pid="${projectId}" data-id="${expense.id}">Reject</button>`
+        `<button type="button" class="btn btn-reject btn-sm exp-reject" data-pid="${projectId}" data-id="${expense.id}">Reject</button>`
       );
     }
   }
   if (st === "rejected") {
     btns.push(
-      `<button type="button" class="btn btn-ghost btn-sm exp-reopen" data-pid="${projectId}" data-id="${expense.id}">Reopen</button>`
+      `<button type="button" class="btn btn-secondary btn-sm exp-reopen" data-pid="${projectId}" data-id="${expense.id}">Reopen</button>`
     );
   }
   return btns.length ? btns.join(" ") : "—";

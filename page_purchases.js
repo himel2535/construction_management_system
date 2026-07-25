@@ -48,7 +48,7 @@ export function mountPurchases(container) {
         <select id="pur-project" class="cust-form-input pur-project-select"><option value="">Select project</option></select>
       </label>
       <div class="cust-toolbar-btn-group pur-context-actions">
-        <button type="button" class="btn btn-ghost btn-sm" id="pur-add-supplier">+ Add supplier</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="pur-add-supplier">+ Add supplier</button>
       </div>
     </div>
     <div id="pur-tab-host"></div>
@@ -118,7 +118,7 @@ export function mountPurchases(container) {
   function poDraftActionsCell(p) {
     if (p.status !== "draft") return "—";
     if (canApproveEntity("purchase_order")) {
-      return `<button type="button" class="btn btn-ghost btn-sm po-approve" data-id="${p.id}">Approve</button>`;
+      return `<button type="button" class="btn btn-primary btn-sm po-approve" data-id="${p.id}">Approve</button>`;
     }
     return `<span class="approval-awaiting-hint">${escapeHtml(approvalAwaitingHint("purchase_order"))}</span>`;
   }
@@ -308,7 +308,7 @@ export function mountPurchases(container) {
                     const dClass = deliveryChipClass(m.deliveryStatus || "requested");
                     let actions = "";
                     if (m.status === "draft" && canPerformAction("submit_material_request")) {
-                      actions += `<button type="button" class="btn btn-ghost btn-sm mr-submit" data-id="${m.id}">Submit</button>`;
+                      actions += `<button type="button" class="btn btn-primary btn-sm mr-submit" data-id="${m.id}">Submit</button>`;
                     }
                     if (m.status === "submitted") {
                       if (canApproveEntity("material_request")) {

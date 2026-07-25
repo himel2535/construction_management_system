@@ -51,7 +51,7 @@ function billingSparklineSvg(values = [], tone = "green") {
     })
     .join(" ");
   const strokes = {
-    blue: "#2563eb",
+    blue: "#8a2e2e",
     green: "#047857",
     orange: "#d97706",
     teal: "#0d9488",
@@ -81,7 +81,7 @@ function billActions(row) {
   const parts = [];
   if (status === "draft" && canPerformAction("submit_billing")) {
     parts.push(
-      `<button type="button" class="btn btn-ghost btn-sm bill-act" data-id="${escapeHtml(row.id)}" data-act="submitted">Submit</button>`
+      `<button type="button" class="btn btn-primary btn-sm bill-act" data-id="${escapeHtml(row.id)}" data-act="submitted">Submit</button>`
     );
   }
   if (status === "submitted" && canPerformAction("approve_billing")) {
@@ -93,7 +93,7 @@ function billActions(row) {
     const due = Math.max(0, Number(row.amount || 0) - Number(row.paidAmount || 0));
     if (due > 0) {
       parts.push(
-        `<button type="button" class="btn btn-ghost btn-sm bill-act" data-id="${escapeHtml(row.id)}" data-act="record-payment">Record full payment</button>`
+        `<button type="button" class="btn btn-secondary btn-sm bill-act" data-id="${escapeHtml(row.id)}" data-act="record-payment">Record full payment</button>`
       );
     }
   }
@@ -366,7 +366,7 @@ export function mountBilling(container) {
               <input type="search" class="cust-toolbar-search-input" id="bill-list-search" placeholder="Search bills..." autocomplete="off" value="${escapeHtml(state.filterQuery)}" />
             </div>
             <div class="cust-toolbar-btn-group">
-              <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="bill-clear-search" title="Clear search">${icon("rotateCcw", { size: 16 })} Clear</button>
+              <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="bill-clear-search" title="Clear search">${icon("rotateCcw", { size: 16 })} Clear</button>
               <button type="button" class="btn btn-primary btn-sm" id="bill-create">+ Create bill</button>
             </div>
           </div>

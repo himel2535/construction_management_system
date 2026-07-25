@@ -71,7 +71,7 @@ function renderDocumentsList(host, documents, onRemove) {
         <span class="text-muted"> · ${escapeHtml(d.docType || "file")}</span>
         ${d.fileUrl ? `<a href="${escapeHtml(d.fileUrl)}" target="_blank" rel="noopener" class="cust-doc-open">Open</a>` : ""}
       </div>
-      <button type="button" class="btn btn-ghost btn-sm cust-doc-remove" data-idx="${i}">Remove</button>
+      <button type="button" class="btn btn-reject btn-sm cust-doc-remove" data-idx="${i}">Remove</button>
     </li>`
     )
     .join("")}</ul>`;
@@ -234,7 +234,7 @@ export function mountClientCreate(container) {
                     <option value="other">Other</option>
                   </select>
                   <input type="file" id="cust-doc-file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx" />
-                  <button type="button" class="btn btn-ghost btn-sm" id="cust-doc-add">Attach file</button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="cust-doc-add">Attach file</button>
                 </div>
               </div>
               <div id="cust-doc-list-host" class="cust-doc-list-host"></div>
@@ -248,7 +248,7 @@ export function mountClientCreate(container) {
       <div class="cust-form-billing" id="cust-billing-summary"></div>
       <div class="form-actions cust-form-actions">
         <button type="submit" class="btn btn-primary" id="cust-submit">${isEdit ? "Save changes" : "Add client"}</button>
-        <a href="/clients" class="btn btn-ghost">Cancel</a>
+        <a href="/clients" class="btn btn-edit">Cancel</a>
       </div>
     </div>
   `;

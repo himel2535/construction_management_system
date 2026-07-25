@@ -21,7 +21,7 @@ function escapeHtml(s) {
 }
 
 function renderErrorCard(message) {
-  return `<div class="dash-widget dash-widget--projects card portal-report-block"><div class="dash-widget-body portal-section-body"><p class="proj-empty">${escapeHtml(message)}</p></div></div>`;
+  return `<div class="card card-pad portal-access-notice"><p class="proj-empty">${escapeHtml(message)}</p></div>`;
 }
 
 export function mountClientPortal(container) {
@@ -60,6 +60,10 @@ export function mountClientPortal(container) {
     state.milestones = ms.sort((a, b) => String(a.plannedDate).localeCompare(String(b.plannedDate)));
   }
 
+  function setKpiHostVisible(visible) {
+    kpiHost.hidden = !visible;
+  }
+
   function render() {
     const role = getCurrentRole();
     const entry = getRoleEntry();
@@ -68,11 +72,13 @@ export function mountClientPortal(container) {
     kpiHost.innerHTML = "";
 
     if (role !== "client") {
+      setKpiHostVisible(false);
       bodyHost.innerHTML = renderErrorCard("Client portal is available for Client role users only.");
       return;
     }
 
     if (!clientId) {
+      setKpiHostVisible(false);
       bodyHost.innerHTML = renderErrorCard(
         "No client record linked to this user. Ask admin to set clientId in Settings."
       );
@@ -80,12 +86,14 @@ export function mountClientPortal(container) {
     }
 
     if (state.client && state.client.portalAccessEnabled === false) {
+      setKpiHostVisible(false);
       bodyHost.innerHTML = renderErrorCard(
         "Portal access has been disabled for your account. Contact your administrator."
       );
       return;
     }
 
+    setKpiHostVisible(true);
     loadMilestones(clientId);
     const linkedProjects = state.projects.filter(
       (p) => p.clientId === clientId || p.clientName === state.client?.name

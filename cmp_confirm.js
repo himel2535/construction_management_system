@@ -44,7 +44,7 @@ export function confirmAction({
       </div>
       <p id="app-confirm-message" class="app-confirm-message">${escapeHtml(text)}</p>
       <div class="form-actions cust-form-actions app-confirm-actions">
-        <button type="button" class="btn btn-ghost" data-cancel>${escapeHtml(cancelLabel)}</button>
+        <button type="button" class="btn btn-edit" data-cancel>${escapeHtml(cancelLabel)}</button>
         <button type="button" class="btn ${variant === "danger" ? "btn-primary app-confirm-btn--danger" : "btn-primary"}" data-confirm>${escapeHtml(confirmLabel)}</button>
       </div>
     `;

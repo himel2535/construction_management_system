@@ -185,7 +185,7 @@ function renderRbacFlowCards() {
       (c) => `<article class="product-guide-flow-card product-guide-flow-card--${c.tone}">
         <h4 class="product-guide-flow-card__title">${escapeHtml(c.titleBn)} <span class="product-guide-flow-card__en">${escapeHtml(c.title)}</span></h4>
         <ol class="product-guide-flow-card__steps">${c.steps.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ol>
-        <button type="button" class="btn btn-ghost product-guide-go-btn product-guide-go-btn--subtle" data-route="${escapeHtml(c.route)}">যান →</button>
+        <button type="button" class="btn btn-secondary product-guide-go-btn product-guide-go-btn--subtle" data-route="${escapeHtml(c.route)}">যান →</button>
       </article>`
     )
     .join("")}</div>`;
@@ -241,7 +241,7 @@ function renderRbacMatrix(roleId) {
 
   return `<div class="product-guide-rbac-intro">
       <p><strong>Production RBAC</strong> — প্রতিটি workflow-এ আলাদা role: কে তৈরি/ submit করে, কে approve করে, কোন page-এ action নিতে হবে। Owner সব approve করতে পারেন।</p>
-      <p class="text-muted">Full permission keys → <button type="button" class="btn btn-ghost product-guide-go-btn product-guide-go-btn--subtle" data-route="/settings?tab=rbac">Settings → Permissions</button></p>
+      <p class="text-muted">Full permission keys → <button type="button" class="btn btn-secondary product-guide-go-btn product-guide-go-btn--subtle" data-route="/settings?tab=rbac">Settings → Permissions</button></p>
     </div>
     ${renderRbacFlowCards()}
     <div class="product-guide-rbac-table-wrap">
@@ -291,7 +291,7 @@ function renderRoleGuideCard(guide, roleId) {
     .map(
       (t) => `<li class="product-guide-role-task">
         <span>${escapeHtml(t.text)}</span>
-        <button type="button" class="btn btn-ghost product-guide-go-btn product-guide-go-btn--subtle" data-route="${escapeHtml(t.route)}">যান →</button>
+        <button type="button" class="btn btn-secondary product-guide-go-btn product-guide-go-btn--subtle" data-route="${escapeHtml(t.route)}">যান →</button>
       </li>`
     )
     .join("");
@@ -333,7 +333,7 @@ function renderFeatureCard(f) {
   return `<article class="product-guide-feature-card">
     <h4>${escapeHtml(f.title)}</h4>
     <p>${escapeHtml(f.desc)}</p>
-    <button type="button" class="btn btn-ghost product-guide-go-btn product-guide-go-btn--subtle" data-route="${escapeHtml(f.route)}">যান →</button>
+    <button type="button" class="btn btn-secondary product-guide-go-btn product-guide-go-btn--subtle" data-route="${escapeHtml(f.route)}">যান →</button>
   </article>`;
 }
 
@@ -426,7 +426,7 @@ export function renderProductGuideHtml() {
             </ul>
             <div class="product-guide-audience-actions">
               <button type="button" class="btn btn-primary product-guide-go-btn" data-route="#guide-rbac">RBAC matrix ↓</button>
-              <button type="button" class="btn btn-ghost product-guide-go-btn product-guide-go-btn--subtle" data-route="/approvals">Approvals →</button>
+              <button type="button" class="btn btn-secondary product-guide-go-btn product-guide-go-btn--subtle" data-route="/approvals">Approvals →</button>
             </div>
           </article>
           <article class="product-guide-audience-card product-guide-audience-card--buyer">
@@ -445,22 +445,22 @@ export function renderProductGuideHtml() {
           <div class="product-guide-overview-card product-guide-overview-card--blue">
             <h4>Projects</h4>
             <p>BOQ, milestones, progress, commercial (gov/private)</p>
-            <button type="button" class="btn btn-ghost product-guide-go-btn product-guide-go-btn--subtle" data-route="/projects">যান →</button>
+            <button type="button" class="btn btn-secondary product-guide-go-btn product-guide-go-btn--subtle" data-route="/projects">যান →</button>
           </div>
           <div class="product-guide-overview-card product-guide-overview-card--green">
             <h4>Site Management</h4>
             <p>Diary, material, roster, payroll, settlement</p>
-            <button type="button" class="btn btn-ghost product-guide-go-btn product-guide-go-btn--subtle" data-route="/site-incharge">যান →</button>
+            <button type="button" class="btn btn-secondary product-guide-go-btn product-guide-go-btn--subtle" data-route="/site-incharge">যান →</button>
           </div>
           <div class="product-guide-overview-card product-guide-overview-card--orange">
             <h4>Procurement</h4>
             <p>MR → PM approve → PO → GRN</p>
-            <button type="button" class="btn btn-ghost product-guide-go-btn product-guide-go-btn--subtle" data-route="/purchases">যান →</button>
+            <button type="button" class="btn btn-secondary product-guide-go-btn product-guide-go-btn--subtle" data-route="/purchases">যান →</button>
           </div>
           <div class="product-guide-overview-card product-guide-overview-card--purple">
             <h4>Finance</h4>
             <p>Billing, accounting, supplier payments</p>
-            <button type="button" class="btn btn-ghost product-guide-go-btn product-guide-go-btn--subtle" data-route="/billing">যান →</button>
+            <button type="button" class="btn btn-secondary product-guide-go-btn product-guide-go-btn--subtle" data-route="/billing">যান →</button>
           </div>
         </div>
       </section>
@@ -525,8 +525,8 @@ export function renderProductGuideHtml() {
           ${ERP_FEATURES.map(renderFeatureCard).join("")}
         </div>
         <footer class="product-guide-footer">
-          <a href="presentation_documentation.html" target="_blank" rel="noopener" class="btn btn-ghost product-guide-doc-link">সম্পূর্ণ documentation (print)</a>
-          <button type="button" class="btn btn-ghost product-guide-go-btn product-guide-go-btn--subtle" data-route="/settings?tab=rbac">Permissions matrix →</button>
+          <a href="presentation_documentation.html" target="_blank" rel="noopener" class="btn btn-secondary product-guide-doc-link">সম্পূর্ণ documentation (print)</a>
+          <button type="button" class="btn btn-secondary product-guide-go-btn product-guide-go-btn--subtle" data-route="/settings?tab=rbac">Permissions matrix →</button>
         </footer>
       </section>
     </div>

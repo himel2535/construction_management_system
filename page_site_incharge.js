@@ -657,7 +657,7 @@ export function mountSiteIncharge(container) {
           <div class="cust-form-section cust-form-section--full">
             <div class="cust-form-section-head">
               <h4 class="cust-form-section-title">Materials</h4>
-              <button type="button" class="btn btn-ghost btn-sm" id="sic-copy-last-log" ${lastLog ? "" : "disabled"}>Copy last log</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="sic-copy-last-log" ${lastLog ? "" : "disabled"}>Copy last log</button>
             </div>
             ${stockHint}
             <div class="cust-form-section-body sic-mat-modal-body">${materialUsageGridHtml(itemsByKey)}</div>
@@ -857,8 +857,8 @@ export function mountSiteIncharge(container) {
             <strong class="sic-overview-project-name">${escapeHtml(a.projectName || a.projectId)}</strong>
             <span class="sic-overview-project-since">Since ${escapeHtml(a.startDate || "—")}</span>
             <div class="sic-overview-project-actions">
-              <button type="button" class="btn btn-ghost btn-sm" data-switch-project="${escapeHtml(a.projectId)}">Use as context</button>
-              <a href="/projects?id=${encodeURIComponent(a.projectId)}" class="btn btn-ghost btn-sm">Open project</a>
+              <button type="button" class="btn btn-secondary btn-sm" data-switch-project="${escapeHtml(a.projectId)}">Use as context</button>
+              <a href="/projects?id=${encodeURIComponent(a.projectId)}" class="btn btn-secondary btn-sm">Open project</a>
             </div>
           </article>`
             )
@@ -965,8 +965,8 @@ export function mountSiteIncharge(container) {
     const quickActions = proj
       ? `<div class="sic-overview-activity-head-actions">
           <button type="button" class="btn btn-primary btn-sm" id="sic-go-material">Log material</button>
-          <button type="button" class="btn btn-ghost btn-sm" id="sic-go-roster">Manage roster</button>
-          <button type="button" class="btn btn-ghost btn-sm" id="sic-go-settlement">Settlement</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="sic-go-roster">Manage roster</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="sic-go-settlement">Settlement</button>
         </div>`
       : "";
     activityShell.innerHTML = `
@@ -1163,8 +1163,8 @@ export function mountSiteIncharge(container) {
                 <td class="rep-col-status"><span class="sic-material-status-wrap">${statusChip(l.status || "submitted")}</span></td>
                 <td class="rep-col-actions">
                   <span class="sic-material-log-actions sic-row-actions">
-                    <button type="button" class="btn btn-ghost btn-sm" data-edit-log="${l.id}">Edit</button>
-                    <button type="button" class="btn btn-ghost btn-sm" data-del-log="${l.id}">Delete</button>
+                    <button type="button" class="btn btn-edit btn-sm" data-edit-log="${l.id}">Edit</button>
+                    <button type="button" class="btn btn-reject btn-sm" data-del-log="${l.id}">Delete</button>
                     ${approveBtn}
                   </span>
                 </td>
@@ -1602,7 +1602,7 @@ export function mountSiteIncharge(container) {
               <td>${escapeHtml(r.trade || "—")}</td>
               <td class="cust-col-center">${formatBDT(r.dailyWage)}</td>
               <td>${escapeHtml(r.joinedDate || "—")}</td>
-              <td class="cust-col-center"><button type="button" class="btn btn-ghost btn-sm" data-leave="${r.id}">Mark left</button></td>
+              <td class="cust-col-center"><button type="button" class="btn btn-secondary btn-sm" data-leave="${r.id}">Mark left</button></td>
             </tr>`
             )
             .join("")}</tbody></table>`;
@@ -1674,7 +1674,7 @@ export function mountSiteIncharge(container) {
           (r) => `<tr>
             <td>${escapeHtml(r.workerName)}</td>
             <td>${escapeHtml(r.leftDate || "—")}</td>
-            <td><button type="button" class="btn btn-ghost btn-sm" data-rejoin="${r.id}">Rejoin</button></td>
+            <td><button type="button" class="btn btn-secondary btn-sm" data-rejoin="${r.id}">Rejoin</button></td>
           </tr>`
         )
         .join("")}</tbody></table>`;
@@ -1993,7 +1993,7 @@ export function mountSiteIncharge(container) {
             <select class="cust-form-input" id="sic-pay-cycle">${cycleOpts}</select>
           </label>
           <span class="text-muted sic-payroll-period-label">Period: ${bounds.periodStart} → ${bounds.periodEnd}</span>
-          <a href="/workers" class="btn btn-ghost btn-sm">Open Workers page</a>
+          <a href="/workers" class="btn btn-secondary btn-sm">Open Workers page</a>
         </div>
       </div>
     `;
@@ -2170,7 +2170,7 @@ export function mountSiteIncharge(container) {
           <h4 class="proj-boq-section-title sic-material-shell-head">Record payments &amp; entries</h4>
           <div class="sic-material-history-actions">
             <button type="button" class="btn btn-primary btn-sm" id="sic-open-disburse">Confirm disbursement</button>
-            <button type="button" class="btn btn-ghost btn-sm" id="sic-open-payroll-entry">+ New payroll entry</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="sic-open-payroll-entry">+ New payroll entry</button>
           </div>
         </div>
         <p class="sic-material-pending-note">Confirm disbursement saves to <strong>Payment history</strong> below. New payroll entry logs appear in <strong>Payroll entries</strong>.</p>
@@ -2369,7 +2369,7 @@ export function mountSiteIncharge(container) {
           <label class="sic-overview-month-label">Month
             <input type="month" class="cust-form-input sic-overview-month-input" id="sic-settle-month" value="${month}" />
           </label>
-          <button type="button" class="btn btn-ghost btn-sm" id="sic-print-settlement">Print summary</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="sic-print-settlement">Print summary</button>
         </div>
       </div>
     `;
@@ -2489,7 +2489,7 @@ export function mountSiteIncharge(container) {
         const showApprove = existing?.status === "draft" || !existing;
         actions.innerHTML = `
           <button type="button" class="btn btn-primary btn-sm" id="sic-save-settlement">Save draft</button>
-          ${showApprove && canApproveSettlement ? '<button type="button" class="btn btn-ghost btn-sm" id="sic-approve-settlement">Approve</button>' : ""}
+          ${showApprove && canApproveSettlement ? '<button type="button" class="btn btn-primary btn-sm" id="sic-approve-settlement">Approve</button>' : ""}
           ${showApprove && !canApproveSettlement ? `<span class="approval-awaiting-hint">${escapeHtml(approvalAwaitingHint("settlement"))}</span>` : ""}
           ${existing?.status === "approved" ? '<button type="button" class="btn btn-primary btn-sm" id="sic-paid-settlement">Mark paid</button>' : ""}
         `;
@@ -2588,7 +2588,7 @@ export function mountSiteIncharge(container) {
                   : "—";
               const endBtn =
                 a.status === "active"
-                  ? `<button type="button" class="btn btn-ghost btn-sm" data-end-asn="${a.id}">End</button>`
+                  ? `<button type="button" class="btn btn-secondary btn-sm" data-end-asn="${a.id}">End</button>`
                   : "";
               return `<tr>
                 <td><a href="/projects?id=${encodeURIComponent(a.projectId)}">${escapeHtml(a.projectName || a.projectId)}</a></td>

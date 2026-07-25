@@ -170,8 +170,8 @@ export function buildContractTab(state, opts = {}) {
     <div class="proj-contract-gov-terms-head-row">
       <h4 class="proj-boq-section-title proj-contract-gov-terms-head">Commercial contract terms</h4>
       <div class="proj-contract-gov-terms-head-actions">
-        <button type="button" class="btn btn-primary btn-sm proj-contract-gov-edit-btn">Edit profile</button>
-        <button type="button" class="btn btn-ghost btn-sm proj-contract-gov-compliance-btn">View compliance checklist →</button>
+        <button type="button" class="btn btn-edit btn-sm proj-contract-gov-edit-btn">Edit profile</button>
+        <button type="button" class="btn btn-secondary btn-sm proj-contract-gov-compliance-btn">View compliance checklist →</button>
       </div>
     </div>
     <div class="proj-contract-gov-terms-meta">
@@ -301,7 +301,7 @@ export function buildDashboardTab(state, opts = {}) {
     <form class="form-grid proj-form-inline gov-dash-filter" id="gov-dash-filter">
       <label>From <input name="dateFrom" type="date" value="${dateFrom}" /></label>
       <label>To <input name="dateTo" type="date" value="${dateTo}" /></label>
-      <button type="submit" class="btn btn-ghost btn-sm">Apply filter</button>
+      <button type="submit" class="btn btn-secondary btn-sm">Apply filter</button>
     </form>
     <div class="gov-kpi-grid">
       <button type="button" class="gov-kpi-card gov-kpi-card--link" data-tab="progress"><span class="cust-detail-label">Physical progress</span><strong>${kpis.physicalPct}%</strong></button>
@@ -796,7 +796,7 @@ export function buildGovBillingTab(state, opts = {}) {
     </table>
     <div class="reports-widget-foot proj-billing-ipc-foot">
       <span class="reports-widget-foot-meta">${escapeHtml(countLabel)}</span>
-      <button type="button" class="btn btn-ghost btn-sm proj-billing-measurement-link">Open Measurement Book & IPC</button>
+      <button type="button" class="btn btn-secondary btn-sm proj-billing-measurement-link">Open Measurement Book & IPC</button>
     </div>
   `;
 
@@ -884,7 +884,7 @@ export function buildMeasurementTab(state, opts = {}) {
                   const path = `${GOV_PATHS.measurementEntries}/${state.selectedProjectId}/${r.id}`;
                   const editBtn =
                     (r.status || "draft") === "draft"
-                      ? `<button type="button" class="btn btn-ghost btn-sm mb-edit-btn" data-id="${escapeHtml(r.id)}">Edit</button>`
+                      ? `<button type="button" class="btn btn-edit btn-sm mb-edit-btn" data-id="${escapeHtml(r.id)}">Edit</button>`
                       : "";
                   return `<tr data-measurement-id="${escapeHtml(r.id)}">
             <td>${escapeHtml(r.measureDate || "—")}</td>
@@ -1299,7 +1299,7 @@ export function buildRetentionTab(state, opts = {}) {
   conditionsShell.innerHTML = `
     <div class="proj-retention-conditions-head-row">
       <h4 class="proj-boq-section-title proj-retention-conditions-head">Release conditions</h4>
-      <button type="button" class="btn btn-ghost btn-sm proj-retention-edit-conditions-btn">Edit conditions</button>
+      <button type="button" class="btn btn-edit btn-sm proj-retention-edit-conditions-btn">Edit conditions</button>
     </div>
     <p class="proj-retention-conditions-text">${conditionsText}</p>
     <div class="proj-retention-final-bill-meta">

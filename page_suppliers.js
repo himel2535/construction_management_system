@@ -290,8 +290,8 @@ export function mountSuppliers(container) {
             </select>
           </div>
           <div class="sup-list-actions cust-toolbar-btn-group">
-            <button type="button" class="btn btn-ghost btn-sm btn-icon sup-filter-btn" id="sup-filter-toggle" title="More filters">${icon("filter", { size: 16 })}</button>
-            <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="sup-export-btn">${icon("download", { size: 14 })} Export</button>
+            <button type="button" class="btn btn-secondary btn-sm btn-icon sup-filter-btn" id="sup-filter-toggle" title="More filters">${icon("filter", { size: 16 })}</button>
+            <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="sup-export-btn">${icon("download", { size: 14 })} Export</button>
             <button type="button" class="btn btn-primary btn-sm" id="sup-new-btn">+ New Supplier</button>
           </div>
         </div>
@@ -756,7 +756,7 @@ export function mountSuppliers(container) {
       <div class="cust-form-footer">
         <div class="form-actions cust-form-actions">
           <button type="submit" class="btn btn-primary">Post payment</button>
-          <button type="button" class="btn btn-ghost" data-cancel>Cancel</button>
+          <button type="button" class="btn btn-edit" data-cancel>Cancel</button>
         </div>
       </div>
     `;
@@ -977,7 +977,7 @@ export function mountSuppliers(container) {
         <div>
           <h3 class="dash-widget-title sup-section-card-title">Identity & contact</h3>
         </div>
-        <button type="button" class="btn btn-primary btn-sm" id="sup-profile-edit">Edit profile</button>
+        <button type="button" class="btn btn-edit btn-sm" id="sup-profile-edit">Edit profile</button>
       `;
       identityCard.querySelector("#sup-profile-edit")?.addEventListener("click", () => openSupplierProfileDialog(s));
     }
@@ -1057,8 +1057,8 @@ export function mountSuppliers(container) {
               <td>${escapeHtml(p.category || "—")}</td>
               <td>${statusChip(p.status || "active")}</td>
               <td>
-                <button type="button" class="btn btn-ghost btn-sm sup-edit-product" data-id="${p.id}">Edit</button>
-                <button type="button" class="btn btn-ghost btn-sm sup-del-product" data-id="${p.id}">Delete</button>
+                <button type="button" class="btn btn-edit btn-sm sup-edit-product" data-id="${p.id}">Edit</button>
+                <button type="button" class="btn btn-reject btn-sm sup-del-product" data-id="${p.id}">Delete</button>
               </td>
             </tr>`
                 )
@@ -1147,7 +1147,7 @@ export function mountSuppliers(container) {
               <td class="text-right">${formatBDT(b.paidAmount || 0)}</td>
               <td class="text-right">${formatBDT(bal)}</td>
               <td>${statusChip(st)}</td>
-              <td>${b.status === "draft" && perms.canApprove ? `<button type="button" class="btn btn-ghost btn-sm sup-approve-ledger" data-id="${b.id}">Approve</button>` : b.status === "draft" ? `<span class="approval-awaiting-hint">${escapeHtml(approvalAwaitingHint("supplier_bill"))}</span>` : ""}</td>
+              <td>${b.status === "draft" && perms.canApprove ? `<button type="button" class="btn btn-primary btn-sm sup-approve-ledger" data-id="${b.id}">Approve</button>` : b.status === "draft" ? `<span class="approval-awaiting-hint">${escapeHtml(approvalAwaitingHint("supplier_bill"))}</span>` : ""}</td>
             </tr>`;
                 })
                 .join("")
@@ -1189,7 +1189,7 @@ export function mountSuppliers(container) {
         if (perms.canApprove) {
           const btn = document.createElement("button");
           btn.type = "button";
-          btn.className = "btn btn-ghost btn-sm";
+          btn.className = "btn btn-primary btn-sm";
           btn.textContent = "Approve";
           btn.onclick = async () => {
             try {

@@ -119,8 +119,8 @@ function checklistPreviewHtml(items, editable, rowId) {
       const passCls = i.passed === true ? "qc-pass" : i.passed === false ? "qc-fail" : "qc-pending";
       const toggles = editable
         ? `<span class="qc-toggle-group">
-            <button type="button" class="btn btn-ghost btn-xs qc-pass-btn" data-id="${rowId}" data-idx="${idx}" data-val="true">Pass</button>
-            <button type="button" class="btn btn-ghost btn-xs qc-fail-btn" data-id="${rowId}" data-idx="${idx}" data-val="false">Fail</button>
+            <button type="button" class="btn btn-secondary btn-xs qc-pass-btn" data-id="${rowId}" data-idx="${idx}" data-val="true">Pass</button>
+            <button type="button" class="btn btn-secondary btn-xs qc-fail-btn" data-id="${rowId}" data-idx="${idx}" data-val="false">Fail</button>
           </span>`
         : "";
       return `<li class="${passCls}">${escapeHtml(i.text)} ${toggles}</li>`;
@@ -344,7 +344,7 @@ export function buildQualityTab(state) {
               <td>${statusChip(r.status)}</td>
               <td class="rep-col-actions proj-row-actions-cell">
                 ${workflowButtonsHtml(r, path, "qualityCheck")}
-                <button type="button" class="btn btn-ghost btn-sm qc-edit-btn" data-id="${escapeHtml(r.id)}">Edit</button>
+                <button type="button" class="btn btn-edit btn-sm qc-edit-btn" data-id="${escapeHtml(r.id)}">Edit</button>
               </td>
             </tr>`;
                 })
@@ -633,7 +633,7 @@ export function buildSafetyTab(state) {
                   const path = `${R3_PATHS.safetyIncidents}/${state.selectedProjectId}/${r.id}`;
                   const closeBtn =
                     r.closureStatus !== "closed"
-                      ? `<button type="button" class="btn btn-ghost btn-sm safety-close-btn" data-id="${escapeHtml(r.id)}">Mark closed</button>`
+                      ? `<button type="button" class="btn btn-secondary btn-sm safety-close-btn" data-id="${escapeHtml(r.id)}">Mark closed</button>`
                       : "";
                   return `<tr data-id="${escapeHtml(r.id)}">
               <td><strong class="proj-safety-summary-main">${escapeHtml(r.title)}</strong></td>
@@ -643,7 +643,7 @@ export function buildSafetyTab(state) {
               <td>${statusChip(r.status)}</td>
               <td class="rep-col-actions proj-row-actions-cell">
                 ${workflowButtonsHtml(r, path, "safetyIncident")}
-                <button type="button" class="btn btn-ghost btn-sm safety-edit-btn" data-id="${escapeHtml(r.id)}">Edit</button>
+                <button type="button" class="btn btn-edit btn-sm safety-edit-btn" data-id="${escapeHtml(r.id)}">Edit</button>
                 ${closeBtn}
               </td>
             </tr>`;
@@ -695,7 +695,7 @@ export function buildSafetyTab(state) {
                   const st = r.resolutionStatus || "open";
                   const progBtn =
                     st === "open"
-                      ? `<button type="button" class="btn btn-ghost btn-sm ncr-act" data-id="${escapeHtml(r.id)}" data-to="in_progress">In progress</button>`
+                      ? `<button type="button" class="btn btn-secondary btn-sm ncr-act" data-id="${escapeHtml(r.id)}" data-to="in_progress">In progress</button>`
                       : "";
                   const resolveBtn =
                     st === "in_progress"
@@ -703,7 +703,7 @@ export function buildSafetyTab(state) {
                       : "";
                   const closeBtn =
                     st === "resolved"
-                      ? `<button type="button" class="btn btn-ghost btn-sm ncr-act" data-id="${escapeHtml(r.id)}" data-to="closed">Close</button>`
+                      ? `<button type="button" class="btn btn-secondary btn-sm ncr-act" data-id="${escapeHtml(r.id)}" data-to="closed">Close</button>`
                       : "";
                   const desc = r.description
                     ? `<div class="proj-safety-ncr-desc text-muted">${escapeHtml(r.description)}</div>`
@@ -1325,7 +1325,7 @@ export function buildContractsTab(state) {
                   const path = `${R3_PATHS.contractClaims}/${state.selectedProjectId}/${r.id}`;
                   const settleBtn =
                     r.settlementStatus !== "settled"
-                      ? `<button type="button" class="btn btn-ghost btn-sm claim-settle-btn" data-id="${escapeHtml(r.id)}">Settle</button>`
+                      ? `<button type="button" class="btn btn-secondary btn-sm claim-settle-btn" data-id="${escapeHtml(r.id)}">Settle</button>`
                       : "";
                   return `<tr data-claim-id="${escapeHtml(r.id)}">
               <td><strong class="proj-contracts-co-title">${escapeHtml(r.title)}</strong></td>

@@ -222,8 +222,8 @@ export function renderReviewSummary(payload, { onEditStep } = {}) {
       ${rows.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v || "—"))}</dd>`).join("")}
     </dl>
     <div class="review-summary-actions">
-      <button type="button" class="btn btn-ghost btn-sm" data-edit-step="1">Edit basics</button>
-      <button type="button" class="btn btn-ghost btn-sm" data-edit-step="2">Edit schedule</button>
+      <button type="button" class="btn btn-edit btn-sm" data-edit-step="1">Edit basics</button>
+      <button type="button" class="btn btn-edit btn-sm" data-edit-step="2">Edit schedule</button>
     </div>
   `;
   card.querySelectorAll("[data-edit-step]").forEach((btn) => {

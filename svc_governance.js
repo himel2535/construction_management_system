@@ -673,27 +673,27 @@ export function workflowButtonsHtml(row, path, entityType) {
       : canApproveEntity(entityType);
   if (canTransition(st, "submitted") && canSubmit) {
     btns.push(
-      `<button type="button" class="btn btn-ghost btn-sm wf-btn" data-path="${path}" data-to="submitted" data-entity="${entityType}" data-id="${row.id}">Submit</button>`
+      `<button type="button" class="btn btn-primary btn-sm wf-btn" data-path="${path}" data-to="submitted" data-entity="${entityType}" data-id="${row.id}">Submit</button>`
     );
   }
   if (canTransition(st, "approved") && canApprove) {
     btns.push(
-      `<button type="button" class="btn btn-ghost btn-sm wf-btn" data-path="${path}" data-to="approved" data-entity="${entityType}" data-id="${row.id}">Approve</button>`
+      `<button type="button" class="btn btn-primary btn-sm wf-btn" data-path="${path}" data-to="approved" data-entity="${entityType}" data-id="${row.id}">Approve</button>`
     );
   }
   if (canTransition(st, "rejected") && canApprove) {
     btns.push(
-      `<button type="button" class="btn btn-ghost btn-sm wf-btn" data-path="${path}" data-to="rejected" data-entity="${entityType}" data-id="${row.id}">Reject</button>`
+      `<button type="button" class="btn btn-reject btn-sm wf-btn" data-path="${path}" data-to="rejected" data-entity="${entityType}" data-id="${row.id}">Reject</button>`
     );
   }
   if (canTransition(st, "closed") && canApprove) {
     btns.push(
-      `<button type="button" class="btn btn-ghost btn-sm wf-btn" data-path="${path}" data-to="closed" data-entity="${entityType}" data-id="${row.id}">Close</button>`
+      `<button type="button" class="btn btn-secondary btn-sm wf-btn" data-path="${path}" data-to="closed" data-entity="${entityType}" data-id="${row.id}">Close</button>`
     );
   }
   if (canTransition(st, "draft") && st === "rejected") {
     btns.push(
-      `<button type="button" class="btn btn-ghost btn-sm wf-btn" data-path="${path}" data-to="draft" data-entity="${entityType}" data-id="${row.id}">Reopen</button>`
+      `<button type="button" class="btn btn-secondary btn-sm wf-btn" data-path="${path}" data-to="draft" data-entity="${entityType}" data-id="${row.id}">Reopen</button>`
     );
   }
   if (btns.length) return `<div class="wf-actions">${btns.join("")}</div>`;

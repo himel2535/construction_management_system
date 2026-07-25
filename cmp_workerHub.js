@@ -127,7 +127,7 @@ export function renderWorkerDetailHeader(worker, projectName, onBack, listStatus
   header.className = "wrk-detail-header";
   const badgeStatus = listStatus || worker.status || "active";
   header.innerHTML = `
-    <button type="button" class="btn btn-ghost btn-sm wrk-back-btn">${icon("chevronLeft", { size: 14, className: "icon" })} Back</button>
+    <button type="button" class="btn btn-secondary btn-sm wrk-back-btn">${icon("chevronLeft", { size: 14, className: "icon" })} Back</button>
     <div class="wrk-detail-main">
       ${renderWorkerAvatar(worker, "lg")}
       <div class="wrk-detail-text">

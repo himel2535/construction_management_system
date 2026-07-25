@@ -281,7 +281,7 @@ export function openCustFormDialog({ title, subtitle = "", sections, values, sub
   footer.innerHTML = `
     <div class="form-actions cust-form-actions">
       <button type="submit" class="btn btn-primary">${escapeHtml(submitLabel)}</button>
-      <button type="button" class="btn btn-ghost" data-cancel>Cancel</button>
+      <button type="button" class="btn btn-edit" data-cancel>Cancel</button>
     </div>
   `;
   form.appendChild(footer);

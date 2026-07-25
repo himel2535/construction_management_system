@@ -118,7 +118,7 @@ function boqLinesHeadHtml(gov) {
   const csvBlock = gov
     ? `
       <div class="gov-csv-import proj-boq-csv-import">
-        <label class="btn btn-ghost btn-sm">Import CSV
+        <label class="btn btn-secondary btn-sm">Import CSV
           <input type="file" accept=".csv,text/csv" hidden id="boq-csv-input" />
         </label>
         <span class="text-muted">Columns: item_code, description, unit, qty, rate, phase_id, revision</span>
@@ -425,8 +425,8 @@ export function buildBoqTab(state) {
             <td class="rep-col-amount">${formatBDT(boqLineAmount(l))}</td>
             <td>${escapeHtml(l.revision || "R0")}</td>
             <td class="rep-col-actions proj-row-actions-cell">
-              <button type="button" class="btn btn-ghost btn-sm boq-edit-btn" data-id="${l.id}">Edit</button>
-              <button type="button" class="btn btn-ghost btn-sm boq-del-btn" data-id="${l.id}">Delete</button>
+              <button type="button" class="btn btn-edit btn-sm boq-edit-btn" data-id="${l.id}">Edit</button>
+              <button type="button" class="btn btn-reject btn-sm boq-del-btn" data-id="${l.id}">Delete</button>
             </td>
           </tr>`).join("") : '<tr class="empty-row"><td colspan="10">No BOQ lines — click Add BOQ line</td></tr>'}
       </tbody>
@@ -458,8 +458,8 @@ export function buildBoqTab(state) {
             <td class="rep-col-amount">${formatBDT(boqLineAmount(l))}</td>
             <td>${statusChip(l.costCategory || "material")}</td>
             <td class="rep-col-actions proj-row-actions-cell">
-              <button type="button" class="btn btn-ghost btn-sm boq-edit-btn" data-id="${l.id}">Edit</button>
-              <button type="button" class="btn btn-ghost btn-sm boq-del-btn" data-id="${l.id}">Delete</button>
+              <button type="button" class="btn btn-edit btn-sm boq-edit-btn" data-id="${l.id}">Edit</button>
+              <button type="button" class="btn btn-reject btn-sm boq-del-btn" data-id="${l.id}">Delete</button>
             </td>
           </tr>`).join("") : '<tr class="empty-row"><td colspan="7">No BOQ lines — click Add BOQ line</td></tr>'}
       </tbody>
@@ -732,8 +732,8 @@ export function buildProgressTab(state) {
               <td class="text-muted proj-progress-date">${escapeHtml(dateLabel)}</td>
               <td class="rep-col-actions proj-row-actions-cell">
                 <span class="proj-progress-actions">
-                  <button type="button" class="btn btn-ghost btn-sm prog-edit-btn" data-id="${p.id}">Edit</button>
-                  <button type="button" class="btn btn-ghost btn-sm prog-del-btn" data-id="${p.id}">Delete</button>
+                  <button type="button" class="btn btn-edit btn-sm prog-edit-btn" data-id="${p.id}">Edit</button>
+                  <button type="button" class="btn btn-reject btn-sm prog-del-btn" data-id="${p.id}">Delete</button>
                 </span>
               </td>
             </tr>`;
@@ -1113,7 +1113,7 @@ export function buildResourcesTab(state) {
                     : "—";
                   const completeBtn =
                     s.status !== "completed"
-                      ? `<button type="button" class="btn btn-ghost btn-sm sub-complete-btn" data-id="${escapeHtml(s.id)}">Mark complete</button>`
+                      ? `<button type="button" class="btn btn-secondary btn-sm sub-complete-btn" data-id="${escapeHtml(s.id)}">Mark complete</button>`
                       : "";
                   return `
             <tr data-sub-id="${escapeHtml(s.id)}">
@@ -1128,7 +1128,7 @@ export function buildResourcesTab(state) {
               <td>${statusChip(s.status || "draft")}</td>
               <td class="rep-col-actions proj-row-actions-cell">
                 <span class="proj-resources-actions">
-                  <button type="button" class="btn btn-ghost btn-sm sub-edit-btn" data-id="${escapeHtml(s.id)}">Edit billed</button>
+                  <button type="button" class="btn btn-edit btn-sm sub-edit-btn" data-id="${escapeHtml(s.id)}">Edit billed</button>
                   ${completeBtn}
                 </span>
               </td>

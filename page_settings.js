@@ -122,9 +122,9 @@ export function mountSettings(container) {
       <div class="settings-profile-toolbar">
         <span id="settings-profile-status-chip" class="chip chip--warn">Incomplete</span>
         <div class="settings-profile-actions" id="settings-profile-actions">
-          <button type="button" class="btn btn-primary btn-sm" id="settings-profile-edit-btn">Edit company profile</button>
+          <button type="button" class="btn btn-edit btn-sm" id="settings-profile-edit-btn">Edit company profile</button>
           <button type="submit" form="settings-profile-form" class="btn btn-primary btn-sm" id="settings-profile-save-btn" hidden>Save</button>
-          <button type="button" class="btn btn-ghost btn-sm" id="settings-profile-cancel-btn" hidden>Cancel</button>
+          <button type="button" class="btn btn-edit btn-sm" id="settings-profile-cancel-btn" hidden>Cancel</button>
         </div>
       </div>
       <div id="settings-profile-view"></div>
@@ -465,7 +465,7 @@ export function mountSettings(container) {
           if (inactive) {
             actionParts.push(
               `<button type="button" class="btn btn-sm btn-pastel btn-pastel--reactivate settings-reactivate-user" data-uid="${u.id}">Reactivate</button>`,
-              `<button type="button" class="btn btn-sm btn-pastel btn-pastel--remove settings-remove-user" data-uid="${u.id}">Remove</button>`
+              `<button type="button" class="btn btn-sm btn-pastel btn-pastel--remove btn-reject settings-remove-user" data-uid="${u.id}">Remove</button>`
             );
           } else {
             actionParts.push(

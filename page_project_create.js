@@ -183,7 +183,7 @@ export function mountProjectCreate(container) {
       </div>
       <div class="cust-form-footer">
         <button type="submit" class="btn btn-primary" id="proj-submit">${isEdit ? "Save changes" : "Add project"}</button>
-        <a href="/projects" class="btn btn-ghost">Cancel</a>
+        <a href="/projects" class="btn btn-edit">Cancel</a>
       </div>
     </div>
   `;

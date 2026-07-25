@@ -98,7 +98,7 @@ function workerSparklineSvg(values = [], tone = "green") {
     })
     .join(" ");
   const strokes = {
-    blue: "#2563eb",
+    blue: "#8a2e2e",
     green: "#047857",
     orange: "#d97706",
     teal: "#0d9488",
@@ -451,8 +451,8 @@ export function mountWorkers(container) {
         ${detailField("Present this month", `${presentDays} day${presentDays === 1 ? "" : "s"}`)}
       </div>
       <div class="cust-detail-actions">
-        <button type="button" class="btn btn-primary btn-sm" id="wrk-detail-edit">${icon("pencil", { size: 16 })} Edit</button>
-        <button type="button" class="btn btn-ghost btn-sm" id="wrk-detail-profile">Worker profile</button>
+        <button type="button" class="btn btn-edit btn-sm" id="wrk-detail-edit">${icon("pencil", { size: 16 })} Edit</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="wrk-detail-profile">Worker profile</button>
       </div>
     `;
   }
@@ -628,7 +628,7 @@ export function mountWorkers(container) {
           <select name="method">${PAYMENT_METHODS.map((m) => `<option value="${m.value}">${escapeHtml(m.label)}</option>`).join("")}</select>
         </label>
         <div class="proj-edit-actions">
-          <button type="button" class="btn btn-ghost btn-sm" data-cancel>Cancel</button>
+          <button type="button" class="btn btn-edit btn-sm" data-cancel>Cancel</button>
           <button type="submit" class="btn btn-primary btn-sm">Confirm Payment</button>
         </div>
       </form>
@@ -979,7 +979,7 @@ export function mountWorkers(container) {
               <input type="search" class="cust-toolbar-search-input" id="wrk-list-search" placeholder="Search by name..." autocomplete="off" value="${escapeHtml(state.listQuery)}" />
             </div>
             <div class="cust-toolbar-btn-group">
-              <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="wrk-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
+              <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="wrk-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
               <button type="button" class="btn btn-primary btn-sm" id="wrk-add-btn">+ Add Worker</button>
             </div>
           </div>
@@ -1245,7 +1245,7 @@ export function mountWorkers(container) {
             ${renderMonthPicker("wrk-sal-month", state.salaryMonth)}
           </div>
           <div class="toolbar-actions">
-            <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn" id="wrk-advance-btn">${icon("userPlus", { size: 14, className: "icon" })} Give Advance</button>
+            <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn" id="wrk-advance-btn">${icon("userPlus", { size: 14, className: "icon" })} Give Advance</button>
           </div>
         </div>
         <div class="wrk-sal-content-host"></div>
@@ -1365,7 +1365,7 @@ export function mountWorkers(container) {
     const detailsCard = renderProfileCard({
       title: "Worker details",
       subtitle: "Personal and employment information",
-      actionsHtml: `<button type="button" class="btn btn-ghost btn-sm" id="wrk-edit-worker-btn">Edit worker</button>`,
+      actionsHtml: `<button type="button" class="btn btn-edit btn-sm" id="wrk-edit-worker-btn">Edit worker</button>`,
       bodyEl: detailsBody,
     });
     wrap.appendChild(detailsCard);
@@ -1374,7 +1374,7 @@ export function mountWorkers(container) {
       renderProfileCard({
         title: "Transfer history",
         subtitle: "Site assignment changes",
-        actionsHtml: `<button type="button" class="btn btn-ghost btn-sm" id="wrk-transfer-btn">Transfer site</button>`,
+        actionsHtml: `<button type="button" class="btn btn-secondary btn-sm" id="wrk-transfer-btn">Transfer site</button>`,
         bodyEl: renderDataTable({
           columns: [
             { key: "date", label: "Date" },

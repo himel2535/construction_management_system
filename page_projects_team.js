@@ -369,7 +369,7 @@ export function buildTeamTab(state, opts = {}) {
             <td>${escapeHtml(a.endDate || "—")}</td>
             <td>${statusChip(active ? "active" : "ended")}</td>
             <td class="rep-col-actions proj-row-actions-cell">
-              ${active ? `<button type="button" class="btn btn-ghost btn-sm team-end-btn" data-id="${escapeHtml(a.id)}">End</button>` : "—"}
+              ${active ? `<button type="button" class="btn btn-secondary btn-sm team-end-btn" data-id="${escapeHtml(a.id)}">End</button>` : "—"}
             </td>
           </tr>`;
                 })
@@ -478,8 +478,8 @@ export function buildTeamTab(state, opts = {}) {
                   const rowCls = t.depth ? "team-subtask" : "";
                   const actions =
                     t.status !== "done"
-                      ? `<button type="button" class="btn btn-ghost btn-sm task-done-btn" data-id="${escapeHtml(t.id)}">Done</button>
-                <button type="button" class="btn btn-ghost btn-sm task-delegate-btn" data-id="${escapeHtml(t.id)}">Delegate</button>`
+                      ? `<button type="button" class="btn btn-secondary btn-sm task-done-btn" data-id="${escapeHtml(t.id)}">Done</button>
+                <button type="button" class="btn btn-secondary btn-sm task-delegate-btn" data-id="${escapeHtml(t.id)}">Delegate</button>`
                       : "—";
                   return `<tr class="${rowCls}">
             <td>${t.depth ? "↳ " : ""}${escapeHtml(t.title)}</td>

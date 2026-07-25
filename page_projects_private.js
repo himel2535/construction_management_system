@@ -47,7 +47,7 @@ function billActions(row) {
   const status = row.status || "draft";
   const parts = [];
   if (status === "draft" && canPerformAction("submit_billing")) {
-    parts.push(`<button type="button" class="btn btn-ghost btn-sm bill-act" data-id="${row.id}" data-act="submitted">Submit</button>`);
+    parts.push(`<button type="button" class="btn btn-primary btn-sm bill-act" data-id="${row.id}" data-act="submitted">Submit</button>`);
   }
   if (status === "submitted" && canPerformAction("approve_billing")) {
     parts.push(`<button type="button" class="btn btn-primary btn-sm bill-act" data-id="${row.id}" data-act="approved">Approve</button>`);
@@ -55,7 +55,7 @@ function billActions(row) {
   if ((status === "approved" || status === "partial") && canPerformAction("approve_billing")) {
     const due = Math.max(0, Number(row.amount || 0) - Number(row.paidAmount || 0));
     if (due > 0) {
-      parts.push(`<button type="button" class="btn btn-ghost btn-sm bill-act" data-id="${row.id}" data-act="record-payment">Record payment</button>`);
+      parts.push(`<button type="button" class="btn btn-secondary btn-sm bill-act" data-id="${row.id}" data-act="record-payment">Record payment</button>`);
     }
   }
   return parts.join(" ") || "—";
@@ -250,8 +250,8 @@ export function buildPrivateContractTab(state, opts = {}) {
             <td class="rep-col-actions proj-row-actions-cell">
               ${
                 m.status === "pending"
-                  ? `<button type="button" class="btn btn-ghost btn-sm ms-bill-btn" data-id="${escapeHtml(m.id)}">Create bill</button>
-              <button type="button" class="btn btn-ghost btn-sm ms-del-btn" data-id="${escapeHtml(m.id)}">Remove</button>`
+                  ? `<button type="button" class="btn btn-secondary btn-sm ms-bill-btn" data-id="${escapeHtml(m.id)}">Create bill</button>
+              <button type="button" class="btn btn-reject btn-sm ms-del-btn" data-id="${escapeHtml(m.id)}">Remove</button>`
                   : "—"
               }
             </td>
@@ -265,8 +265,8 @@ export function buildPrivateContractTab(state, opts = {}) {
     <div class="reports-widget-foot proj-contract-ms-foot">
       <span class="reports-widget-foot-meta">${escapeHtml(countLabel)}</span>
       <div class="proj-contract-ms-foot-actions">
-        <button type="button" class="btn btn-ghost btn-sm proj-contract-sync-btn">Recalculate amounts</button>
-        <button type="button" class="btn btn-ghost btn-sm proj-contract-billing-link">Open Billing tab →</button>
+        <button type="button" class="btn btn-secondary btn-sm proj-contract-sync-btn">Recalculate amounts</button>
+        <button type="button" class="btn btn-secondary btn-sm proj-contract-billing-link">Open Billing tab →</button>
       </div>
     </div>
   `;

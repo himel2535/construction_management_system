@@ -30,7 +30,7 @@ function portalSparklineSvg(values = [], tone = "green") {
     })
     .join(" ");
   const strokes = {
-    blue: "#2563eb",
+    blue: "#8a2e2e",
     green: "#047857",
     orange: "#d97706",
     teal: "#0d9488",

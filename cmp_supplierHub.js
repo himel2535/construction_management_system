@@ -64,7 +64,7 @@ function supSparklineSvg(values = [], tone = "green") {
     })
     .join(" ");
   const strokes = {
-    blue: "#2563eb",
+    blue: "#8a2e2e",
     green: "#047857",
     orange: "#d97706",
     teal: "#0d9488",
@@ -272,11 +272,11 @@ export function renderSupplierDetailHeader(s, stats, handlers = {}, permissions 
         </div>
       </div>
       <div class="sup-detail-header-actions sup-header-actions-root cust-toolbar-btn-group">
-        ${canEdit ? '<button type="button" class="btn btn-ghost btn-sm" id="sup-header-edit">Edit</button>' : ""}
+        ${canEdit ? '<button type="button" class="btn btn-edit btn-sm" id="sup-header-edit">Edit</button>' : ""}
         ${
           canPay || canToggleStatus
             ? `<div class="sup-dropdown-wrap">
-          <button type="button" class="btn btn-ghost btn-sm sup-dropdown-trigger${moreOpen ? " is-open" : ""}" id="sup-header-more" aria-haspopup="menu" aria-expanded="${moreOpen}">
+          <button type="button" class="btn btn-secondary btn-sm sup-dropdown-trigger${moreOpen ? " is-open" : ""}" id="sup-header-more" aria-haspopup="menu" aria-expanded="${moreOpen}">
             More <span class="sup-chevron" aria-hidden="true">▾</span>
           </button>
           <div class="sup-dropdown-menu${moreOpen ? " is-open" : ""}" id="sup-more-menu" role="menu" aria-hidden="${!moreOpen}">

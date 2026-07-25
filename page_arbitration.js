@@ -40,12 +40,12 @@ function arbButtons(row, collection) {
   const canAct = to === "submitted" ? canPerformAction("submit_dispute") : canPerformAction("arbitration_decide");
   if (to && canArbitrationTransition(st, to) && canAct) {
     btns.push(
-      `<button type="button" class="btn btn-ghost btn-sm arb-btn" data-col="${collection}" data-id="${row.id}" data-to="${to}">${to}</button>`
+      `<button type="button" class="btn btn-secondary btn-sm arb-btn" data-col="${collection}" data-id="${row.id}" data-to="${to}">${to}</button>`
     );
   }
   if (canArbitrationTransition(st, "closed") && st !== "closed" && canPerformAction("arbitration_decide")) {
     btns.push(
-      `<button type="button" class="btn btn-ghost btn-sm arb-btn" data-col="${collection}" data-id="${row.id}" data-to="closed">close</button>`
+      `<button type="button" class="btn btn-secondary btn-sm arb-btn" data-col="${collection}" data-id="${row.id}" data-to="closed">close</button>`
     );
   }
   if (st === "hearing" && canArbitrationTransition(st, "award") && canPerformAction("arbitration_decide")) {
@@ -165,7 +165,7 @@ export function mountArbitration(container) {
       <input name="hearingDate" type="date" />
       <input name="venue" placeholder="Venue" />
       <input name="notes" placeholder="Notes" />
-      <button type="submit" class="btn btn-ghost btn-sm">Schedule hearing</button>
+      <button type="submit" class="btn btn-secondary btn-sm">Schedule hearing</button>
     `;
     hearForm.onsubmit = async (e) => {
       e.preventDefault();
@@ -220,7 +220,7 @@ export function mountArbitration(container) {
           (c) => `
         <div class="r4-conflict card card-pad">
           <p><strong>${escapeHtml(c.path)}</strong></p>
-          <button type="button" class="btn btn-ghost btn-sm conf-resolve" data-id="${c.id}" data-res="keep_server">Keep server</button>
+          <button type="button" class="btn btn-secondary btn-sm conf-resolve" data-id="${c.id}" data-res="keep_server">Keep server</button>
           <button type="button" class="btn btn-primary btn-sm conf-resolve" data-id="${c.id}" data-res="keep_client">Keep client</button>
         </div>`
         )

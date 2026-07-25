@@ -29,7 +29,7 @@ function sicSparklineSvg(values = [], tone = "green") {
     })
     .join(" ");
   const strokes = {
-    blue: "#2563eb",
+    blue: "#8a2e2e",
     green: "#047857",
     orange: "#d97706",
     teal: "#0d9488",
@@ -163,7 +163,7 @@ export function renderSiteInchargeHeader(s, meta = {}, handlers = {}) {
         </div>
       </div>
       <div class="cust-toolbar-btn-group sic-detail-header-actions">
-        <button type="button" class="btn btn-ghost btn-sm" id="sic-header-edit">Edit</button>
+        <button type="button" class="btn btn-edit btn-sm" id="sic-header-edit">Edit</button>
         <button type="button" class="btn btn-primary btn-sm" id="sic-header-assign">Assign project</button>
       </div>
     </div>

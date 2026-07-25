@@ -63,7 +63,7 @@ function financeSparklineSvg(values = [], tone = "green") {
     })
     .join(" ");
   const strokes = {
-    blue: "#2563eb",
+    blue: "#8a2e2e",
     green: "#047857",
     orange: "#d97706",
     teal: "#0d9488",
@@ -207,8 +207,8 @@ export function mountAccounting(container) {
               <input type="search" class="cust-toolbar-search-input" id="fin-search" placeholder="Search category, description, amount…" autocomplete="off" value="${escapeHtml(filters.query)}" />
             </div>
             <div class="cust-toolbar-btn-group">
-              <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="fin-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
-              <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="fin-export">${icon("download", { size: 16 })} Export</button>
+              <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="fin-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
+              <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="fin-export">${icon("download", { size: 16 })} Export</button>
               <button type="button" class="btn btn-primary btn-sm" id="fin-add-expense">+ Add expense</button>
             </div>
           </div>
@@ -450,7 +450,7 @@ export function mountAccounting(container) {
         <div class="cust-form-footer">
           <div class="form-actions cust-form-actions">
             <button type="submit" class="btn btn-primary">Save as draft</button>
-            <button type="button" class="btn btn-ghost" id="finance-expense-cancel">Cancel</button>
+            <button type="button" class="btn btn-edit" id="finance-expense-cancel">Cancel</button>
           </div>
         </div>
       </form>

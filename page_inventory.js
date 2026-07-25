@@ -84,7 +84,7 @@ function inventorySparklineSvg(values = [], tone = "green") {
     })
     .join(" ");
   const strokes = {
-    blue: "#2563eb",
+    blue: "#8a2e2e",
     green: "#047857",
     orange: "#d97706",
     teal: "#0d9488",
@@ -584,7 +584,7 @@ export function mountInventory(container) {
     panel.innerHTML = `
       <div class="inv-issue-head">
         <h4 class="sup-section-title">Issue history — ${escapeHtml(material.name)}</h4>
-        <button type="button" class="btn btn-ghost btn-sm" id="inv-close-history">Close</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="inv-close-history">Close</button>
       </div>
     `;
 
@@ -646,7 +646,7 @@ export function mountInventory(container) {
               <input type="search" class="cust-toolbar-search-input" id="inv-list-search" placeholder="Search materials..." autocomplete="off" value="${escapeHtml(state.filterQuery)}" />
             </div>
             <div class="cust-toolbar-btn-group">
-              <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="inv-clear-search" title="Clear search">${icon("rotateCcw", { size: 16 })} Clear</button>
+              <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="inv-clear-search" title="Clear search">${icon("rotateCcw", { size: 16 })} Clear</button>
               <button type="button" class="btn btn-primary btn-sm" id="inv-add-material">+ Add material</button>
             </div>
           </div>
@@ -683,7 +683,7 @@ export function mountInventory(container) {
               <td class="cust-col-center">${Number(m.reorderLevel) || 0}</td>
               <td class="cust-col-center">${statusChip(m.status || "active")}</td>
               <td class="cust-col-center proj-row-actions-cell">
-                <button type="button" class="btn btn-ghost btn-sm inv-edit-material" data-id="${escapeHtml(m.id)}">Edit</button>
+                <button type="button" class="btn btn-edit btn-sm inv-edit-material" data-id="${escapeHtml(m.id)}">Edit</button>
               </td>
             </tr>`
               )
@@ -1035,7 +1035,7 @@ export function mountInventory(container) {
         </div>
         <div class="cust-toolbar-btn-group">
           ${activeFilters ? `<span class="chip inv-low-badge">${activeFilters} filter${activeFilters === 1 ? "" : "s"} active</span>` : ""}
-          <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn" id="inv-open-ledger-filters">Filters</button>
+          <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn" id="inv-open-ledger-filters">Filters</button>
         </div>
       </div>
       <div class="dash-widget-body"></div>
@@ -1111,8 +1111,8 @@ export function mountInventory(container) {
                 <td>${r.daysPending}</td>
                 <td>${escapeHtml(projectName(state.projects, r.projectId))}</td>
                 <td class="cust-col-center proj-row-actions-cell">
-                  <button type="button" class="btn btn-ghost btn-sm inv-mark-returned" data-id="${escapeHtml(r.id)}">Returned</button>
-                  <button type="button" class="btn btn-ghost btn-sm inv-mark-damaged" data-id="${escapeHtml(r.id)}">Damaged</button>
+                  <button type="button" class="btn btn-secondary btn-sm inv-mark-returned" data-id="${escapeHtml(r.id)}">Returned</button>
+                  <button type="button" class="btn btn-secondary btn-sm inv-mark-damaged" data-id="${escapeHtml(r.id)}">Damaged</button>
                 </td>
               </tr>`
                       )
@@ -1203,7 +1203,7 @@ export function mountInventory(container) {
         rows: low,
         emptyMessage: "No low stock items — inventory levels are healthy",
         rowActions: (r) =>
-          `<button type="button" class="btn btn-ghost btn-sm inv-restock" data-id="${escapeHtml(r.id)}">Stock in</button>`,
+          `<button type="button" class="btn btn-secondary btn-sm inv-restock" data-id="${escapeHtml(r.id)}">Stock in</button>`,
       })
     );
     section.querySelector(".inv-low-stock-table-host").appendChild(tableEl);

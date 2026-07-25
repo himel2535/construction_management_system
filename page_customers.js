@@ -29,7 +29,7 @@ function clientSparklineSvg(values = [], tone = "green") {
     })
     .join(" ");
   const strokes = {
-    blue: "#2563eb",
+    blue: "#8a2e2e",
     green: "#047857",
     orange: "#d97706",
     teal: "#0d9488",
@@ -533,9 +533,9 @@ export function mountClients(container) {
         <input type="search" class="cust-toolbar-search-input" id="cust-search" placeholder="Search clients..." autocomplete="off" />
       </div>
       <div class="cust-toolbar-btn-group">
-        <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="cust-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
-        <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="cust-export">${icon("download", { size: 16 })} Export</button>
-        <button type="button" class="btn btn-ghost btn-sm cust-toolbar-btn cust-toolbar-btn--import" id="cust-import">${icon("upload", { size: 16 })} Import</button>
+        <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn cust-toolbar-btn--clear" id="cust-clear-filters" title="Clear filters">${icon("rotateCcw", { size: 16 })} Clear</button>
+        <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn cust-toolbar-btn--export" id="cust-export">${icon("download", { size: 16 })} Export</button>
+        <button type="button" class="btn btn-secondary btn-sm cust-toolbar-btn cust-toolbar-btn--import" id="cust-import">${icon("upload", { size: 16 })} Import</button>
         <button type="button" class="btn btn-primary btn-sm" id="cust-add-client">+ Add New Client</button>
       </div>
     </div>
@@ -691,9 +691,9 @@ export function mountClients(container) {
       </div>
       ${sections.join("")}
       <div class="cust-detail-actions">
-        <button type="button" class="btn btn-primary btn-sm" id="cust-detail-edit">${icon("pencil", { size: 16 })} Edit</button>
-        ${agg.projectCount ? `<button type="button" class="btn btn-ghost btn-sm" id="cust-detail-projects">View projects</button>` : ""}
-        ${linkedBills.length ? `<a href="/billing" class="btn btn-ghost btn-sm">View billing</a>` : ""}
+        <button type="button" class="btn btn-edit btn-sm" id="cust-detail-edit">${icon("pencil", { size: 16 })} Edit</button>
+        ${agg.projectCount ? `<button type="button" class="btn btn-secondary btn-sm" id="cust-detail-projects">View projects</button>` : ""}
+        ${linkedBills.length ? `<a href="/billing" class="btn btn-secondary btn-sm">View billing</a>` : ""}
       </div>
     `;
   }

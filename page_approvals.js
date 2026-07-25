@@ -88,7 +88,7 @@ function queueRowActionHtml(q) {
       ? `<button type="button" class="btn btn-primary btn-sm appr-approve" data-id="${escapeHtml(q.id)}">${approveLabel}</button>`
       : "";
     const rejectBtn = canReject
-      ? `<button type="button" class="btn btn-ghost btn-sm appr-reject" data-id="${escapeHtml(q.id)}">${rejectLabel}</button>`
+      ? `<button type="button" class="btn btn-reject btn-sm appr-reject" data-id="${escapeHtml(q.id)}">${rejectLabel}</button>`
       : "";
     return `<div class="appr-action-btns">${approveBtn}${rejectBtn}</div>`;
   }

@@ -362,17 +362,17 @@ export function renderProjectHubToolbar(p, opts = {}) {
     <div class="proj-hub-hero-top">
       ${
         onBack
-          ? `<button type="button" class="btn btn-ghost btn-sm proj-header-back proj-hub-hero-back proj-hub-hero-back--compact" id="proj-hub-back">${icon("chevronLeft", { size: 14, className: "icon" })} Back to projects</button>`
+          ? `<button type="button" class="btn btn-secondary btn-sm proj-header-back proj-hub-hero-back proj-hub-hero-back--compact" id="proj-hub-back">${icon("chevronLeft", { size: 14, className: "icon" })} Back to projects</button>`
           : `<span class="proj-hub-hero-top-spacer" aria-hidden="true"></span>`
       }
       <div class="proj-hub-hero-top-actions">
         <span class="proj-header-type-badge">${escapeHtml(projectTypeLabel(pt))}</span>
         ${
           showArchive && (p.status || "") !== "archived"
-            ? `<button type="button" class="btn btn-ghost btn-sm" id="proj-hub-archive">Archive</button>`
+            ? `<button type="button" class="btn btn-secondary btn-sm" id="proj-hub-archive">Archive</button>`
             : ""
         }
-        <button type="button" class="btn btn-primary btn-sm" id="proj-hub-edit">Edit profile</button>
+        <button type="button" class="btn btn-edit btn-sm" id="proj-hub-edit">Edit profile</button>
       </div>
     </div>
     <div class="proj-hub-hero-body">
@@ -620,7 +620,7 @@ export function renderProfileDescription(description, { clamp = false } = {}) {
   el.innerHTML = `
     <span class="proj-desc-panel-label">${icon("fileText", { size: 16, className: "icon" })} Description</span>
     <p class="proj-desc-panel-text">${escapeHtml(description)}</p>
-    ${clamp ? '<button type="button" class="proj-desc-expand btn btn-ghost btn-sm">Show more</button>' : ""}
+    ${clamp ? '<button type="button" class="proj-desc-expand btn btn-secondary btn-sm">Show more</button>' : ""}
   `;
   if (clamp) {
     el.querySelector(".proj-desc-expand")?.addEventListener("click", () => {

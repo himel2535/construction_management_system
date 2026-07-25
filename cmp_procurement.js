@@ -247,7 +247,7 @@ function initPurchaseOrderComposer(opts) {
       </div>
       <div class="cust-form-field pur-add-line-field">
         <span class="cust-form-label pur-add-line-label-spacer" aria-hidden="true">&nbsp;</span>
-        <button type="button" class="btn btn-ghost pur-add-line-btn" disabled>Add line</button>
+        <button type="button" class="btn btn-secondary pur-add-line-btn" disabled>Add line</button>
       </div>`;
     const optionsBody = root.querySelector("[data-pur-options-body]");
     optionsBody.innerHTML = `
@@ -287,7 +287,7 @@ function initPurchaseOrderComposer(opts) {
         </div>
         <div class="cust-form-field pur-add-line-field">
           <span class="cust-form-label pur-add-line-label-spacer" aria-hidden="true">&nbsp;</span>
-          <button type="button" class="btn btn-ghost btn-sm pur-add-line-btn" disabled>Add line</button>
+          <button type="button" class="btn btn-secondary btn-sm pur-add-line-btn" disabled>Add line</button>
         </div>
       </div>
       <div class="pur-lines-table-host"></div>
@@ -457,7 +457,7 @@ function initPurchaseOrderComposer(opts) {
               <td>${escapeHtml(l.unit)}</td>
               <td class="text-right">${formatBDT(l.rate)}</td>
               <td class="text-right">${formatBDT(l.amount)}</td>
-              <td><button type="button" class="btn btn-ghost btn-sm pur-remove-line" data-idx="${i}">Remove</button></td>
+              <td><button type="button" class="btn btn-reject btn-sm pur-remove-line" data-idx="${i}">Remove</button></td>
             </tr>`
             )
             .join("")}
@@ -678,7 +678,7 @@ export function openPurchaseOrderModal(opts) {
         <span class="pur-po-modal-total">PO total: <strong class="pur-po-modal-total-value">${formatBDT(0)}</strong></span>
         <div class="form-actions cust-form-actions">
           <button type="submit" class="btn btn-primary">Create PO</button>
-          <button type="button" class="btn btn-ghost" data-cancel>Cancel</button>
+          <button type="button" class="btn btn-edit" data-cancel>Cancel</button>
         </div>
       </div>
     </form>
@@ -1091,7 +1091,7 @@ export function openGrnReceiveModal(opts) {
         <span class="pur-grn-modal-total">Receive total: <strong class="pur-grn-modal-total-value">${formatBDT(0)}</strong></span>
         <div class="form-actions cust-form-actions">
           <button type="submit" class="btn btn-green">Receive GRN</button>
-          <button type="button" class="btn btn-ghost" data-cancel>Cancel</button>
+          <button type="button" class="btn btn-edit" data-cancel>Cancel</button>
         </div>
       </div>
     </form>
