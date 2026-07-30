@@ -1,0 +1,8 @@
+{
+  "/site-incharge/page": "app/site-incharge/page.js",
+  "/purchases/page": "app/purchases/page.js",
+  "/projects/page": "app/projects/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/customers/page": "app/customers/page.js",
+  "/accounting/page": "app/accounting/page.js"
+}

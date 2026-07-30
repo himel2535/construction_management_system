@@ -1,4 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getDatabase,
   ref,
@@ -9,7 +9,7 @@ import {
   remove,
   onValue,
   runTransaction,
-} from "https://www.gstatic.com/firebasejs/11.2.0/firebase-database.js";
+} from "firebase/database";
 
 /** erptriniti — Real Estate ERP production database */
 export const firebaseConfig = {
@@ -22,7 +22,7 @@ export const firebaseConfig = {
   appId: "1:622588010782:web:d6c9efb7e80b3b7eba690f",
 };
 
-export const app = initializeApp(firebaseConfig);
+export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getDatabase(app);
 export const DEMO_ACTOR_UID = "demo-user";
 

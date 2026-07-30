@@ -1,0 +1,6 @@
+@import "../styles.css";
+
+/* Next.js compatibility additions */
+html, body {
+  min-height: 100vh;
+}
