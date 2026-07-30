@@ -24,5 +24,5 @@ export default function SuppliersPage() {
     };
   }, []);
 
-  return <div ref={containerRef} className="suppliers-mount-node" style={{ width: '100%' }} />;
+  return <div ref={containerRef} className="suppliers-mount-node" style={{ width: "100%" }} />;
 }

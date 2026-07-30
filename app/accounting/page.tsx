@@ -24,5 +24,5 @@ export default function AccountingPage() {
     };
   }, []);
 
-  return <div ref={containerRef} className="accounting-mount-node" style={{ width: '100%' }} />;
+  return <div ref={containerRef} className="accounting-mount-node" style={{ width: "100%" }} />;
 }

@@ -24,5 +24,5 @@ export default function SiteInchargePage() {
     };
   }, []);
 
-  return <div ref={containerRef} className="site-incharge-mount-node" style={{ width: '100%' }} />;
+  return <div ref={containerRef} className="site-incharge-mount-node" style={{ width: "100%" }} />;
 }

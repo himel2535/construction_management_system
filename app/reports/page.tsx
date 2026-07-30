@@ -24,5 +24,5 @@ export default function ReportsPage() {
     };
   }, []);
 
-  return <div ref={containerRef} className="reports-mount-node" style={{ width: '100%' }} />;
+  return <div ref={containerRef} className="reports-mount-node" style={{ width: "100%" }} />;
 }

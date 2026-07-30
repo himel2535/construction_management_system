@@ -24,5 +24,5 @@ export default function DashboardPage() {
     };
   }, []);
 
-  return <div ref={containerRef} className="dashboard-mount-node" style={{ width: '100%' }} />;
+  return <div ref={containerRef} className="dashboard-mount-node" style={{ width: "100%" }} />;
 }

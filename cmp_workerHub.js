@@ -29,14 +29,15 @@ export function renderWorkerAvatar(worker, size = "md") {
   const tone = workerAvatarTone(worker?.name);
   const toneCls = ` wrk-avatar--tone-${tone}`;
   const url = String(worker?.photoUrl || "").trim();
+  const isValidUrl = url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:") || url.startsWith("/");
   const safeInitials = initials.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   let inner;
-  if (url) {
+  if (url && isValidUrl) {
     inner = `<img src="${escapeHtml(url)}" alt="" class="wrk-avatar-img" onerror="var el=this.parentElement;el.classList.add('wrk-avatar--tone-${tone}');this.replaceWith(document.createTextNode('${safeInitials}'));" />`;
   } else {
     inner = escapeHtml(initials);
   }
-  return `<span class="wrk-avatar wrk-avatar--${size}${url ? "" : toneCls}" aria-hidden="true">${inner}</span>`;
+  return `<span class="wrk-avatar wrk-avatar--${size}${url && isValidUrl ? "" : toneCls}" aria-hidden="true">${inner}</span>`;
 }
 
 export function renderWorkerNameCell(worker) {

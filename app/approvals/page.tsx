@@ -24,5 +24,5 @@ export default function ApprovalsPage() {
     };
   }, []);
 
-  return <div ref={containerRef} className="approvals-mount-node" style={{ width: '100%' }} />;
+  return <div ref={containerRef} className="approvals-mount-node" style={{ width: "100%" }} />;
 }

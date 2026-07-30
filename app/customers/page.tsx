@@ -24,5 +24,5 @@ export default function CustomersPage() {
     };
   }, []);
 
-  return <div ref={containerRef} className="clients-mount-node" style={{ width: '100%' }} />;
+  return <div ref={containerRef} className="clients-mount-node" style={{ width: "100%" }} />;
 }

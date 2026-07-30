@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 
@@ -47,10 +48,17 @@ export default function Sidebar() {
   return (
     <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
       <div className="sidebar-head">
-        <Link href="/dashboard" className="sidebar-head-brand" title="Go to home">
+        <Link href="/dashboard" prefetch={true} className="sidebar-head-brand" title="Go to home">
           <span className="sidebar-logo" aria-hidden="true">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="nav-color-icon nav-color-icon--logo" src="/assets/icons/nav/nav-logo.svg" width="32" height="32" alt="" />
+            <Image
+              className="nav-color-icon nav-color-icon--logo"
+              src="/assets/icons/nav/nav-logo.svg"
+              width={32}
+              height={32}
+              alt="Logo"
+              priority
+              sizes="32px"
+            />
           </span>
           <div className="sidebar-head-text">
             <h1>Construction ERP</h1>
@@ -85,12 +93,20 @@ export default function Sidebar() {
             <Link
               key={item.path}
               href={item.path}
+              prefetch={true}
               className={`nav-link ${isActive ? "active" : ""}`}
               title={item.label}
             >
               <span className="nav-icon">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="nav-color-icon" src={`/assets/icons/nav/nav-${item.icon}.svg`} width="32" height="32" alt="" />
+                <Image
+                  className="nav-color-icon"
+                  src={`/assets/icons/nav/nav-${item.icon}.svg`}
+                  width={32}
+                  height={32}
+                  alt={item.label}
+                  sizes="32px"
+                  priority={item.path === "/dashboard"}
+                />
               </span>
               <span className="nav-label">{item.label}</span>
               {item.badge && <span className="nav-badge">{item.badge}</span>}
@@ -100,7 +116,7 @@ export default function Sidebar() {
       </nav>
 
       <div className="sidebar-foot">
-        <Link href="/settings" className="sidebar-user-card" title="Settings">
+        <Link href="/settings" prefetch={true} className="sidebar-user-card" title="Settings">
           <span className="user-avatar sm">DU</span>
           <span className="sidebar-user-text">
             <strong>Demo User</strong>

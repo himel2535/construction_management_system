@@ -24,5 +24,5 @@ export default function ProjectsPage() {
     };
   }, []);
 
-  return <div ref={containerRef} className="projects-mount-node" style={{ width: '100%' }} />;
+  return <div ref={containerRef} className="projects-mount-node" style={{ width: "100%" }} />;
 }

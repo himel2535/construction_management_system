@@ -24,5 +24,5 @@ export default function InventoryPage() {
     };
   }, []);
 
-  return <div ref={containerRef} className="inventory-mount-node" style={{ width: '100%' }} />;
+  return <div ref={containerRef} className="inventory-mount-node" style={{ width: "100%" }} />;
 }

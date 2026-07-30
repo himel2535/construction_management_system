@@ -24,5 +24,5 @@ export default function PurchasesPage() {
     };
   }, []);
 
-  return <div ref={containerRef} className="purchases-mount-node" style={{ width: '100%' }} />;
+  return <div ref={containerRef} className="purchases-mount-node" style={{ width: "100%" }} />;
 }

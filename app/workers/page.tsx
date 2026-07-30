@@ -24,5 +24,5 @@ export default function WorkersPage() {
     };
   }, []);
 
-  return <div ref={containerRef} className="workers-mount-node" style={{ width: '100%' }} />;
+  return <div ref={containerRef} className="workers-mount-node" style={{ width: "100%" }} />;
 }

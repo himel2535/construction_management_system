@@ -24,5 +24,5 @@ export default function SettingsPage() {
     };
   }, []);
 
-  return <div ref={containerRef} className="settings-mount-node" style={{ width: '100%' }} />;
+  return <div ref={containerRef} className="settings-mount-node" style={{ width: "100%" }} />;
 }
