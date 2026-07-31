@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --brand-900: #330d0d;
   --brand-800: #4a1414;
   --brand-700: #5a1818;
@@ -16,12 +16,7 @@
   --reject-500: #714b67;
   --reject-mid: #604058;
   --reject-focus-rgb: 113, 75, 103;
-  --sidebar-bg: linear-gradient(
-    180deg,
-    var(--brand-900) 0%,
-    var(--brand-800) 55%,
-    var(--brand-700) 100%
-  );
+  --sidebar-bg: rgba(255, 255, 255, 0.65);
   --slate-50: #f8fafc;
   --slate-100: #f1f5f9;
   --slate-200: #e2e8f0;
@@ -35,10 +30,10 @@
   --header-h: 64px;
   --sidebar-w: 260px;
   --sidebar-w-collapsed: 4.75rem;
-  --radius: 12px;
-  --page-bg: #f8fafc;
-  --card-bg: #ffffff;
-  --card-border: #e2e8f0;
+  --radius: 16px;
+  --page-bg: radial-gradient(circle at center top, #ffffff 0%, #f1f5f9 100%);
+  --card-bg: rgba(255, 255, 255, 0.45);
+  --card-border: rgba(255, 255, 255, 0.8);
   --text-muted: #64748b;
   --accent: #8a2e2e;
   --accent-hover: #742828;
@@ -89,9 +84,51 @@ body {
   margin: 0;
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--page-bg);
+  background-attachment: fixed;
   color: var(--slate-800);
 }
 body.sidebar-drawer-open { overflow: hidden; }
+
+.sidebar, .card, .dash-kpi-card, .dash-widget, .widget-box, .dash-card, .kanban-board, .glass-panel {
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  border-top: 1px solid rgba(255, 255, 255, 1) !important;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.02),
+    0 10px 15px -3px rgba(0, 0, 0, 0.04),
+    0 25px 40px -10px rgba(0, 0, 0, 0.03) !important;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.card:hover, .dash-kpi-card:hover, .widget-box:hover, .dash-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.03),
+    0 20px 25px -5px rgba(0, 0, 0, 0.05),
+    0 35px 60px -15px rgba(0, 0, 0, 0.05) !important;
+  background: rgba(255, 255, 255, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 1) !important;
+}
+
+.sidebar-head h1, .sidebar-head p, .nav-link, .sidebar-user-text strong, .sidebar-user-text span {
+  color: var(--slate-800) !important;
+}
+
+.nav-link {
+  transition: all 0.2s ease-in-out !important;
+  border-radius: 10px;
+}
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.7) !important;
+  transform: translateX(4px);
+}
+.nav-link.active {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: var(--brand-700) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
 
 .loading-msg { text-align: center; padding: 2rem; color: var(--slate-500); }
 
@@ -1100,7 +1137,7 @@ body.sidebar-drawer-open { overflow: hidden; }
 
 .app-header {
   flex-shrink: 0;
-  background: var(--page-bg);
+  background: transparent !important;
   border-bottom: none;
   position: sticky;
   top: 0;

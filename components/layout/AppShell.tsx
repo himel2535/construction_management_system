@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState(true);
+
   useEffect(() => {
     Promise.all([
       import("@/svc_firebaseOps.js"),
@@ -28,6 +33,40 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    
+    Promise.all([
+      import("@/util_roles.js"),
+      import("@/svc_governance.js"),
+      import("@/svc_data.js")
+    ]).then(([{ canAccessRoute, defaultRouteForRole }, { getCurrentRole }, { listenValue }]) => {
+      const checkAccess = () => {
+        const role = getCurrentRole();
+        if (!canAccessRoute(role, pathname)) {
+          setIsAuthorized(false);
+          const fallback = defaultRouteForRole(role);
+          if (pathname !== fallback) {
+            router.replace(fallback);
+          }
+        } else {
+          setIsAuthorized(true);
+        }
+      };
+
+      checkAccess();
+      
+      // Listen for role changes to re-evaluate access
+      unsub = listenValue("roles", () => {
+        checkAccess();
+      });
+    });
+
+    return () => {
+      if (unsub) unsub();
+    };
+  }, [pathname, router]);
+
   return (
     <div className="app-root">
       <div
@@ -42,7 +81,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <main className="main">
           <Header />
           <div className="main-inner" id="page-content">
-            {children}
+            {isAuthorized ? children : null}
           </div>
         </main>
       </div>

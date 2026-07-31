@@ -26,6 +26,29 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [navItems, setNavItems] = useState(NAV_ITEMS);
+
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    
+    Promise.all([
+      import("@/util_roles.js"),
+      import("@/svc_governance.js"),
+      import("@/svc_data.js")
+    ]).then(([{ filterNavItems }, { getCurrentRole }, { listenValue }]) => {
+      // Initial filter
+      setNavItems(filterNavItems(NAV_ITEMS, getCurrentRole()));
+      
+      // Listen for role changes
+      unsub = listenValue("roles", () => {
+        setNavItems(filterNavItems(NAV_ITEMS, getCurrentRole()));
+      });
+    });
+    
+    return () => {
+      if (unsub) unsub();
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -87,7 +110,7 @@ export default function Sidebar() {
       </div>
 
       <nav id="sidebar-nav">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const isActive = pathname === item.path || (item.path !== "/dashboard" && pathname.startsWith(item.path));
           return (
             <Link
