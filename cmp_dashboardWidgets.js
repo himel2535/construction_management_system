@@ -201,33 +201,62 @@ function cashFlowChartSvg(data) {
     purchaseExpense = [],
     salaryWages = [],
     net = [],
-    yMaxLac = 5,
   } = data;
   const n = Math.max(labels.length, 1);
-  const plotL = 14;
-  const plotR = 100;
-  const plotT = 8;
-  const plotB = 78;
+  const width = 800;
+  const height = 250;
+  const plotL = 60;
+  const plotR = 780;
+  const plotT = 20;
+  const plotB = 200;
   const plotW = plotR - plotL;
   const plotH = plotB - plotT;
-  const yMax = yMaxLac * 100000;
+
+  // Calculate dynamic max value
+  let maxDataValue = 0;
+  const allArrays = [clientCollection, projectExpense, purchaseExpense, salaryWages, net];
+  for (const arr of allArrays) {
+    for (const val of arr) {
+      if (Math.abs(val) > maxDataValue) maxDataValue = Math.abs(val);
+    }
+  }
+
+  // Determine a nice yMax (e.g., round up to nearest sensible tick)
+  let yMax = 100000; // default if 0
+  if (maxDataValue > 0) {
+    const magnitude = Math.pow(10, Math.floor(Math.log10(maxDataValue)));
+    yMax = Math.ceil(maxDataValue / magnitude) * magnitude;
+    if (yMax <= maxDataValue * 1.1) {
+      yMax += magnitude * 0.5; // Add some headroom
+    }
+  }
+
   const yPos = (v) => plotB - (v / yMax) * plotH;
-  const tickStep = yMaxLac <= 5 ? yMaxLac : 5;
+  
   const ticks = [];
-  for (let t = 0; t <= yMaxLac; t += tickStep) ticks.push(t);
+  for (let i = 0; i <= 5; i++) {
+    ticks.push(i * (yMax / 5));
+  }
 
   const gridH = ticks
     .map((t) => {
-      const y = yPos(t * 100000);
+      const y = yPos(t);
       return `<line x1="${plotL}" y1="${y}" x2="${plotR}" y2="${y}" class="dash-cf-grid"/>`;
     })
     .join("");
 
+  const formatTick = (val) => {
+    if (val === 0) return "0";
+    if (val >= 100000) return `${+(val / 100000).toFixed(1)}L`;
+    if (val >= 1000) return `${+(val / 1000).toFixed(1)}k`;
+    return Math.round(val);
+  };
+
   const yLabels = ticks
     .map((t) => {
-      const y = yPos(t * 100000);
-      const label = t === 0 ? "0" : `${t}L`;
-      return `<text x="${plotL - 1}" y="${y + 0.8}" class="dash-cf-axis-label" text-anchor="end">${label}</text>`;
+      const y = yPos(t);
+      const label = formatTick(t);
+      return `<text x="${plotL - 8}" y="${y + 4}" class="dash-cf-axis-label" style="font-size: 11px; fill: #64748b;" text-anchor="end">${label}</text>`;
     })
     .join("");
 
@@ -253,9 +282,9 @@ function cashFlowChartSvg(data) {
         .map((s, j) => {
           const v = s.values[i] || 0;
           const h = Math.max(0, plotB - yPos(v));
-          const x = groupX + groupW * 0.14 + j * (barW + 0.15);
+          const x = groupX + groupW * 0.1 + j * (barW + 1);
           const y = yPos(v);
-          return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" class="${s.cls}"/>`;
+          return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="2" class="${s.cls}"/>`;
         })
         .join("");
     })
@@ -273,19 +302,29 @@ function cashFlowChartSvg(data) {
     .map((v, i) => {
       const x = plotL + ((i + 0.5) / n) * plotW;
       const y = yPos(v);
-      const s = 0.9;
-      return `<polygon points="${x},${y - s} ${x + s},${y} ${x},${y + s} ${x - s},${y}" class="dash-cf-net-marker"/>`;
+      const s = 4;
+      return `<polygon points="${x},${y - s} ${x + s},${y} ${x},${y + s} ${x - s},${y}" class="dash-cf-net-marker" fill="#6366f1" stroke="#fff" stroke-width="1.5"/>`;
     })
     .join("");
 
   const xLabels = labels
     .map((label, i) => {
       const x = plotL + ((i + 0.5) / n) * plotW;
-      return `<text x="${x}" y="${plotB + 4}" class="dash-cf-axis-label" text-anchor="middle">${escapeHtml(label)}</text>`;
+      // Skip labels if there are too many (e.g., more than 15) to prevent overlapping
+      if (n > 15 && i % Math.ceil(n / 10) !== 0 && i !== n - 1 && i !== 0) return "";
+      return `<text x="${x}" y="${plotB + 20}" class="dash-cf-axis-label" style="font-size: 11px; fill: #64748b;" text-anchor="middle">${escapeHtml(label)}</text>`;
     })
     .join("");
 
-  return `<svg class="dash-cashflow-chart" viewBox="0 0 100 88" preserveAspectRatio="none">${gridH}${gridV}${yLabels}${bars}<polyline class="dash-cf-net-line" points="${netLine}" fill="none"/>${netDiamonds}${xLabels}</svg>`;
+  return `<svg class="dash-cashflow-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: auto; max-height: 250px;">
+    ${gridH}
+    ${gridV}
+    ${yLabels}
+    ${bars}
+    <polyline class="dash-cf-net-line" points="${netLine}" fill="none" stroke="#6366f1" stroke-width="2"/>
+    ${netDiamonds}
+    ${xLabels}
+  </svg>`;
 }
 
 function cashFlowWidgetShell(bodyHtml) {
@@ -335,7 +374,12 @@ export function renderBudgetDonut(host, summary) {
   const spentPct = (summary.spent / total) * 100;
   const committedPct = (summary.committed / total) * 100;
   const remainingPct = Math.max(0, 100 - spentPct - committedPct);
-  const usedPct = summary.budget > 0 ? Math.round((summary.spent / summary.budget) * 100) : 0;
+  
+  let usedPct = "0";
+  if (summary.budget > 0 && summary.spent > 0) {
+    const rawPct = (summary.spent / summary.budget) * 100;
+    usedPct = Number(rawPct.toFixed(2)).toString();
+  }
   const r = 16;
   const c = 2 * Math.PI * r;
   const s1 = (spentPct / 100) * c;
@@ -345,7 +389,7 @@ export function renderBudgetDonut(host, summary) {
     { dot: "dot-blue", label: "Total Budget", value: formatCompactBDT(summary.budget) },
     { dot: "dot-green", label: "Total Spent", value: formatCompactBDT(summary.spent) },
     { dot: "dot-orange", label: "Committed Cost", value: formatCompactBDT(summary.committed) },
-    { dot: "dot-grey", label: "Remaining", value: formatCompactBDT(summary.remaining) },
+    { dot: "dot-sky", label: "Remaining", value: formatCompactBDT(summary.remaining) },
   ];
   host.innerHTML = `<section class="dash-widget dash-widget--budget card">
     <div class="dash-widget-head">
@@ -358,7 +402,7 @@ export function renderBudgetDonut(host, summary) {
             <circle cx="20" cy="20" r="${r}" fill="none" stroke="#d1d5db" stroke-width="6"/>
             <circle cx="20" cy="20" r="${r}" fill="none" stroke="#059669" stroke-width="6" stroke-dasharray="${s1} ${c}" stroke-dashoffset="0" transform="rotate(-90 20 20)"/>
             <circle cx="20" cy="20" r="${r}" fill="none" stroke="#d97706" stroke-width="6" stroke-dasharray="${s2} ${c}" stroke-dashoffset="${-s1}" transform="rotate(-90 20 20)"/>
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#d1d5db" stroke-width="6" stroke-dasharray="${s3} ${c}" stroke-dashoffset="${-(s1 + s2)}" transform="rotate(-90 20 20)"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#38bdf8" stroke-width="6" stroke-dasharray="${s3} ${c}" stroke-dashoffset="${-(s1 + s2)}" transform="rotate(-90 20 20)"/>
           </svg>
           <div class="dash-donut-center dash-donut-center--budget">
             <strong>${usedPct}%</strong>

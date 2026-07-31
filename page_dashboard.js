@@ -252,11 +252,13 @@ export function mountDashboard(container) {
     ready.purchaseOrders = true;
     renderProcurementSection();
     renderCashFlowSection();
+    renderBudgetSection();
   }));
   unsubs.push(listenList("projectExpenses", (rows) => {
     state.projectExpenses = rows;
     ready.expenses = true;
     renderCashFlowSection();
+    renderBudgetSection();
     if (ready.projects) renderKpiSection();
   }));
   unsubs.push(listenList("assetMaintenance", (rows) => {
@@ -266,6 +268,7 @@ export function mountDashboard(container) {
     state.salaryPayments = rows;
     ready.salaries = true;
     renderCashFlowSection();
+    renderBudgetSection();
     if (ready.projects) renderKpiSection();
   }));
   unsubs.push(listenValue("projectMilestones", (rootVal) => {

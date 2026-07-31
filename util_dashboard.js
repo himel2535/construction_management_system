@@ -611,16 +611,23 @@ export function buildCashFlowChartData(state, period = "month") {
   const dayKeys = cashFlowDayKeys(period);
 
   for (const inv of state.clientInvoices || []) {
-    if (Number(inv.paidAmount) > 0 && inv.paidDate) {
-      addCashFlowBucket(buckets, inv.paidDate, "clientCollection", inv.paidAmount);
+    const date = inv.paidDate || inv.billDate;
+    if (Number(inv.paidAmount) > 0 && date) {
+      addCashFlowBucket(buckets, date, "clientCollection", inv.paidAmount);
     }
   }
-  for (const exp of state.projectExpenses || []) {
-    const date = exp.expenseDate || exp.date;
-    if (date) addCashFlowBucket(buckets, date, "projectExpense", exp.amount);
+  for (const expGroup of state.projectExpenses || []) {
+    const expenses = expGroup.amount ? [expGroup] : Object.values(expGroup).filter(e => e && typeof e === 'object' && e.amount);
+    for (const exp of expenses) {
+      const date = exp.expenseDate || exp.date;
+      if (date) addCashFlowBucket(buckets, date, "projectExpense", exp.amount);
+    }
   }
-  for (const po of state.purchaseOrders || []) {
-    if (po.orderDate) addCashFlowBucket(buckets, po.orderDate, "purchaseExpense", po.amount);
+  for (const poGroup of state.purchaseOrders || []) {
+    const orders = poGroup.amount ? [poGroup] : Object.values(poGroup).filter(o => o && typeof o === 'object' && o.amount);
+    for (const po of orders) {
+      if (po.orderDate) addCashFlowBucket(buckets, po.orderDate, "purchaseExpense", po.amount);
+    }
   }
   for (const pay of state.salaryPayments || []) {
     if (pay.date) addCashFlowBucket(buckets, pay.date, "salaryWages", pay.amount);

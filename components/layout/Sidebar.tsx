@@ -69,23 +69,21 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
+    <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`} style={{ backgroundColor: '#ffffff', borderRight: '1px solid #e2e8f0' }}>
       <div className="sidebar-head">
         <Link href="/dashboard" prefetch={true} className="sidebar-head-brand" title="Go to home">
           <span className="sidebar-logo" aria-hidden="true">
-            <Image
-              className="nav-color-icon nav-color-icon--logo"
-              src="/assets/icons/nav/nav-logo.svg"
-              width={32}
-              height={32}
-              alt="Logo"
-              priority
-              sizes="32px"
-            />
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="nav-color-icon nav-color-icon--logo">
+              <path d="M28 16A12 12 0 1 1 4 16A12 12 0 0 1 28 16Z" stroke="#1e3a8a" strokeWidth="2" strokeDasharray="60 15" strokeLinecap="round" />
+              <path d="M12 24V10h4v14" fill="#1e3a8a" />
+              <path d="M16 24v-8h4v8" fill="#f97316" />
+              <path d="M12 8L16 4l8 4v2" stroke="#1e3a8a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M6 20l6-6 4 4 10-10" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M21 8h5v5" fill="#f97316" />
+            </svg>
           </span>
           <div className="sidebar-head-text">
-            <h1>Construction ERP</h1>
-            <p>Owner / Admin panel</p>
+            <h1><span className="title-const">Construction</span> <span className="title-erp">ERP</span></h1>
           </div>
         </Link>
         <button type="button" className="sidebar-collapse-btn" aria-label="Collapse sidebar" onClick={toggleCollapse}>
