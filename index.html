@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -15,6 +15,13 @@
         location.replace(location.pathname + location.search + location.hash.slice(1));
       } else if (location.pathname === "/" || location.pathname === "") {
         location.replace("/dashboard");
+      }
+    <script type="importmap">
+      {
+        "imports": {
+          "firebase/app": "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js",
+          "firebase/database": "https://www.gstatic.com/firebasejs/11.2.0/firebase-database.js"
+        }
       }
     </script>
   </head>
