@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 
+const moduleCache = new Map<string, any>();
+
 export default function ReportsPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -11,7 +13,7 @@ export default function ReportsPage() {
     if (!containerRef.current) return;
     let cleanup: (() => void) | undefined;
 
-    import("@/page_reports.js").then(({ mountReports }) => {
+    (moduleCache.has("@/page_reports.js") ? Promise.resolve(moduleCache.get("@/page_reports.js")) : import("@/page_reports.js").then(res => { moduleCache.set("@/page_reports.js", res); return res; })).then(({ mountReports }) => {
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
         const res = mountReports(containerRef.current);

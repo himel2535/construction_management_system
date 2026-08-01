@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePathname } from "next/navigation";
 
+const moduleCache = new Map<string, any>();
+
 export default function ClientCreatePage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -12,7 +14,7 @@ export default function ClientCreatePage() {
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     
-    import("@/page_client_create.js").then((mod) => {
+    (moduleCache.has("@/page_client_create.js") ? Promise.resolve(moduleCache.get("@/page_client_create.js")) : import("@/page_client_create.js").then(res => { moduleCache.set("@/page_client_create.js", res); return res; })).then((mod) => {
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
         cleanup = mod.mountClientCreate(containerRef.current);

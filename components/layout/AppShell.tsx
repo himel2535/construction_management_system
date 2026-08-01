@@ -27,6 +27,42 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           role: "owner",
           tenantId: getActiveTenantId() || "tn_default",
         });
+        // Preload all page modules in the background for 0ms instant navigation
+        const preloadModules = () => {
+          const modules = [
+            () => import("@/page_dashboard.js"),
+            () => import("@/page_projects.js"),
+            () => import("@/page_project_create.js"),
+            () => import("@/page_site_incharge.js"),
+            () => import("@/page_customers.js"),
+            () => import("@/page_client_create.js"),
+            () => import("@/page_purchases.js"),
+            () => import("@/page_suppliers.js"),
+            () => import("@/page_inventory.js"),
+            () => import("@/page_workers.js"),
+            () => import("@/page_assets.js"),
+            () => import("@/page_sales.js"),
+            () => import("@/page_accounting.js"),
+            () => import("@/page_approvals.js"),
+            () => import("@/page_reports.js"),
+            () => import("@/page_reports_detail.js"),
+            () => import("@/page_client_portal.js"),
+            () => import("@/page_settings.js"),
+            () => import("@/page_arbitration.js"),
+          ];
+
+          if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+            (window as any).requestIdleCallback(() => {
+              modules.forEach((fn) => fn().catch(() => {}));
+            });
+          } else {
+            setTimeout(() => {
+              modules.forEach((fn) => fn().catch(() => {}));
+            }, 1000);
+          }
+        };
+
+        preloadModules();
       } catch (e) {
         console.warn("[AppShell] init fallback", e);
       }

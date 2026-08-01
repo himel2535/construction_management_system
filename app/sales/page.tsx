@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePathname } from "next/navigation";
 
+const moduleCache = new Map<string, any>();
+
 export default function SalesPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -12,7 +14,7 @@ export default function SalesPage() {
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     
-    import("@/page_sales.js").then((mod) => {
+    (moduleCache.has("@/page_sales.js") ? Promise.resolve(moduleCache.get("@/page_sales.js")) : import("@/page_sales.js").then(res => { moduleCache.set("@/page_sales.js", res); return res; })).then((mod) => {
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
         cleanup = mod.mountBilling(containerRef.current);

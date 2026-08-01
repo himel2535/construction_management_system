@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 
+const moduleCache = new Map<string, any>();
+
 export default function ClientPortalPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -11,7 +13,7 @@ export default function ClientPortalPage() {
     if (!containerRef.current) return;
     let cleanup: (() => void) | undefined;
 
-    import("@/page_client_portal.js").then(({ mountClientPortal }) => {
+    (moduleCache.has("@/page_client_portal.js") ? Promise.resolve(moduleCache.get("@/page_client_portal.js")) : import("@/page_client_portal.js").then(res => { moduleCache.set("@/page_client_portal.js", res); return res; })).then(({ mountClientPortal }) => {
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
         const res = mountClientPortal(containerRef.current);

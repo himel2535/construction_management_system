@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePathname } from "next/navigation";
 
+const moduleCache = new Map<string, any>();
+
 export default function ArbitrationPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -12,7 +14,7 @@ export default function ArbitrationPage() {
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     
-    import("@/page_arbitration.js").then((mod) => {
+    (moduleCache.has("@/page_arbitration.js") ? Promise.resolve(moduleCache.get("@/page_arbitration.js")) : import("@/page_arbitration.js").then(res => { moduleCache.set("@/page_arbitration.js", res); return res; })).then((mod) => {
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
         cleanup = mod.mountArbitration(containerRef.current);

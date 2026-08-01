@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 
+const moduleCache = new Map<string, any>();
+
 export default function InventoryPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -11,7 +13,7 @@ export default function InventoryPage() {
     if (!containerRef.current) return;
     let cleanup: (() => void) | undefined;
 
-    import("@/page_inventory.js").then(({ mountInventory }) => {
+    (moduleCache.has("@/page_inventory.js") ? Promise.resolve(moduleCache.get("@/page_inventory.js")) : import("@/page_inventory.js").then(res => { moduleCache.set("@/page_inventory.js", res); return res; })).then(({ mountInventory }) => {
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
         const res = mountInventory(containerRef.current);

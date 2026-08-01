@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePathname } from "next/navigation";
 
+const moduleCache = new Map<string, any>();
+
 export default function ReportsAnalyticsPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
@@ -12,7 +14,7 @@ export default function ReportsAnalyticsPage() {
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     
-    import("@/page_reports_detail.js").then((mod) => {
+    (moduleCache.has("@/page_reports_detail.js") ? Promise.resolve(moduleCache.get("@/page_reports_detail.js")) : import("@/page_reports_detail.js").then(res => { moduleCache.set("@/page_reports_detail.js", res); return res; })).then((mod) => {
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
         cleanup = mod.mountReportsAnalytics(containerRef.current);

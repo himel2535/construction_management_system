@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 
+const moduleCache = new Map<string, any>();
+
 export default function ProjectsPage() {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -12,7 +14,7 @@ export default function ProjectsPage() {
     if (!containerRef.current) return;
     let cleanup: (() => void) | undefined;
 
-    import("@/page_projects.js").then(({ mountProjects }) => {
+    (moduleCache.has("@/page_projects.js") ? Promise.resolve(moduleCache.get("@/page_projects.js")) : import("@/page_projects.js").then(res => { moduleCache.set("@/page_projects.js", res); return res; })).then(({ mountProjects }) => {
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
         const res = mountProjects(containerRef.current);
