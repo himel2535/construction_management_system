@@ -60,9 +60,11 @@ export function switchDemoUser(userId, opts = {}) {
     tenantId: row.tenantId || prev?.tenantId || getActiveTenantId(),
   });
   invalidateRoleCache();
-  refreshSidebarNav();
-  syncSidebarUserFoot();
-  syncHeaderUser();
+  if (typeof document !== "undefined" && !document.querySelector(".app-root")) {
+    refreshSidebarNav();
+    syncSidebarUserFoot();
+    syncHeaderUser();
+  }
 
   if (navigate) {
     const target = defaultRouteForRole(role);

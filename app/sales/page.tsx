@@ -2,23 +2,23 @@
 
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
-export default function PurchasesPage() {
+export default function SalesPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (!containerRef.current) return;
     let cleanup: (() => void) | undefined;
-
-    import("@/page_purchases.js").then(({ mountPurchases }) => {
+    
+    import("@/page_sales.js").then((mod) => {
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
-        const res = mountPurchases(containerRef.current);
-        if (res && typeof res.unmount === "function") {
-          cleanup = res.unmount;
-        }
+        cleanup = mod.mountBilling(containerRef.current);
       }
+    }).catch(err => {
+      console.error("Failed to load page_sales.js", err);
     });
 
     return () => {
@@ -26,11 +26,11 @@ export default function PurchasesPage() {
         try {
           cleanup();
         } catch (e) {
-          console.warn("[PurchasesPage] cleanup error", e);
+          console.warn("[SalesPage] cleanup error", e);
         }
       }
     };
-  }, [searchParams]);
+  }, [pathname, searchParams]);
 
-  return <div ref={containerRef} className="purchases-mount-node" style={{ width: "100%" }} />;
+  return <div className="app-root page-salespage" id="app-root" ref={containerRef}></div>;
 }

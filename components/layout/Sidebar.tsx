@@ -30,23 +30,36 @@ export default function Sidebar() {
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
+    let handleSessionChange: (() => void) | undefined;
     
     Promise.all([
       import("@/util_roles.js"),
       import("@/svc_governance.js"),
       import("@/svc_data.js")
     ]).then(([{ filterNavItems }, { getCurrentRole }, { listenValue }]) => {
+      const updateNav = () => {
+        setNavItems(filterNavItems(NAV_ITEMS, getCurrentRole()));
+      };
+
       // Initial filter
-      setNavItems(filterNavItems(NAV_ITEMS, getCurrentRole()));
+      updateNav();
       
       // Listen for role changes
       unsub = listenValue("roles", () => {
-        setNavItems(filterNavItems(NAV_ITEMS, getCurrentRole()));
+        updateNav();
       });
+
+      handleSessionChange = () => {
+        updateNav();
+      };
+      window.addEventListener("erp:session-user-changed", handleSessionChange);
     });
     
     return () => {
       if (unsub) unsub();
+      if (handleSessionChange) {
+        window.removeEventListener("erp:session-user-changed", handleSessionChange);
+      }
     };
   }, []);
 

@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function ClientPortalPage() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -20,9 +22,15 @@ export default function ClientPortalPage() {
     });
 
     return () => {
-      if (cleanup) cleanup();
+      if (cleanup) {
+        try {
+          cleanup();
+        } catch (e) {
+          console.warn("[ClientPortalPage] cleanup error", e);
+        }
+      }
     };
-  }, []);
+  }, [searchParams]);
 
   return <div ref={containerRef} className="client-portal-mount-node" style={{ width: "100%" }} />;
 }

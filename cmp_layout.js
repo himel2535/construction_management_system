@@ -1,4 +1,4 @@
-﻿import { getCurrentUserName, getCurrentUserEmail } from "./svc_auth.js";
+import { getCurrentUserName, getCurrentUserEmail } from "./svc_auth.js";
 import { createAppHeader, initHeaderInteractions } from "./cmp_header.js";
 import { navIcon, sidebarLogo, sidebarMinimizeIcon, sidebarExpandIcon } from "./cmp_navIcons.js";
 import { getCurrentRole } from "./svc_governance.js";
@@ -30,6 +30,7 @@ const SIDEBAR_COLLAPSED_KEY = "erp-sidebar-collapsed";
 
 function buildNavLinks(navEl) {
   if (!navEl) return;
+  if (typeof document !== "undefined" && document.querySelector(".app-root")) return;
   const role = getCurrentRole();
   const items = filterNavItems(APP_NAV, role);
   const approvalCount = countPendingApprovals(valToList(readRef("approvalQueue") || {}));

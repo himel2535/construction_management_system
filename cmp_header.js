@@ -137,7 +137,6 @@ export function renderPageChrome() {
   const titleEl = document.getElementById("page-chrome-title");
   const subEl = document.getElementById("page-chrome-subtitle");
   const dateEl = document.getElementById("page-chrome-date");
-  const qaBtn = document.getElementById("header-quick-action");
   if (titleEl) titleEl.textContent = pageChrome.title;
   if (subEl) {
     subEl.textContent = pageChrome.subtitle;
@@ -150,15 +149,7 @@ export function renderPageChrome() {
       if (span) span.textContent = getDefaultDateRangeLabel();
     }
   }
-  if (qaBtn) {
-    const label = pageChrome.quickActionLabel;
-    qaBtn.style.display = label ? "" : "none";
-    const chevron = pageChrome.onQuickAction
-      ? ""
-      : ` <span class="qa-chevron">${iconSvg("chevron")}</span>`;
-    qaBtn.innerHTML = `${label}${chevron}`;
-    qaBtn.onclick = pageChrome.onQuickAction || null;
-  }
+
   updatePageChromeBack();
 }
 
@@ -234,9 +225,19 @@ export function createAppHeader() {
 
 export function initHeaderInteractions(options = {}) {
   const toggle = document.getElementById("sidebar-toggle");
+  const shell = document.querySelector(".app-shell");
   const backdrop = document.getElementById("sidebar-backdrop");
   const search = document.getElementById("header-search");
-  const shell = document.querySelector(".app-shell");
+
+  if (toggle && toggle.dataset.boundToggle === "true") {
+    initGlobalSearch(options.nav || []);
+    initUserMenu();
+    initNotificationBell();
+    syncHeaderUser();
+    applyRouteChrome();
+    return;
+  }
+  if (toggle) toggle.dataset.boundToggle = "true";
 
   const closeDrawer = () => {
     shell?.classList.remove("sidebar-open");
@@ -560,6 +561,9 @@ function initUserMenu() {
     });
   };
 
+  if (btn.dataset.userMenuBound === "true") return;
+  btn.dataset.userMenuBound = "true";
+
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
     const open = dropdown.hidden;
@@ -588,6 +592,8 @@ function initNotificationBell() {
   const dropdown = document.getElementById("header-notify-dropdown");
   const badge = document.getElementById("header-notify-badge");
   if (!btn || !dropdown || !badge) return;
+  if (btn.dataset.notifyBound === "true") return;
+  btn.dataset.notifyBound = "true";
 
   let notifications = [];
   let unsub = () => {};

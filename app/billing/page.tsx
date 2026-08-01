@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function BillingPage() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -22,7 +24,7 @@ export default function BillingPage() {
     return () => {
       if (cleanup) cleanup();
     };
-  }, []);
+  }, [searchParams]);
 
   return <div ref={containerRef} className="billing-mount-node" style={{ width: "100%" }} />;
 }

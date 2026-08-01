@@ -76,12 +76,6 @@ export default function Header() {
             </button>
             <div className="header-user-dropdown notify-dropdown" id="header-user-dropdown" hidden role="menu" aria-label="Demo user menu"></div>
           </div>
-          <button type="button" className="btn btn-primary header-quick-action" id="header-quick-action">
-            + Quick Action{" "}
-            <span className="qa-chevron">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
-            </span>
-          </button>
         </div>
       </div>
     </header>

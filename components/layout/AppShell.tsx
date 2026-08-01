@@ -35,12 +35,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
+    let handleSessionChange: (() => void) | undefined;
     
     Promise.all([
       import("@/util_roles.js"),
       import("@/svc_governance.js"),
-      import("@/svc_data.js")
-    ]).then(([{ canAccessRoute, defaultRouteForRole }, { getCurrentRole }, { listenValue }]) => {
+      import("@/svc_data.js"),
+      import("@/util_route.js"),
+    ]).then(([{ canAccessRoute, defaultRouteForRole }, { getCurrentRole }, { listenValue }, { bindNavigate }]) => {
+      bindNavigate((target: string, opts?: { replace?: boolean }) => {
+        if (opts?.replace) {
+          router.replace(target);
+        } else {
+          router.push(target);
+        }
+      });
+
       const checkAccess = () => {
         const role = getCurrentRole();
         if (!canAccessRoute(role, pathname)) {
@@ -60,10 +70,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       unsub = listenValue("roles", () => {
         checkAccess();
       });
+
+      handleSessionChange = () => {
+        checkAccess();
+      };
+      window.addEventListener("erp:session-user-changed", handleSessionChange);
     });
 
     return () => {
       if (unsub) unsub();
+      if (handleSessionChange) {
+        window.removeEventListener("erp:session-user-changed", handleSessionChange);
+      }
     };
   }, [pathname, router]);
 

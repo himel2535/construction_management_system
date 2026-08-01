@@ -5,21 +5,28 @@ export function bindNavigate(fn) {
 }
 
 export function navigateTo(route, { replace = false } = {}) {
+  const target = route.startsWith("/") ? route : `/${route}`;
   if (!navigateImpl) {
-    const target = route.startsWith("/") ? route : `/${route}`;
-    if (replace) history.replaceState(null, "", target);
-    else history.pushState(null, "", target);
+    if (typeof window !== "undefined") {
+      if (replace) {
+        window.location.replace(target);
+      } else {
+        window.location.href = target;
+      }
+    }
     return;
   }
-  navigateImpl(route, { replace });
+  navigateImpl(target, { replace });
 }
 
 export function getRoutePath() {
+  if (typeof window === "undefined") return "/dashboard";
   const pathname = location.pathname || "/";
   if (pathname === "/" || pathname === "") return "/dashboard";
   return pathname.split("?")[0];
 }
 
 export function getRouteQuery() {
+  if (typeof window === "undefined") return new URLSearchParams();
   return new URLSearchParams(location.search || "");
 }
