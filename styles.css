@@ -1,14 +1,20 @@
 :root {
-  --brand-900: #330d0d;
-  --brand-800: #4a1414;
-  --brand-700: #5a1818;
-  --brand-600: #742828;
-  --brand-500: #8a2e2e;
-  --brand-400: #c46b6b;
-  --brand-300: #dda8a8;
-  --brand-200: #f0d4d4;
-  --brand-100: #faf0f0;
-  --brand-focus-rgb: 138, 46, 46;
+  --brand-900: #3a0b06;
+  --brand-800: #54120b;
+  --brand-700: #6e1a11;
+  --brand-600: #6e1a11;
+  --brand-500: #8F2419;
+  --brand-400: #b8473c;
+  --brand-300: #d4766c;
+  --brand-200: #e8a7a0;
+  --brand-100: #f5d4d1;
+  --brand-50: #fcf0ef;
+  --brand-focus-rgb: 143, 36, 25;
+
+  --navy-tab-bg: #1E2A4D;
+  --navy-tab-hover: #151d36;
+  --navy-tab-light: #f0f3fa;
+
   --reject-900: #2a1528;
   --reject-800: #341a32;
   --reject-700: #453047;
@@ -19,7 +25,7 @@
   --sidebar-bg: #ffffff;
   --slate-50: #f8fafc;
   --slate-100: #f1f5f9;
-  --slate-200: #e2e8f0;
+  --slate-200: #E5E7EB;
   --slate-300: #cbd5e1;
   --slate-400: #94a3b8;
   --slate-500: #64748b;
@@ -33,31 +39,31 @@
   --radius: 16px;
   --page-bg: radial-gradient(circle at center top, #ffffff 0%, #f1f5f9 100%);
   --card-bg: rgba(255, 255, 255, 0.45);
-  --card-border: rgba(255, 255, 255, 0.8);
+  --card-border: #E5E7EB;
   --text-muted: #64748b;
-  --accent: #8a2e2e;
-  --accent-hover: #742828;
-  --accent-light: #faf0f0;
-  --success-bg: #ecfdf5;
-  --success-text: #059669;
-  --danger-bg: #fef2f2;
-  --danger-text: #dc2626;
+  --accent: #B13A2E;
+  --accent-hover: #8F2C22;
+  --accent-light: #fcf0ef;
+  --success-bg: #E8F7ED;
+  --success-text: #16823B;
+  --danger-bg: #fdf2f2;
+  --danger-text: #E74C3C;
   --warning-bg: #fff7ed;
   --warning-text: #ea580c;
   --neutral-bg: #f1f5f9;
   --btn-color: #ffffff;
-  --btn-bg: #8a2e2e;
-  --btn-border-color: #742828;
+  --btn-bg: #B13A2E;
+  --btn-border-color: #B13A2E;
   --btn-hover-color: #ffffff;
-  --btn-hover-bg: #742828;
-  --btn-hover-border-color: #5a1818;
-  --btn-focus-shadow-rgb: 138, 46, 46;
+  --btn-hover-bg: #8F2C22;
+  --btn-hover-border-color: #8F2C22;
+  --btn-focus-shadow-rgb: 177, 58, 46;
   --btn-active-color: #ffffff;
-  --btn-active-bg: #742828;
-  --btn-active-border-color: #5a1818;
+  --btn-active-bg: #8F2C22;
+  --btn-active-border-color: #8F2C22;
   --btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
   --btn-disabled-color: #ffffff;
-  --btn-disabled-bg: #dda8a8;
+  --btn-disabled-bg: #da847b;
   --btn-disabled-border-color: #dda8a8;
   --btn-outline-radius: 999px;
   --btn-outline-sm-pad: 0.35rem 0.75rem;
@@ -1529,37 +1535,37 @@ input, select, textarea {
   transform: translateY(0);
 }
 .btn-primary {
-  color: #ffffff;
-  border: 1px solid var(--brand-600);
-  background: linear-gradient(180deg, var(--brand-800) 0%, var(--brand-500) 52%, var(--brand-600) 100%);
-  box-shadow: 0 1px 2px rgba(74, 20, 20, 0.2), 0 2px 8px rgba(74, 20, 20, 0.28);
+  color: #ffffff !important;
+  border: 1px solid #B13A2E !important;
+  background: #B13A2E !important;
+  box-shadow: 0 1px 3px rgba(177, 58, 46, 0.25);
 }
 .btn-primary:hover {
-  color: #ffffff;
-  border-color: var(--brand-700);
-  background: linear-gradient(180deg, var(--brand-800) 0%, var(--brand-600) 55%, var(--brand-600) 100%);
-  box-shadow: 0 4px 12px rgba(74, 20, 20, 0.35);
+  color: #ffffff !important;
+  border-color: #8F2C22 !important;
+  background: #8F2C22 !important;
+  box-shadow: 0 4px 12px rgba(143, 44, 34, 0.35);
 }
 .btn-primary:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 0.2rem rgba(var(--btn-focus-shadow-rgb), 0.35);
+  box-shadow: 0 0 0 0.2rem rgba(177, 58, 46, 0.35);
 }
 .btn-primary:active {
-  color: #ffffff;
-  border-color: var(--brand-700);
-  background: linear-gradient(180deg, var(--brand-900) 0%, var(--brand-600) 100%);
+  color: #ffffff !important;
+  border-color: #8F2C22 !important;
+  background: #8F2C22 !important;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.16);
 }
 .btn-primary:disabled {
-  background: var(--btn-disabled-bg);
-  color: var(--btn-disabled-color);
-  border-color: var(--btn-disabled-border-color);
+  background: #da847b !important;
+  color: #ffffff !important;
+  border-color: #dda8a8 !important;
   opacity: 0.65;
   box-shadow: none;
 }
 .btn-edit {
-  color: var(--btn-brand-outline-text);
-  border: 1px solid var(--btn-brand-outline-border);
+  color: #1E2A4D;
+  border: 1px solid #1E2A4D;
   border-radius: 8px;
   padding: 12px 28px;
   background: #ffffff;
@@ -1567,42 +1573,50 @@ input, select, textarea {
 }
 .btn-edit:hover,
 .btn-edit:focus-visible {
-  color: var(--btn-brand-outline-text);
-  background: var(--btn-brand-outline-hover-bg);
-  border-color: var(--brand-500);
+  color: #ffffff;
+  background: #1E2A4D;
+  border-color: #1E2A4D;
 }
 .btn-edit:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 0.2rem rgba(var(--brand-focus-rgb), 0.25);
+  box-shadow: 0 0 0 0.2rem rgba(30, 42, 77, 0.25);
 }
 .btn-edit:active {
-  color: var(--btn-brand-outline-text);
-  background: var(--brand-200);
-  border-color: var(--brand-500);
+  color: #ffffff;
+  background: #151d36;
+  border-color: #151d36;
   box-shadow: none;
 }
-.btn-reject {
-  color: var(--btn-tier-primary-text);
-  border: 1px solid var(--btn-tier-primary-border);
+.btn-reject,
+.btn-delete,
+.btn-outline-danger {
+  color: #E74C3C !important;
+  border: 1px solid #E74C3C !important;
   border-radius: 8px;
   padding: 12px 28px;
-  background: #ffffff;
+  background: #ffffff !important;
   box-shadow: none;
 }
 .btn-reject:hover,
-.btn-reject:focus-visible {
-  color: var(--btn-tier-primary-text);
-  background: var(--btn-tier-primary-hover-bg);
-  border-color: var(--btn-tier-primary-hover-border);
+.btn-reject:focus-visible,
+.btn-delete:hover,
+.btn-delete:focus-visible,
+.btn-outline-danger:hover,
+.btn-outline-danger:focus-visible {
+  color: #ffffff !important;
+  background: #E74C3C !important;
+  border-color: #E74C3C !important;
 }
 .btn-reject:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 0.2rem rgba(var(--brand-focus-rgb), 0.25);
+  box-shadow: 0 0 0 0.2rem rgba(231, 76, 60, 0.25);
 }
-.btn-reject:active {
-  color: var(--btn-tier-primary-text);
-  background: var(--brand-200);
-  border-color: var(--btn-tier-primary-hover-border);
+.btn-reject:active,
+.btn-delete:active,
+.btn-outline-danger:active {
+  color: #ffffff !important;
+  background: #c0392b !important;
+  border-color: #c0392b !important;
   box-shadow: none;
 }
 .btn-edit.btn-sm,
@@ -7893,24 +7907,27 @@ button.proj-header-kpi--link:hover {
 .proj-tab {
   flex-shrink: 0;
   padding: 6px 16px;
-  border: 1px solid var(--brand-500);
+  border: 1px solid #1E2A4D !important;
   border-radius: 999px;
-  background: #fff;
+  background: #ffffff !important;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--brand-600);
+  color: #1E2A4D !important;
   cursor: pointer;
   font-family: inherit;
   white-space: nowrap;
   transition: all 0.2s ease-in-out;
 }
 .proj-tab:hover { 
-  background: var(--brand-50);
+  background: #f0f3fa !important;
+  color: #1E2A4D !important;
+  border-color: #1E2A4D !important;
 }
-.proj-tab.is-active {
-  background: var(--brand-500);
-  color: #fff;
-  border-color: var(--brand-500);
+.proj-tab.is-active,
+.proj-tab.active {
+  background: #1E2A4D !important;
+  color: #ffffff !important;
+  border-color: #1E2A4D !important;
   font-weight: 600;
   border-radius: 999px;
 }
@@ -9106,18 +9123,20 @@ button.proj-header-kpi--link:hover {
   font-family: inherit;
   white-space: nowrap;
   cursor: pointer;
-  border: 1px solid var(--brand-500);
-  background: #fff;
-  color: var(--brand-600);
+  border: 1px solid #1E2A4D !important;
+  background: #ffffff !important;
+  color: #1E2A4D !important;
   transition: all 0.2s ease-in-out;
 }
 .workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill:hover { 
-  background: var(--brand-50);
+  background: #f0f3fa !important;
+  color: #1E2A4D !important;
 }
-.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill.is-active {
-  background: var(--brand-500);
-  color: #fff;
-  border-color: var(--brand-500);
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill.is-active,
+.workers-page .wrk-pill-tabs--hr-main .wrk-tab-pill.active {
+  background: #1E2A4D !important;
+  color: #ffffff !important;
+  border-color: #1E2A4D !important;
   font-weight: 600;
   border-radius: 999px;
 }
@@ -13684,21 +13703,24 @@ button.proj-header-kpi--link:hover {
 .wrk-pill-tabs .proj-tab {
   padding: 6px 16px;
   font-size: 0.75rem;
-  border: 1px solid var(--brand-500);
+  border: 1px solid #1E2A4D !important;
   border-radius: 999px;
   min-height: auto;
-  background: #fff;
-  color: var(--brand-600);
+  background: #ffffff !important;
+  color: #1E2A4D !important;
 }
 .mod-pill-tabs .proj-tab:hover,
 .wrk-pill-tabs .proj-tab:hover {
-  background: var(--brand-50);
+  background: #f0f3fa !important;
+  color: #1E2A4D !important;
 }
 .mod-pill-tabs .proj-tab.is-active,
-.wrk-pill-tabs .proj-tab.is-active {
-  background: var(--brand-500);
-  color: #fff;
-  border-color: var(--brand-500);
+.wrk-pill-tabs .proj-tab.is-active,
+.mod-pill-tabs .proj-tab.active,
+.wrk-pill-tabs .proj-tab.active {
+  background: #1E2A4D !important;
+  color: #ffffff !important;
+  border-color: #1E2A4D !important;
   border-radius: 999px;
 }
 .mod-tab-panel,
@@ -16805,3 +16827,184 @@ button.proj-header-kpi--link:hover {
 .projects-page--hub .rep-pill-tabs--proj-hub-modules {
   margin-top: 0.75rem;
 }
+
+/* ==========================================================================
+   GLOBAL BRAND SYSTEM OVERRIDES (Deeper Red Primary Buttons & Clean Underline Sub-tabs)
+   ========================================================================== */
+
+/* 1. PRIMARY ACTION BUTTONS (Deep Burgundy Red: #6E1A11, Hover: #4d1009) */
+.btn-primary,
+.wrk-btn-primary,
+.btn-brick,
+.btn-accent,
+.btn-main,
+.btn-create,
+.sup-list-actions .btn-primary,
+.cust-form-actions .btn-primary,
+#header-quick-action {
+  background: #6E1A11 !important;
+  color: #ffffff !important;
+  border: 1px solid #6E1A11 !important;
+  box-shadow: 0 1px 3px rgba(110, 26, 17, 0.25) !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus-visible,
+.btn-primary:active,
+.wrk-btn-primary:hover,
+.wrk-btn-primary:focus-visible,
+.wrk-btn-primary:active,
+.btn-brick:hover,
+.btn-accent:hover,
+.btn-main:hover,
+.btn-create:hover,
+.sup-list-actions .btn-primary:hover,
+.cust-form-actions .btn-primary:hover {
+  background: #4d1009 !important;
+  color: #ffffff !important;
+  border-color: #4d1009 !important;
+}
+
+/* 2. SUB NAVIGATION BUTTONS / TABS (Clean Underline Style) */
+.proj-tab-subnav,
+.mod-pill-tabs,
+.wrk-pill-tabs,
+.sup-pill-tabs--sup-main,
+.pur-pill-tabs--proc-main,
+.sic-pill-tabs--sic-main {
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0;
+  margin-bottom: 1rem;
+}
+
+.proj-tab,
+.fin-tab-pill,
+.ast-tab-pill,
+.inv-tab-pill,
+.rep-tab-pill,
+.bill-tab-pill,
+.wrk-tab-pill,
+.pur-tab-pill,
+.sup-tab-pill,
+.sic-tab-pill,
+.cust-tab-pill,
+.sub-tab,
+.tab-pill,
+.proj-tab-group {
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  background: transparent !important;
+  color: #64748b !important;
+  font-weight: 500 !important;
+  border-radius: 0 !important;
+  padding: 8px 16px !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.proj-tab:hover,
+.fin-tab-pill:hover,
+.ast-tab-pill:hover,
+.inv-tab-pill:hover,
+.rep-tab-pill:hover,
+.bill-tab-pill:hover,
+.wrk-tab-pill:hover,
+.pur-tab-pill:hover,
+.sup-tab-pill:hover,
+.sic-tab-pill:hover,
+.cust-tab-pill:hover,
+.sub-tab:hover,
+.tab-pill:hover,
+.proj-tab-group:hover {
+  background: transparent !important;
+  color: #0f172a !important;
+  border-bottom-color: #cbd5e1 !important;
+}
+
+.proj-tab.is-active,
+.proj-tab.active,
+.fin-tab-pill.is-active,
+.fin-tab-pill.active,
+.ast-tab-pill.is-active,
+.ast-tab-pill.active,
+.inv-tab-pill.is-active,
+.inv-tab-pill.active,
+.rep-tab-pill.is-active,
+.rep-tab-pill.active,
+.bill-tab-pill.is-active,
+.bill-tab-pill.active,
+.wrk-tab-pill.is-active,
+.wrk-tab-pill.active,
+.pur-tab-pill.is-active,
+.pur-tab-pill.active,
+.sup-tab-pill.is-active,
+.sup-tab-pill.active,
+.sic-tab-pill.is-active,
+.sic-tab-pill.active,
+.cust-tab-pill.is-active,
+.cust-tab-pill.active,
+.sub-tab.is-active,
+.sub-tab.active,
+.tab-pill.is-active,
+.tab-pill.active,
+.proj-tab-group.is-active,
+.proj-tab-group.active {
+  background: transparent !important;
+  color: #6E1A11 !important;
+  font-weight: 700 !important;
+  border-bottom: 3px solid #6E1A11 !important;
+  border-radius: 0 !important;
+}
+
+/* 3. DELETE BUTTONS (Border/Text: #E74C3C, Hover BG: #E74C3C, Hover Text: #FFFFFF) */
+.btn-reject,
+.btn-delete,
+.btn-danger,
+.btn-outline-danger,
+.sup-del-product,
+.boq-del-btn,
+.prog-del-btn,
+.phase-del-btn {
+  color: #E74C3C !important;
+  border: 1px solid #E74C3C !important;
+  background: #ffffff !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+.btn-reject:hover,
+.btn-reject:focus-visible,
+.btn-delete:hover,
+.btn-delete:focus-visible,
+.btn-danger:hover,
+.btn-outline-danger:hover,
+.sup-del-product:hover,
+.boq-del-btn:hover,
+.prog-del-btn:hover,
+.phase-del-btn:hover {
+  color: #ffffff !important;
+  background: #E74C3C !important;
+  border-color: #E74C3C !important;
+}
+
+/* 4. SUCCESS / ACTIVE BADGES (Text: #16823B, Background: #E8F7ED) */
+.chip-success,
+.badge-success,
+.status-badge--active,
+.status-active,
+.badge-active,
+.wrk-badge--success,
+.compliance-chip--compliant,
+.settings-perm-badge--yes {
+  color: #16823B !important;
+  background: #E8F7ED !important;
+  border: 1px solid rgba(22, 130, 59, 0.2) !important;
+}
+
+/* 5. NEUTRAL BORDER OVERRIDE (#E5E7EB) */
+.card,
+.dash-widget,
+.mod-tab-panel,
+.wrk-tab-panel {
+  border-color: #E5E7EB !important;
+}
+

@@ -1755,6 +1755,7 @@ export function mountWorkers(container) {
         (tab) => {
           state.activeTab = tab;
           renderKpiStrip();
+          renderTabs();
           renderContent();
         },
         { variant: "hr-main" }
