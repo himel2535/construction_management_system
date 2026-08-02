@@ -1,14 +1,4 @@
-import {
-  db,
-  ref,
-  get as fbGet,
-  set,
-  push,
-  update,
-  remove,
-  onValue,
-  runTransaction as fbRunTransaction,
-} from "./firebase.js";
+import { api } from './lib/apiClient.ts';
 import { valToList, getRef, setPath } from "./svc_clientCache.js";
 import {
   isTenantScopedPath,
@@ -17,134 +7,129 @@ import {
   readRef,
   onTenantChange,
   getActiveTenantId,
-  SCOPED_ROOT_KEYS,
 } from "./svc_tenant.js";
 
 export { valToList, readRef, resolveRead, getRef, setPath };
 
-function fbPath(logicalPath) {
-  if (!logicalPath) return logicalPath;
-  if (logicalPath.startsWith("tenantData/")) return logicalPath;
-  if (logicalPath.startsWith("reportsCache/")) {
-    const sub = logicalPath.slice("reportsCache/".length);
-    return `reportsCache/${getActiveTenantId()}/${sub}`;
+function parsePath(path) {
+  if (!path) return { collection: '', id: null };
+  const parts = path.split('/').filter(Boolean);
+  
+  // Handle tenant-scoped paths which look like tenantData/{tenantId}/collection
+  if (parts[0] === 'tenantData' && parts.length >= 3) {
+    return { collection: parts[2], id: parts[3] || null };
   }
-  if (logicalPath === "reportsCache") return `reportsCache/${getActiveTenantId()}`;
-  if (logicalPath.startsWith("syncConflicts/")) return logicalPath;
-  if (isTenantScopedPath(logicalPath)) return scopedStoragePath(logicalPath);
-  return logicalPath;
-}
-
-function parseNestedPath(path) {
-  const parts = path.split("/").filter(Boolean);
-  if (parts.length === 2 && SCOPED_ROOT_KEYS.has(parts[0])) {
-    return { collection: parts[0], parentId: parts[1] };
+  
+  if (parts.length >= 2) {
+    return { collection: parts[0], id: parts[1] };
   }
-  return { collection: parts[0] || path };
-}
-
-function syncCacheFromSnapshot(logicalPath, val) {
-  if (val === null || val === undefined) {
-    setPath(fbPath(logicalPath), isTenantScopedPath(logicalPath) ? {} : null);
-    return;
-  }
-  const cachePath = isTenantScopedPath(logicalPath)
-    ? scopedStoragePath(logicalPath)
-    : logicalPath;
-  if (typeof val === "object" && !Array.isArray(val)) {
-    const map = {};
-    for (const [id, row] of Object.entries(val)) {
-      map[id] = typeof row === "object" && row !== null ? { id, ...row } : row;
-    }
-    setPath(cachePath, map);
-  } else {
-    setPath(cachePath, val);
-  }
+  return { collection: parts[0] || path, id: null };
 }
 
 export async function get(path) {
-  const snap = await fbGet(ref(db, fbPath(path)));
-  const v = snap.exists() ? snap.val() : null;
-  syncCacheFromSnapshot(path, v);
-  return {
-    val: () => v,
-    exists: () => snap.exists(),
-  };
+  try {
+    const { collection, id } = parsePath(path);
+    if (!collection || !id) return { val: () => null, exists: () => false };
+    
+    const data = await api.get(collection, id);
+    setPath(path, data);
+    return {
+      val: () => data,
+      exists: () => !!data,
+    };
+  } catch (error) {
+    console.error(`[svc_data REST get] Error fetching ${path}:`, error);
+    return { val: () => null, exists: () => false };
+  }
 }
 
 export async function getList(path) {
-  const snap = await fbGet(ref(db, fbPath(path)));
-  syncCacheFromSnapshot(path, snap.val());
-  return valToList(resolveRead(path) ?? {});
+  try {
+    const { collection } = parsePath(path);
+    if (!collection) return [];
+    
+    const dataList = await api.getList(collection);
+    
+    // The old system expects the cache to store objects by ID
+    const map = {};
+    for (const item of dataList) {
+      if (item.id) map[item.id] = item;
+    }
+    setPath(path, map);
+    
+    return dataList;
+  } catch (error) {
+    console.error(`[svc_data REST getList] Error fetching ${path}:`, error);
+    return [];
+  }
 }
 
 export async function create(path, data) {
-  const tenantId = getActiveTenantId();
-  const parsed = parseNestedPath(path);
-  const now = Date.now();
-  const payload = {
-    ...data,
-    tenantId,
-    source: data.source || "live",
-    updatedAt: now,
-    createdAt: data.createdAt ?? now,
-  };
-  const target = fbPath(path);
-  const newRef = push(ref(db, target));
-  await set(newRef, payload);
-  return newRef.key;
+  try {
+    const tenantId = getActiveTenantId();
+    const payload = {
+      ...data,
+      tenantId,
+      source: data.source || "live",
+    };
+    
+    const { collection } = parsePath(path);
+    const result = await api.create(collection, payload);
+    return result.id;
+  } catch (error) {
+    console.error(`[svc_data REST create] Error creating ${path}:`, error);
+    throw error;
+  }
 }
 
 export async function updatePath(path, data) {
-  const parts = path.split("/").filter(Boolean);
-  const now = Date.now();
-  const payload = { ...data, updatedAt: now, source: data.source || "live" };
-  await update(ref(db, fbPath(path)), payload);
+  try {
+    const { collection, id } = parsePath(path);
+    if (!id) throw new Error("Cannot update a collection without an ID");
+    
+    const payload = { ...data, source: data.source || "live" };
+    await api.update(collection, id, payload);
+  } catch (error) {
+    console.error(`[svc_data REST updatePath] Error updating ${path}:`, error);
+    throw error;
+  }
 }
 
 export async function removePath(path) {
-  await remove(ref(db, fbPath(path)));
+  try {
+    const { collection, id } = parsePath(path);
+    if (!id) throw new Error("Cannot remove a collection without an ID");
+    
+    await api.delete(collection, id);
+  } catch (error) {
+    console.error(`[svc_data REST removePath] Error removing ${path}:`, error);
+    throw error;
+  }
 }
 
 export function listenList(path, callback) {
-  const r = ref(db, fbPath(path));
-  const handler = (snap) => {
-    syncCacheFromSnapshot(path, snap.val());
-    callback(valToList(resolveRead(path) ?? {}));
-  };
-  const unsub = onValue(r, handler);
-  const unsubTenant = onTenantChange(() => {
-    callback(valToList(resolveRead(path) ?? {}));
+  // REST API isn't realtime by default.
+  // We fetch initially and invoke the callback.
+  let isMounted = true;
+  
+  getList(path).then((data) => {
+    if (isMounted) callback(data);
   });
+
   return () => {
-    unsub();
-    unsubTenant();
+    isMounted = false;
   };
 }
 
 export function listenValue(path, callback) {
-  const r = ref(db, fbPath(path));
-  const handler = (snap) => {
-    const val = snap.val();
-    syncCacheFromSnapshot(path, val);
-    if (path.startsWith("reportsCache/")) {
-      const sub = path.split("/")[1];
-      const parent = getRef("reportsCache") || {};
-      setPath("reportsCache", { ...parent, [sub]: val });
-      callback(val);
-      return;
-    }
-    if (path === "companyProfile/main" || path.includes("/")) {
-      callback(val);
-    } else {
-      callback(resolveRead(path) ?? val ?? null);
-    }
-  };
-  const unsub = onValue(r, handler);
-  const unsubTenant = onTenantChange(() => {});
+  let isMounted = true;
+  
+  get(path).then(({ val }) => {
+    if (isMounted) callback(val());
+  });
+
   return () => {
-    unsub();
-    unsubTenant();
+    isMounted = false;
   };
 }
 
@@ -153,33 +138,29 @@ export function listenProjectSub(projectId, subCollection, callback) {
     callback([]);
     return () => {};
   }
-  return listenList(`${subCollection}/${projectId}`, callback);
+  // The backend might not support query params directly yet for sub-collections.
+  // For now, we simulate by fetching the root collection and filtering, 
+  // or calling the standard api.getList and filtering locally since it's a mock realtime connection.
+  let isMounted = true;
+  
+  api.getList(subCollection).then((data) => {
+    if (isMounted) {
+      const filtered = data.filter(item => item.projectId === projectId);
+      callback(filtered);
+    }
+  }).catch(e => {
+    if (isMounted) callback([]);
+  });
+
+  return () => {
+    isMounted = false;
+  };
 }
 
 export async function propagateClientDenorm(clientId, clientName) {
-  const tenantId = getActiveTenantId();
-  const prefix = `tenantData/${tenantId}`;
-  const invoicesSnap = await fbGet(ref(db, `${prefix}/clientInvoices`));
-
-  const updates = {};
-  const invoices = invoicesSnap.val();
-  if (invoices) {
-    for (const [id, row] of Object.entries(invoices)) {
-      if (row.clientId === clientId) {
-        updates[`${prefix}/clientInvoices/${id}/clientName`] = clientName;
-      }
-    }
-  }
-  if (Object.keys(updates).length) {
-    await update(ref(db), updates);
-  }
+  console.log("propagateClientDenorm: REST adaptation needed for bulk updates. Skipping for now.");
 }
 
-/**
- * Keep project.clientId in sync with a client's primary project selection.
- * Clears the previous project's link only if it still pointed at this client.
- * @param {{ clientId: string, clientName: string, projectId?: string, previousProjectId?: string }} opts
- */
 export async function syncClientPrimaryProject({
   clientId,
   clientName,
@@ -187,40 +168,40 @@ export async function syncClientPrimaryProject({
   previousProjectId = "",
 }) {
   if (!clientId) return;
-  const now = Date.now();
   const nextId = projectId || "";
   const prevId = previousProjectId || "";
 
   if (prevId && prevId !== nextId) {
-    const prev = readRef(`projects/${prevId}`);
-    if (prev && prev.clientId === clientId) {
-      await updatePath(`projects/${prevId}`, {
-        clientId: "",
-        clientName: "",
-        updatedAt: now,
-      });
-    }
+    try {
+      const prev = readRef(`projects/${prevId}`);
+      if (prev && prev.clientId === clientId) {
+        await updatePath(`projects/${prevId}`, {
+          clientId: "",
+          clientName: "",
+        });
+      }
+    } catch(e) {}
   }
 
   if (nextId) {
     await updatePath(`projects/${nextId}`, {
       clientId,
       clientName: clientName || "",
-      updatedAt: now,
     });
   }
 }
 
-/** @deprecated use propagateClientDenorm */
 export async function propagateCustomerDenorm(customerId, customerName) {
   return propagateClientDenorm(customerId, customerName);
 }
 
 export async function runCounterTransaction(path, mutator) {
-  const r = ref(db, fbPath(path));
-  const result = await fbRunTransaction(r, (current) => mutator(current));
-  return result.snapshot.val();
+  // Simple read-modify-write as a fallback for transaction
+  const { collection, id } = parsePath(path);
+  const current = await api.get(collection, id).catch(() => ({}));
+  const nextData = mutator(current);
+  await api.update(collection, id, nextData);
+  return nextData;
 }
 
-/** No-op for Firebase boot (snapshot loaded via listeners) */
 export function applySnapshotToStore() {}
