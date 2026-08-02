@@ -30,7 +30,7 @@ export default function ProjectCreatePage() {
         }
       }
     };
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   return <div className="app-root page-projectcreatepage" id="app-root" ref={containerRef}></div>;
 }
