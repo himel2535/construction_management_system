@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
 
 const moduleCache = new Map<string, any>();
 
 export default function SuppliersPage() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -26,7 +24,7 @@ export default function SuppliersPage() {
     return () => {
       if (cleanup) cleanup();
     };
-  }, [searchParams]);
+  }, []);
 
   return <div ref={containerRef} className="suppliers-mount-node" style={{ width: "100%" }} />;
 }

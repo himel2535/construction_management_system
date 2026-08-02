@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
 import { usePathname } from "next/navigation";
 
 const moduleCache = new Map<string, any>();
 
 export default function CustomerCreatePage() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const searchParams = useSearchParams();
   const pathname = usePathname();
 
   useEffect(() => {

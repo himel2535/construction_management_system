@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
 
 const moduleCache = new Map<string, any>();
 
 export default function SiteInchargePage() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -32,7 +30,7 @@ export default function SiteInchargePage() {
         }
       }
     };
-  }, [searchParams]);
+  }, []);
 
   return <div ref={containerRef} className="site-incharge-mount-node" style={{ width: "100%" }} />;
 }

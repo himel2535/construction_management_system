@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
 
 const moduleCache = new Map<string, any>();
 
 export default function ProjectsPage() {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -33,7 +31,7 @@ export default function ProjectsPage() {
         }
       }
     };
-  }, [searchParams]);
+  }, []);
 
   return <div ref={containerRef} className="projects-mount-node" style={{ width: "100%" }} />;
 }
