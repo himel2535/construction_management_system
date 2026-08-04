@@ -78,7 +78,7 @@ export async function endActiveAssignmentsForProject(projectId) {
     if (row.projectId !== projectId || row.status !== "active") continue;
     await updatePath(`siteInChargeAssignments/${aid}`, {
       ...row,
-      status: "ended",
+      status: "inactive",
       endDate: todayISO(),
       updatedAt: now,
     });
@@ -239,7 +239,7 @@ export async function endAssignment(assignmentId) {
   const now = Date.now();
   await updatePath(`siteInChargeAssignments/${assignmentId}`, {
     ...row,
-    status: "ended",
+    status: "inactive",
     endDate: todayISO(),
     updatedAt: now,
   });
