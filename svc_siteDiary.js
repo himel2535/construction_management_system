@@ -32,27 +32,22 @@ export async function submitSiteDiary(projectId, diaryId) {
   await updatePath(`${SITE_DIARY_PATHS.diaries}/${projectId}/${diaryId}`, {
     ...cur,
     status: "submitted",
-    submittedAt: Date.now(),
-    updatedAt: Date.now(),
+    submittedAt: new Date().toISOString(),
   });
 }
 
 export async function approveSiteDiary(projectId, diaryId) {
   const cur = readRef(`${SITE_DIARY_PATHS.diaries}/${projectId}/${diaryId}`) || {};
-  const now = Date.now();
   const progressEntryId = await create(`projectProgress/${projectId}`, {
     ...diaryToProgressDraft({ ...cur, id: diaryId }),
-    createdAt: now,
-    updatedAt: now,
     createdBy: getCurrentUserId(),
   });
   await updatePath(`${SITE_DIARY_PATHS.diaries}/${projectId}/${diaryId}`, {
     ...cur,
     status: "approved",
     progressEntryId,
-    approvedAt: now,
+    approvedAt: new Date().toISOString(),
     approvedBy: getCurrentUserId(),
-    updatedAt: now,
   });
   await syncFieldProgressHint(projectId, cur.logDate);
   return progressEntryId;
@@ -63,6 +58,5 @@ export async function syncFieldProgressHint(projectId, logDate) {
   await updatePath(`projects/${projectId}`, {
     ...proj,
     lastFieldReportDate: logDate || todayISO(),
-    updatedAt: Date.now(),
   });
 }

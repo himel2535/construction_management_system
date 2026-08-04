@@ -30,7 +30,7 @@ export default function ReportsWorkerPayrollPage() {
         }
       }
     };
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   return <div className="app-root page-reportsworkerpayrollpage" id="app-root" ref={containerRef}></div>;
 }

@@ -449,6 +449,7 @@ export function mountSiteIncharge(container) {
           startDate: data.startDate || todayISO(),
         });
         state.contextProjectId = data.projectId;
+        state.assignments = await getList("siteInChargeAssignments");
         ensureProjectSubs();
         showToast("Project assigned — previous in-charge on this project was ended");
         render();
@@ -512,8 +513,10 @@ export function mountSiteIncharge(container) {
             await endAssignment(a.id);
           }
           state.contextProjectId = "";
-          ensureProjectSubs();
         }
+        state.siteInCharges = await getList("siteInCharges");
+        state.assignments = await getList("siteInChargeAssignments");
+        ensureProjectSubs();
         showToast("Saved");
         render();
       },
@@ -568,6 +571,10 @@ export function mountSiteIncharge(container) {
         state.selectedId = id;
         state.contextProjectId = data.projectId || "";
         state.activeTab = "overview";
+        
+        state.siteInCharges = await getList("siteInCharges");
+        state.assignments = await getList("siteInChargeAssignments");
+
         updateHashParams({ id, projectId: state.contextProjectId, tab: state.activeTab });
         ensureProjectSubs();
         showToast("Site in-charge created");

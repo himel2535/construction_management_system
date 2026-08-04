@@ -55,8 +55,6 @@ export async function createSiteInCharge(data) {
     status: data.status || "active",
     monthlyRate: Number(data.monthlyRate) || 0,
     notes: data.notes || "",
-    defaultProjectId: data.defaultProjectId || "",
-    createdBy: getCurrentUserId(),
   });
   await writeAuditLog({
     entityType: "siteInCharge",
@@ -98,11 +96,9 @@ export async function assignSiteInChargeToProject({
     siteInChargeId,
     projectId,
     projectName: projectName || "",
-    role: "site_in_charge",
     startDate: startDate || todayISO(),
     endDate: "",
     status: "active",
-    responsibilities: ["material", "labor", "site_ops"],
   });
   const proj = readRef(`projects/${projectId}`) || {};
   await updatePath(`projects/${projectId}`, {
@@ -134,7 +130,6 @@ export async function createMaterialLog(projectId, data) {
     items,
     remarks: data.remarks || "",
     status: data.status || "submitted",
-    createdBy: getCurrentUserId(),
   });
   return id;
 }

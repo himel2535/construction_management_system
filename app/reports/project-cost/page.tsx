@@ -30,7 +30,7 @@ export default function ReportsProjectCostPage() {
         }
       }
     };
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   return <div className="app-root page-reportsprojectcostpage" id="app-root" ref={containerRef}></div>;
 }

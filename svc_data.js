@@ -12,18 +12,46 @@ import {
 export { valToList, readRef, resolveRead, getRef, setPath };
 
 function parsePath(path) {
-  if (!path) return { collection: '', id: null };
+  if (!path) return { collection: '', id: null, projectId: null };
   const parts = path.split('/').filter(Boolean);
   
-  // Handle tenant-scoped paths which look like tenantData/{tenantId}/collection
+  let baseIndex = 0;
   if (parts[0] === 'tenantData' && parts.length >= 3) {
-    return { collection: parts[2], id: parts[3] || null };
+    baseIndex = 2; // skip tenantData and tenantId
   }
   
-  if (parts.length >= 2) {
-    return { collection: parts[0], id: parts[1] };
+  const collection = parts[baseIndex];
+  
+  const isNested = (
+    collection === 'siteMaterialLogs' ||
+    collection === 'materialLogs' ||
+    collection === 'projectRoster' ||
+    collection === 'siteSettlements' ||
+    collection === 'materialRequests' ||
+    collection === 'siteDiaries' ||
+    collection === 'equipmentLogs' ||
+    collection === 'purchaseOrders' ||
+    collection === 'goodsReceipts' ||
+    collection === 'projectProgress'
+  );
+
+  let id = null;
+  let projectId = null;
+
+  if (isNested) {
+    if (parts.length > baseIndex + 2) {
+      projectId = parts[baseIndex + 1];
+      id = parts[baseIndex + 2];
+    } else if (parts.length > baseIndex + 1) {
+      projectId = parts[baseIndex + 1];
+    }
+  } else {
+    if (parts.length > baseIndex + 1) {
+      id = parts[baseIndex + 1];
+    }
   }
-  return { collection: parts[0] || path, id: null };
+
+  return { collection, id, projectId };
 }
 
 export async function get(path) {
@@ -67,13 +95,29 @@ export async function getList(path) {
 export async function create(path, data) {
   try {
     const tenantId = getActiveTenantId();
+    const { collection, projectId } = parsePath(path);
     const payload = {
       ...data,
       tenantId,
       source: data.source || "live",
     };
     
-    const { collection } = parsePath(path);
+    // Auto-inject projectId for nested collections where path contains it
+    if (projectId && !payload.projectId && (
+      collection === 'siteMaterialLogs' ||
+      collection === 'materialLogs' ||
+      collection === 'projectRoster' ||
+      collection === 'siteSettlements' ||
+      collection === 'materialRequests' ||
+      collection === 'siteDiaries' ||
+      collection === 'equipmentLogs' ||
+      collection === 'purchaseOrders' ||
+      collection === 'goodsReceipts' ||
+      collection === 'projectProgress'
+    )) {
+      payload.projectId = projectId;
+    }
+
     const result = await api.create(collection, payload);
     return result.id;
   } catch (error) {
@@ -84,10 +128,26 @@ export async function create(path, data) {
 
 export async function updatePath(path, data) {
   try {
-    const { collection, id } = parsePath(path);
+    const { collection, id, projectId } = parsePath(path);
     if (!id) throw new Error("Cannot update a collection without an ID");
     
     const payload = { ...data, source: data.source || "live" };
+    
+    if (projectId && !payload.projectId && (
+      collection === 'siteMaterialLogs' ||
+      collection === 'materialLogs' ||
+      collection === 'projectRoster' ||
+      collection === 'siteSettlements' ||
+      collection === 'materialRequests' ||
+      collection === 'siteDiaries' ||
+      collection === 'equipmentLogs' ||
+      collection === 'purchaseOrders' ||
+      collection === 'goodsReceipts' ||
+      collection === 'projectProgress'
+    )) {
+      payload.projectId = projectId;
+    }
+
     await api.update(collection, id, payload);
   } catch (error) {
     console.error(`[svc_data REST updatePath] Error updating ${path}:`, error);

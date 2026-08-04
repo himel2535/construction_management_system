@@ -30,7 +30,7 @@ export default function ArbitrationPage() {
         }
       }
     };
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   return <div className="app-root page-arbitrationpage" id="app-root" ref={containerRef}></div>;
 }

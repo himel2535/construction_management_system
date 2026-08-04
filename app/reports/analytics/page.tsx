@@ -30,7 +30,7 @@ export default function ReportsAnalyticsPage() {
         }
       }
     };
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   return <div className="app-root page-reportsanalyticspage" id="app-root" ref={containerRef}></div>;
 }

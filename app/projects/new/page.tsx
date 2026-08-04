@@ -22,7 +22,7 @@ export default function ProjectCreatePage() {
     });
 
     return () => {
-      if (cleanup) {
+      if (typeof cleanup === 'function') {
         try {
           cleanup();
         } catch (e) {

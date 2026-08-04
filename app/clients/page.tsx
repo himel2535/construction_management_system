@@ -30,7 +30,7 @@ export default function ClientsPage() {
         }
       }
     };
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   return <div className="app-root page-clientspage" id="app-root" ref={containerRef}></div>;
 }
