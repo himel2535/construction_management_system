@@ -24,18 +24,18 @@ export default function AddClientPage() {
 
       const payload = {
         name: data.name as string,
-        company: data.company as string,
+        companyName: data.companyName as string,
         email: data.email as string,
         phone: data.phone as string,
         address: data.address as string,
+        contactPerson: data.contactPerson as string || "",
+        contractRef: data.contractRef as string || "",
         status: (data.status as string) as "active" | "inactive" | "lead",
         clientType: clientType,
         notes: data.notes as string,
         totalProjects: 0,
         totalBilled: 0,
       };
-
-      // In a real app, we might store NID, contractRef, government contact in a details JSON or specific columns.
       // For now, we put them in notes if we don't have columns, or we can just append to address/notes.
       const extraDetails = `NID: ${data.nid}\nContract Ref: ${data.contractRef}\n` + 
         (clientType === "government" ? `Gov Contact: ${data.contactPersonName}, ${data.contactPersonDesignation}` : "");
@@ -170,7 +170,7 @@ export default function AddClientPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700">Business Type / Sector</label>
-                  <input type="text" name="company" placeholder="e.g. Real Estate Developer" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all" />
+                  <input type="text" name="companyName" placeholder="e.g. Real Estate Developer" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all" />
                 </div>
               </div>
 

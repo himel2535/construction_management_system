@@ -31,7 +31,7 @@ export default function CustomersPage() {
   const filteredCustomers = customers.filter((customer) => {
     const matchesSearch = 
       customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (customer.company && customer.company.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (customer.companyName && customer.companyName.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (customer.phone && customer.phone.includes(searchQuery));
       
     const matchesName = nameFilter === "" || customer.name.toLowerCase().includes(nameFilter.toLowerCase());
@@ -247,7 +247,7 @@ export default function CustomersPage() {
                         <Avatar name={c.name} size="sm" />
                         <div className="cell-user-text cust-client-name-row flex flex-col">
                           <strong className="text-slate-900 font-semibold">{c.name}</strong>
-                          {/* dup badge not implemented here as no logic provided but easily added later */}
+                          <div className="text-xs text-slate-500 truncate max-w-[200px]">{c.companyName}</div>
                         </div>
                       </div>
                     </td>
