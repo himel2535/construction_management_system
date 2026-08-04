@@ -618,6 +618,12 @@ export function mountPurchases(container) {
     });
   }
 
+  // Refresh data dynamically when API writes occur
+  const onDataChanged = () => {
+    if (selectedProject) bindProject();
+  };
+  window.addEventListener("backend_data_changed", onDataChanged);
+
   listenList("projects", (list) => {
     projects = list;
     projectSel.innerHTML = '<option value="">Select project</option>';
@@ -685,6 +691,7 @@ export function mountPurchases(container) {
       unsubBoq();
       productUnsubs.forEach((u) => u());
       productUnsubs = [];
+      window.removeEventListener("backend_data_changed", onDataChanged);
     },
   };
 }

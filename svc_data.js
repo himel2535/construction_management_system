@@ -119,6 +119,7 @@ export async function create(path, data) {
     }
 
     const result = await api.create(collection, payload);
+    window.dispatchEvent(new CustomEvent("backend_data_changed"));
     return result.id;
   } catch (error) {
     console.error(`[svc_data REST create] Error creating ${path}:`, error);
@@ -149,6 +150,7 @@ export async function updatePath(path, data) {
     }
 
     await api.update(collection, id, payload);
+    window.dispatchEvent(new CustomEvent("backend_data_changed"));
   } catch (error) {
     console.error(`[svc_data REST updatePath] Error updating ${path}:`, error);
     throw error;
@@ -161,6 +163,7 @@ export async function removePath(path) {
     if (!id) throw new Error("Cannot remove a collection without an ID");
     
     await api.delete(collection, id);
+    window.dispatchEvent(new CustomEvent("backend_data_changed"));
   } catch (error) {
     console.error(`[svc_data REST removePath] Error removing ${path}:`, error);
     throw error;
