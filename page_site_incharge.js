@@ -2593,17 +2593,17 @@ export function mountSiteIncharge(container) {
                       endDate: a.endDate || todayISO(),
                     })
                   : "—";
-              const endBtn =
+              const actionContent =
                 a.status === "active"
-                  ? `<button type="button" class="btn btn-secondary btn-sm" data-end-asn="${a.id}">End</button>`
-                  : "";
+                  ? `<div class="sic-row-actions"><button type="button" class="btn btn-secondary btn-sm" data-end-asn="${a.id}">End</button></div>`
+                  : `<span style="color: #6c757d; font-size: 0.85em; font-weight: 500;">Ended</span>`;
               return `<tr>
                 <td><a href="/projects?id=${encodeURIComponent(a.projectId)}">${escapeHtml(a.projectName || a.projectId)}</a></td>
                 <td>${escapeHtml(a.startDate || "—")}</td>
                 <td class="cust-col-center">${escapeHtml(a.endDate || "—")}</td>
-                <td class="cust-col-center">${escapeHtml(a.status)}</td>
+                <td class="cust-col-center">${escapeHtml(a.status === "inactive" ? "ended" : a.status)}</td>
                 <td class="cust-col-center">${logCount}</td>
-                <td class="cust-col-center">${endBtn ? `<div class="sic-row-actions">${endBtn}</div>` : ""}</td>
+                <td class="cust-col-center">${actionContent}</td>
               </tr>`;
             })
             .join("")}</tbody></table>`);
@@ -2613,6 +2613,7 @@ export function mountSiteIncharge(container) {
         if (!(await confirmAction({ title: "End assignment?", message: "End this assignment? Project site in-charge will be cleared.", confirmLabel: "End assignment", variant: "danger" }))) return;
         try {
           await endAssignment(btn.dataset.endAsn);
+          state.assignments = await getList("siteInChargeAssignments");
           if (state.contextProjectId) {
             const still = activeAssignmentsForInCharge(state.assignments, sic.id);
             if (!still.some((a) => a.projectId === state.contextProjectId)) {
