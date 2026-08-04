@@ -1,8 +1,10 @@
 import { z } from "zod";
 
 const isBrowser = typeof window !== 'undefined';
-const defaultHost = isBrowser ? window.location.hostname : 'localhost';
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || `http://${defaultHost}:4000/api`;
+const isProd = process.env.NODE_ENV === 'production';
+const API_BASE_URL = isProd 
+  ? (process.env.NEXT_PUBLIC_BACKEND_URL || 'https://constructionmanagementsystembackend-production.up.railway.app/api')
+  : 'http://localhost:4000/api';
 
 export async function fetchApi<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}/${endpoint.replace(/^\//, '')}`;
