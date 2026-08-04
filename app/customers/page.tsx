@@ -9,8 +9,10 @@ import {
   Download, 
   Upload, 
   Eye, 
-  Edit
+  Edit,
+  Plus
 } from "lucide-react";
+import Link from "next/link";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import Sparkline from "@/components/ui/Sparkline";
 import Avatar from "@/components/ui/Avatar";
@@ -209,9 +211,9 @@ export default function CustomersPage() {
                 <button type="button" className="btn btn-secondary btn-sm cust-toolbar-btn cust-toolbar-btn--import">
                   <Upload size={14} className="mr-1" /> Import
                 </button>
-                <button type="button" className="btn btn-primary btn-sm bg-red-800 text-white hover:bg-red-900 border-none">
-                  + Add New Client
-                </button>
+                <Link href="/customers/new" className="btn btn-primary btn-sm bg-amber-600 text-white hover:bg-amber-700 border-none flex items-center gap-1">
+                  <Plus size={16} /> Add New Client
+                </Link>
               </div>
             </div>
           </div>
