@@ -1,6 +1,6 @@
 /** Purchase order approval workflow */
 
-import { readRef, updatePath } from "./svc_data.js";
+import { get, updatePath } from "./svc_data.js";
 import { getCurrentUserId } from "./svc_auth.js";
 import { checkBudgetForApproval } from "./svc_projectCost.js";
 import { writeAuditLog } from "./svc_workflow.js";
@@ -22,7 +22,8 @@ export async function approvePurchaseOrder(projectId, poId) {
     throw new Error("You cannot approve POs with your role");
   }
   const path = poPath(projectId, poId);
-  const cur = readRef(path);
+  const curDoc = await get(path);
+  const cur = curDoc.val();
   if (!cur) {
     throw new Error("PO not found — refresh the page and try again");
   }
@@ -67,7 +68,8 @@ export async function rejectPurchaseOrder(projectId, poId) {
     throw new Error("You cannot reject POs with your role");
   }
   const path = poPath(projectId, poId);
-  const cur = readRef(path);
+  const curDoc = await get(path);
+  const cur = curDoc.val();
   if (!cur || cur.status !== "draft") {
     throw new Error("PO cannot be rejected");
   }
