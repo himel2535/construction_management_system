@@ -73,10 +73,18 @@ export async function get(path) {
 
 export async function getList(path) {
   try {
-    const { collection } = parsePath(path);
+    const { collection, id } = parsePath(path);
     if (!collection) return [];
     
-    const dataList = await api.getList(collection);
+    let query = "";
+    if (id) {
+      if (collection.startsWith("supplier")) query = `?supplierId=${id}`;
+      else if (collection.startsWith("project")) query = `?projectId=${id}`;
+      else if (collection.startsWith("asset")) query = `?assetId=${id}`;
+      else query = `?parentId=${id}`;
+    }
+    
+    const dataList = await api.getList(collection + query);
     
     // The old system expects the cache to store objects by ID
     const map = {};
@@ -95,12 +103,20 @@ export async function getList(path) {
 export async function create(path, data) {
   try {
     const tenantId = getActiveTenantId();
-    const { collection, projectId } = parsePath(path);
+    const { collection, id, projectId } = parsePath(path);
     const payload = {
       ...data,
       tenantId,
       source: data.source || "live",
     };
+    
+    // Inject foreign key for subcollections
+    if (id) {
+      if (collection.startsWith("supplier")) payload.supplierId = id;
+      else if (collection.startsWith("project")) payload.projectId = id;
+      else if (collection.startsWith("asset")) payload.assetId = id;
+      else payload.parentId = id;
+    }
     
     // Auto-inject projectId for nested collections where path contains it
     if (projectId && !payload.projectId && (
@@ -171,28 +187,42 @@ export async function removePath(path) {
 }
 
 export function listenList(path, callback) {
-  // REST API isn't realtime by default.
-  // We fetch initially and invoke the callback.
   let isMounted = true;
   
-  getList(path).then((data) => {
-    if (isMounted) callback(data);
-  });
+  const fetch = () => {
+    getList(path).then((data) => {
+      if (isMounted) callback(data);
+    });
+  };
+
+  fetch();
+
+  const listener = () => fetch();
+  window.addEventListener("backend_data_changed", listener);
 
   return () => {
     isMounted = false;
+    window.removeEventListener("backend_data_changed", listener);
   };
 }
 
 export function listenValue(path, callback) {
   let isMounted = true;
   
-  get(path).then(({ val }) => {
-    if (isMounted) callback(val());
-  });
+  const fetch = () => {
+    get(path).then(({ val }) => {
+      if (isMounted) callback(val());
+    });
+  };
+
+  fetch();
+
+  const listener = () => fetch();
+  window.addEventListener("backend_data_changed", listener);
 
   return () => {
     isMounted = false;
+    window.removeEventListener("backend_data_changed", listener);
   };
 }
 
@@ -201,22 +231,27 @@ export function listenProjectSub(projectId, subCollection, callback) {
     callback([]);
     return () => {};
   }
-  // The backend might not support query params directly yet for sub-collections.
-  // For now, we simulate by fetching the root collection and filtering, 
-  // or calling the standard api.getList and filtering locally since it's a mock realtime connection.
   let isMounted = true;
   
-  api.getList(subCollection).then((data) => {
-    if (isMounted) {
-      const filtered = data.filter(item => item.projectId === projectId);
-      callback(filtered);
-    }
-  }).catch(e => {
-    if (isMounted) callback([]);
-  });
+  const fetch = () => {
+    api.getList(subCollection).then((data) => {
+      if (isMounted) {
+        const filtered = data.filter(item => item.projectId === projectId);
+        callback(filtered);
+      }
+    }).catch(e => {
+      if (isMounted) callback([]);
+    });
+  };
+
+  fetch();
+
+  const listener = () => fetch();
+  window.addEventListener("backend_data_changed", listener);
 
   return () => {
     isMounted = false;
+    window.removeEventListener("backend_data_changed", listener);
   };
 }
 
