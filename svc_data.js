@@ -22,7 +22,7 @@ function parsePath(path) {
   
   const collection = parts[baseIndex];
   
-  const isNested = (
+  const isProjectNested = (
     collection === 'siteMaterialLogs' ||
     collection === 'materialLogs' ||
     collection === 'projectRoster' ||
@@ -38,16 +38,18 @@ function parsePath(path) {
   let id = null;
   let projectId = null;
 
-  if (isNested) {
-    if (parts.length > baseIndex + 2) {
-      projectId = parts[baseIndex + 1];
-      id = parts[baseIndex + 2];
-    } else if (parts.length > baseIndex + 1) {
-      projectId = parts[baseIndex + 1];
+  if (parts.length > baseIndex + 2) {
+    // e.g. supplierProducts/supplierId/productId
+    const parentId = parts[baseIndex + 1];
+    id = parts[parts.length - 1]; // the actual item id is the last part
+    if (isProjectNested) {
+      projectId = parentId;
     }
-  } else {
-    if (parts.length > baseIndex + 1) {
-      id = parts[baseIndex + 1];
+  } else if (parts.length > baseIndex + 1) {
+    // e.g. supplierProducts/supplierId (for creation or list listening)
+    id = parts[baseIndex + 1];
+    if (isProjectNested) {
+      projectId = id;
     }
   }
 
