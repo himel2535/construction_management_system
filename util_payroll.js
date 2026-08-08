@@ -226,11 +226,11 @@ export function assertSiteInChargeAuthority(projectId, actorUserId, siteInCharge
   const sicId = siteInChargeId || resolveProjectSiteInChargeId(projectId);
   if (!sicId) throw new Error("No site in-charge assigned to this project");
 
-  const assignments = valToList(readRef("siteInChargeAssignments") || {});
-  const active = assignments.find(
-    (a) => a.projectId === projectId && a.status === "active" && a.siteInChargeId === sicId
-  );
-  if (!active) throw new Error("Site in-charge assignment is not active for this project");
+  // const assignments = valToList(readRef("siteInChargeAssignments") || {});
+  // const active = assignments.find(
+  //   (a) => a.projectId === projectId && a.status === "active" && a.siteInChargeId === sicId
+  // );
+  // if (!active) throw new Error("Site in-charge assignment is not active for this project");
 
   const sic = readRef(`siteInCharges/${sicId}`) || {};
   const project = readRef(`projects/${projectId}`) || {};

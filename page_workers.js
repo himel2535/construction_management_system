@@ -298,19 +298,24 @@ export function mountWorkers(container) {
   }
 
   function salaryStatus(workerId, monthKey) {
-    const paid = state.salaryPayments.some((p) => p.workerId === workerId && p.monthKey === monthKey);
-    if (paid) return "paid";
     const worker = getWorker(workerId);
     if (!worker) return "pending";
     const days = presentDaysForWorkerMonth(state.attendance, workerId, monthKey);
+    const summary = summarizeAttendance(state.attendance.filter((a) => a.workerId === workerId), monthKey);
     const advance = advancesForWorkerMonth(state.advances, workerId, monthKey);
-    const due = computeSalaryDue({
+    let due = computeSalaryDue({
       wageRate: worker.wageRate ?? worker.dailyWage,
       employmentType: worker.employmentType,
       daysPresent: days,
       advanceTaken: advance,
+      overtimeHours: summary.overtime
     });
-    return due > 0 ? "pending" : "clear";
+    const totalPaid = state.salaryPayments
+      .filter((p) => p.workerId === workerId && p.monthKey === monthKey)
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    due = Math.max(0, due - totalPaid);
+    if (due <= 0) return totalPaid > 0 ? "paid" : "clear";
+    return "pending";
   }
 
   function salaryRow(worker, monthKey = state.salaryMonth) {
@@ -325,13 +330,19 @@ export function mountWorkers(container) {
       worker.employmentType === "monthly"
         ? wageRate
         : daysPresent * wageRate + summary.overtime * wageRate * 1.5;
-    const due = computeSalaryDue({
+    
+    let due = computeSalaryDue({
       wageRate,
       employmentType: worker.employmentType,
       daysPresent,
       advanceTaken: advance,
       overtimeHours: summary.overtime,
     });
+    const totalPaid = state.salaryPayments
+      .filter((p) => p.workerId === worker.id && p.monthKey === monthKey)
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    due = Math.max(0, due - totalPaid);
+    
     const status = salaryStatus(worker.id, monthKey);
     return { daysPresent, advance, gross, due, status, wageRate, overtime: summary.overtime };
   }
@@ -350,7 +361,10 @@ export function mountWorkers(container) {
     if (status === "pending") {
       return `<span class="wrk-sal-indicator wrk-sal-indicator--pending" title="Pending">${icon("banknote", { size: 14, className: "icon" })}</span>`;
     }
-    return `<span class="wrk-sal-indicator wrk-sal-indicator--neutral" title="Clear">?</span>`;
+    if (status === "clear") {
+      return `<span class="wrk-sal-indicator wrk-sal-indicator--neutral" title="No Due">—</span>`;
+    }
+    return `<span class="wrk-sal-indicator wrk-sal-indicator--neutral">—</span>`;
   }
 
   function openProfile(workerId, tab = "overview") {
@@ -715,15 +729,60 @@ export function mountWorkers(container) {
     }
   }
 
+  function openAttendanceSelect(cell, workerId, date, currentStatus, currentOt) {
+    const overlay = document.createElement("div");
+    overlay.className = "cust-detail-overlay";
+    overlay.style.background = "transparent";
+    
+    const rect = cell.getBoundingClientRect();
+    
+    const menu = document.createElement("div");
+    menu.className = "card wrk-att-menu";
+    menu.style.position = "absolute";
+    menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+    menu.style.left = `${rect.left + window.scrollX - (rect.width > 20 ? 10 : 20)}px`;
+    menu.style.zIndex = "10000";
+    menu.style.padding = "6px";
+    menu.style.display = "flex";
+    menu.style.gap = "6px";
+    menu.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+    
+    const options = [
+      { val: "present", label: "P", cls: "present" },
+      { val: "absent", label: "A", cls: "absent" },
+      { val: "half_day", label: "H", cls: "half" },
+      { val: "", label: "-", cls: "empty" }
+    ];
+    
+    menu.innerHTML = options.map(o => 
+      `<button type="button" class="wrk-att-cell wrk-att-cell--${o.cls} ${currentStatus === o.val ? 'is-active' : ''}" style="width:32px;height:32px;" data-val="${o.val}">${o.label}</button>`
+    ).join("");
+    
+    overlay.appendChild(menu);
+    document.body.appendChild(overlay);
+    
+    overlay.onclick = () => overlay.remove();
+    menu.onclick = (e) => e.stopPropagation();
+    
+    menu.querySelectorAll("button").forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        overlay.remove();
+        const val = btn.dataset.val;
+        await saveAttendance(workerId, date, val, currentOt);
+        renderContent();
+      };
+    });
+  }
+
   function bindAttendanceCells(scope) {
     scope.querySelectorAll(".wrk-att-cell-wrap").forEach((cell) => {
-      cell.querySelector(".wrk-att-cell")?.addEventListener("click", async (e) => {
+      cell.querySelector(".wrk-att-cell")?.addEventListener("click", (e) => {
         e.stopPropagation();
         const workerId = cell.dataset.worker;
         const date = cell.dataset.date;
         const rec = attendanceRecord(workerId, date);
-        const next = nextAttendanceStatus(rec?.status || "");
-        await saveAttendance(workerId, date, next, rec?.overtimeHours || 0);
+        openAttendanceSelect(cell, workerId, date, rec?.status || "", rec?.overtimeHours || 0);
       });
       cell.addEventListener("dblclick", async (e) => {
         e.stopPropagation();
@@ -1280,7 +1339,7 @@ export function mountWorkers(container) {
                     ? `<span class="text-muted">Paid</span>`
                     : r.due > 0
                       ? `<button type="button" class="btn btn-primary btn-sm wrk-pay-btn" data-id="${escapeHtml(r.worker.id)}">Pay</button>`
-                      : `<span class="text-muted">?</span>`
+                      : `<span class="text-muted">—</span>`
                 }
               </td>
             </tr>`
@@ -1328,8 +1387,7 @@ export function mountWorkers(container) {
     wrap.querySelectorAll(".wrk-sal-row").forEach((row) => {
       row.onclick = (e) => {
         if (e.target.closest(".wrk-icon-btn, .proj-row-actions-cell, .wrk-mobile-card-actions")) return;
-        const worker = getWorker(row.dataset.workerId);
-        if (worker && salaryRow(worker).due > 0) openPaySalaryModal(worker);
+        openWorkerDetailModal(row.dataset.workerId);
       };
     });
     wrap.querySelectorAll(".wrk-pay-btn").forEach((btn) => {
@@ -1535,12 +1593,16 @@ export function mountWorkers(container) {
           columns: [
             { key: "monthKey", label: "Month" },
             { key: "date", label: "Paid on" },
+            { key: "type", label: "Type", render: (r) => `<span class="wrk-badge wrk-badge--${r.type === 'Salary' ? 'primary' : 'warning'}">${r.type}</span>` },
             { key: "amount", label: "Amount", render: (r) => formatBDT(r.amount) },
             { key: "status", label: "Status", render: () => `<span class="wrk-badge wrk-badge--success">Paid</span>` },
             { key: "note", label: "Note" },
           ],
-          rows: state.salaryPayments.filter((p) => p.workerId === worker.id).sort((a, b) => (b.date || "").localeCompare(a.date || "")),
-          emptyMessage: "No salary payments yet",
+          rows: [
+            ...state.salaryPayments.filter((p) => p.workerId === worker.id).map(p => ({ ...p, type: 'Salary' })),
+            ...state.advances.filter((p) => p.workerId === worker.id).map(p => ({ ...p, type: 'Advance', monthKey: '-' }))
+          ].sort((a, b) => (b.date || "").localeCompare(a.date || "")),
+          emptyMessage: "No payments or advances yet",
         }),
       })
     );

@@ -49,6 +49,7 @@ export async function deleteWorker(id) {
 
 export async function recordSiteTransfer(workerId, { fromProjectId, toProjectId, date, note }) {
   await create(`workerTransfers/${workerId}`, {
+    workerId,
     fromProjectId: fromProjectId || "",
     toProjectId: toProjectId || "",
     date: date || todayISO(),
