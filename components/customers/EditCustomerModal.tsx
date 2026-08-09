@@ -32,7 +32,7 @@ export default function EditCustomerModal({ customer, onClose }: EditCustomerMod
         phone: data.phone as string,
         address: data.address as string,
         clientType: data.clientType as string,
-        status: data.status as string,
+        status: (data.status as string) as "active" | "inactive" | "lead",
         contactPerson: data.contactPerson as string,
         contractRef: data.contractRef as string,
         portalAccessEnabled: data.portalAccessEnabled === "true",
