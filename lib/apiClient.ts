@@ -23,15 +23,17 @@ export async function fetchApi<T = any>(endpoint: string, options: RequestInit =
   const reqPromise = (async () => {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null;
-      const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string> || {}),
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
 
       const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeaders,
-          ...options.headers,
-        },
         ...options,
+        headers,
       });
 
       if (!response.ok) {
@@ -77,18 +79,29 @@ export async function fetchApiWithSchema<T>(
 
 export const api = {
   get: <T = any>(collection: string, id: string) => fetchApi<T>(`${collection}/${id}`),
-  getList: <T = any[]>(collection: string) => fetchApi<any>(collection).then(res => {
-    if (Array.isArray(res)) return res as T;
-    if (res && typeof res === 'object') {
-      return Object.entries(res).map(([key, value]: [string, any]) => {
-        if (value && typeof value === 'object' && !value.id) {
-          return { id: key, ...value };
-        }
-        return value;
-      }) as unknown as T;
+  getList: <T = any[]>(collection: string, params?: Record<string, any>) => {
+    let query = "";
+    if (params && Object.keys(params).length > 0) {
+      const qs = new URLSearchParams();
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== null) qs.append(k, String(v));
+      }
+      const str = qs.toString();
+      if (str) query = `?${str}`;
     }
-    return [] as unknown as T;
-  }),
+    return fetchApi<any>(`${collection}${query}`).then(res => {
+      if (Array.isArray(res)) return res as T;
+      if (res && typeof res === 'object') {
+        return Object.entries(res).map(([key, value]: [string, any]) => {
+          if (value && typeof value === 'object' && !value.id) {
+            return { id: key, ...value };
+          }
+          return value;
+        }) as unknown as T;
+      }
+      return [] as unknown as T;
+    });
+  },
   create: <T = any>(collection: string, data: any) =>
     fetchApi<T>(collection, {
       method: 'POST',
@@ -100,6 +113,10 @@ export const api = {
       body: JSON.stringify(data),
     }),
   delete: <T = any>(collection: string, id: string) =>
+    fetchApi<T>(`${collection}/${id}`, {
+      method: 'DELETE',
+    }),
+  remove: <T = any>(collection: string, id: string) =>
     fetchApi<T>(`${collection}/${id}`, {
       method: 'DELETE',
     }),

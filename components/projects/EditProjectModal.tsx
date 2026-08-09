@@ -333,11 +333,11 @@ export default function EditProjectModal({ isOpen, onClose, project }: EditProje
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Retention %</label>
-                      <input type="number" name="retentionPercent" defaultValue={project?.details?.retentionPercent || ""} defaultValue="10" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="number" name="retentionPercent" defaultValue={project?.details?.retentionPercent ?? "10"} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">LD rate / day (BDT)</label>
-                      <input type="number" name="ldRatePerDay" defaultValue={project?.details?.ldRatePerDay || ""} defaultValue="0" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="number" name="ldRatePerDay" defaultValue={project?.details?.ldRatePerDay ?? "0"} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5 md:col-span-3">
                       <label className="block text-sm font-medium text-slate-700">Retention release conditions</label>

@@ -42,6 +42,7 @@ export default function AssignTeamModal({ isOpen, onClose, projectId }: Props) {
       allocationPercent: Number(formData.allocationPercent),
       startDate: formData.startDate || undefined,
       endDate: formData.endDate || undefined,
+      status: "active",
     });
     
     setFormData({ 
