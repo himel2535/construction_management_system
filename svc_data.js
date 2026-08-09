@@ -73,10 +73,10 @@ export async function get(path) {
   }
 }
 
-const listMemoryCache = new Map<string, { timestamp: number; data: any[] }>();
+const listMemoryCache = new Map();
 const CLIENT_CACHE_TTL_MS = 10000;
 
-export function invalidateClientCache(pathPattern?: string) {
+export function invalidateClientCache(pathPattern) {
   if (!pathPattern) {
     listMemoryCache.clear();
     return;
