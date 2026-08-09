@@ -1,11 +1,10 @@
 import { renderTable } from "./cmp_table.js";
-import { listenList, listenProjectSub } from "./svc_data.js";
+import { listenList, listenProjectSub, create } from "./svc_data.js";
 import { resolveRead } from "./svc_tenant.js";
 import { formatBDT, todayISO } from "./util_format.js";
 import { showToast, actionFeedback } from "./cmp_toast.js";
 import { setActiveNav } from "./cmp_layout.js";
 import { setPageChrome } from "./cmp_header.js";
-import { postManualVoucherClient } from "./svc_firebaseOps.js";
 import { statusChip } from "./cmp_ui.js";
 import { icon } from "./cmp_icons.js";
 import { kpiIcon } from "./cmp_dashboardIcons.js";
@@ -241,13 +240,17 @@ export function mountAccounting(container) {
     const section = document.createElement("section");
     section.className = "dash-widget dash-widget--projects card fin-tab-panel";
     section.innerHTML = `
-      <div class="dash-widget-head">
-        <h3 class="dash-widget-title">Chart of accounts</h3>
-        <p class="dash-widget-sub">Ledger accounts and balances</p>
+      <div class="dash-widget-head dash-widget-head--split">
+        <div>
+          <h3 class="dash-widget-title">Chart of accounts</h3>
+          <p class="dash-widget-sub">Ledger accounts and balances</p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="fin-add-account">+ Add account</button>
       </div>
       <div class="dash-widget-body" id="finance-accounts-host"></div>
     `;
     accHost = section.querySelector("#finance-accounts-host");
+    section.querySelector("#fin-add-account").onclick = () => openAccountDialog();
     return section;
   }
 
@@ -304,6 +307,52 @@ export function mountAccounting(container) {
     }
   }
 
+  function openAccountDialog() {
+    openCustFormDialog({
+      title: "Add account",
+      subtitle: "Create a new ledger account",
+      modalClass: "finance-expense-modal",
+      submitLabel: "Save account",
+      values: { code: "", name: "", type: "asset", balance: "" },
+      sections: [
+        {
+          title: "Account Details",
+          fields: [
+            { name: "code", label: "Account code *", required: true },
+            { name: "name", label: "Account name *", required: true, fullWidth: true },
+            { 
+              name: "type", 
+              label: "Type *", 
+              type: "select", 
+              required: true, 
+              options: [
+                { value: "asset", label: "Asset" },
+                { value: "liability", label: "Liability" },
+                { value: "equity", label: "Equity" },
+                { value: "income", label: "Income" },
+                { value: "expense", label: "Expense" }
+              ] 
+            },
+            { name: "balance", label: "Opening Balance (BDT)", type: "number", step: "0.01" },
+          ],
+        },
+      ],
+      onSave: async (vals) => {
+        if (!vals.code || !vals.name || !vals.type) {
+          showToast("Please fill all required fields", "error");
+          throw new Error("validation");
+        }
+        await create("accounts", {
+          code: vals.code,
+          name: vals.name,
+          type: vals.type,
+          balance: Number(vals.balance || 0),
+        });
+        showToast("Account created successfully", "success");
+      },
+    });
+  }
+
   function openVoucherDialog() {
     const accountOptions = [
       { value: "", label: "Select account" },
@@ -341,7 +390,7 @@ export function mountAccounting(container) {
           throw new Error("validation");
         }
         try {
-          await postManualVoucherClient({
+          await create("vouchers", {
             amount,
             debit: vals.debit,
             credit: vals.credit,
@@ -710,7 +759,7 @@ export function mountAccounting(container) {
       btn.onclick = async () => {
         try {
           await submitProjectExpense(btn.dataset.pid, btn.dataset.id);
-          await actionFeedback("expense_submitted", { title: fd.get("narration") || "Expense" });
+          await actionFeedback("expense_submitted", { title: "Expense" });
         } catch (err) {
           showToast(err.message, "error");
         }

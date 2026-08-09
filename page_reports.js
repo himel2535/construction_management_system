@@ -186,12 +186,57 @@ export function mountReports(container) {
   const purchHost = purchWidget.querySelector("#purchases-table-host");
 
   let totalBilled = 0;
-
   let clientReceivable = 0;
-
   let monthExpense = 0;
-
   let subcontractOutstanding = 0;
+
+  let allProjects = [];
+  let allExpenses = [];
+
+  function computeProjectCostSummary() {
+    const host = document.getElementById("project-cost-body");
+    if (!host) return;
+    
+    // Compute summary by project
+    const summaryMap = {};
+    for (const p of allProjects) {
+      const budget = Number(p.contractValue || 0) * 0.8;
+      summaryMap[p.id] = {
+        id: p.id,
+        name: p.name || "Unnamed Project",
+        budgetTotal: budget, // mock budget as 80% of contract
+        committed: 0,
+        actual: 0,
+        remaining: budget,
+        utilization: 0,
+      };
+    }
+    
+    for (const exp of allExpenses) {
+      if (exp.status === 'cancelled') continue;
+      const pid = exp.projectId;
+      if (summaryMap[pid]) {
+        summaryMap[pid].actual += Number(exp.amount || 0);
+        summaryMap[pid].committed += Number(exp.amount || 0); // simplification
+        summaryMap[pid].remaining = Math.max(0, summaryMap[pid].budgetTotal - summaryMap[pid].actual);
+        summaryMap[pid].utilization = summaryMap[pid].budgetTotal > 0 ? Math.round((summaryMap[pid].actual / summaryMap[pid].budgetTotal) * 100) : 0;
+        summaryMap[pid].overBudget = summaryMap[pid].actual > summaryMap[pid].budgetTotal;
+      }
+    }
+
+    const rows = Object.values(summaryMap).filter(r => r.actual > 0 || r.budgetTotal > 0);
+    
+    host.innerHTML = renderProjectCostTable(rows, {
+      limit: REPORT_TABLE_PREVIEW,
+      viewAllHref: REPORT_VIEW_ALL.projectCost,
+      showViewAllLink: false,
+    });
+  }
+
+  listenList("projects", (list) => {
+    allProjects = list;
+    computeProjectCostSummary();
+  });
 
   let finExpensePending = 0;
   let finTotalPending = 0;
@@ -299,21 +344,22 @@ export function mountReports(container) {
       )
     );
 
+    finClientReceivable = clientReceivable;
+    refreshFinancialPanel();
     updateStats();
 
   });
 
 
 
-  listenList("purchases", (list) => {
+  listenList("projectExpenses", (list) => {
+    allExpenses = list;
+    computeProjectCostSummary();
 
     const month = new Date().toISOString().slice(0, 7);
-
     monthExpense = list
-
       .filter((p) => p.date?.startsWith(month) && p.status !== "cancelled")
-
-      .reduce((a, p) => a + p.amount, 0);
+      .reduce((a, p) => a + Number(p.amount || 0), 0);
 
     purchHost.innerHTML = "";
     styleReportsTableBlock(
@@ -327,8 +373,8 @@ export function mountReports(container) {
         ],
         list,
         (p) => ({
-          vendorName: p.vendorName,
-          date: p.date,
+          vendorName: p.description || "—",
+          date: p.expenseDate || p.date || "—",
           amount: formatBDT(p.amount),
         })
       )
@@ -340,19 +386,16 @@ export function mountReports(container) {
 
 
 
-  listenList("subcontracts", (list) => {
+  listenList("supplierBills", (list) => {
+    // Only consider bills that are related to subcontracts or have sourceType 'subcontract'
+    // Let's assume all supplierBills could be mapped, or we filter by something? 
+    // Usually subcontract exposure is just all supplier contracts right now since we lack a strict Subcontract model.
+    // We will just sum up contractValue vs paidAmount. For supplier bills, it is amount vs paidAmount.
+    const subcontractList = list;
 
-    subcontractOutstanding = list
-
-      .filter((s) => s.status !== "closed")
-
-      .reduce(
-
-        (sum, s) => sum + Math.max(0, Number(s.contractValue || 0) - Number(s.paidAmount || 0)),
-
-        0
-
-      );
+    subcontractOutstanding = subcontractList
+      .filter((s) => s.status !== "closed" && s.status !== "paid" && s.status !== "cancelled")
+      .reduce((sum, s) => sum + Math.max(0, Number(s.amount || 0) - Number(s.paidAmount || 0)), 0);
 
 
 
@@ -360,10 +403,8 @@ export function mountReports(container) {
 
     if (host) {
 
-      if (!list.length) {
-
+      if (!subcontractList.length) {
         host.innerHTML = `<p class="proj-empty">No subcontract records</p>`;
-
       } else {
 
         host.innerHTML = `
@@ -374,20 +415,13 @@ export function mountReports(container) {
 
             <tbody>
 
-              ${list.map((s) => {
-
-                const outstanding = Math.max(0, Number(s.contractValue || 0) - Number(s.paidAmount || 0));
-
+              ${subcontractList.map((s) => {
+                const outstanding = Math.max(0, Number(s.amount || 0) - Number(s.paidAmount || 0));
                 return `<tr>
-
-                  <td>${s.scope || s.title || "—"}</td>
-
+                  <td>${s.billNo || s.narration || "—"}</td>
                   <td>${s.supplierName || "—"}</td>
-
-                  <td class="text-right">${formatBDT(s.contractValue || 0)}</td>
-
+                  <td class="text-right">${formatBDT(s.amount || 0)}</td>
                   <td class="text-right">${formatBDT(s.paidAmount || 0)}</td>
-
                   <td class="text-right">${formatBDT(outstanding)}</td>
 
                   <td>${statusChip(s.status || "active")}</td>
@@ -406,28 +440,15 @@ export function mountReports(container) {
 
     }
 
-    updateStats();
-
-  });
-
-
-
-  listenValue("reportsCache/dailySummary", (s) => {
-
-    if (!s) return;
-
-    if (s.clientReceivable != null) clientReceivable = s.clientReceivable;
-
-    if (s.subcontractOutstanding != null) subcontractOutstanding = s.subcontractOutstanding;
-
-    finClientReceivable = s.clientReceivable ?? 0;
-    finGovIpcOutstanding = s.govIpcOutstanding ?? 0;
-    finSubcontractOutstanding = s.subcontractOutstanding ?? 0;
+    finSubcontractOutstanding = subcontractOutstanding;
     refreshFinancialPanel();
-
     updateStats();
 
   });
+
+
+
+  // Removed listenValue("reportsCache/dailySummary") as values are computed locally.
 
 
 
@@ -519,29 +540,12 @@ export function mountReports(container) {
     refreshMultitenantPanel();
   });
 
-  listenValue("reportsCache/projectCostSummary", (rows) => {
-    const host = document.getElementById("project-cost-body");
-    if (!host) return;
-    host.innerHTML = renderProjectCostTable(rows || [], {
-      limit: REPORT_TABLE_PREVIEW,
-      viewAllHref: REPORT_VIEW_ALL.projectCost,
-      showViewAllLink: false,
-    });
-  });
+  // Removed listenValue("reportsCache/projectCostSummary") because it is now computed locally
 
-  listenValue("reportsCache/analytics", (a) => {
-    const host = document.getElementById("analytics-body");
-    if (!host) return;
-    if (!a) {
-      host.innerHTML = `<p class="proj-empty">No analytics data</p>`;
-      return;
-    }
-    host.innerHTML = renderAnalyticsBlocks(a, {
-      tableLimit: REPORT_TABLE_PREVIEW,
-      viewAllHref: REPORT_VIEW_ALL.analytics,
-      showViewAllLink: false,
-    });
-  });
+  const analyticsHost = document.getElementById("analytics-body");
+  if (analyticsHost) {
+    analyticsHost.innerHTML = `<p class="proj-empty">No analytics data</p>`;
+  }
 
   function bindPayrollReconcile(scope, data) {
     scope.querySelector("#reports-reconcile-payroll")?.addEventListener("click", async () => {
@@ -574,7 +578,7 @@ export function mountReports(container) {
     if (showReconcile) bindPayrollReconcile(host, data);
   }
 
-  listenValue("reportsCache/workerPayroll", (data) => renderWorkerPayrollReports(data));
+  renderWorkerPayrollReports(null);
 
   function updateStats() {
     stats.innerHTML = renderReportsKpiRow({

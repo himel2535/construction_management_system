@@ -675,12 +675,14 @@ export function mountProjects(container) {
     });
   }
 
-  function parseNestedByProject(nestedRoot) {
+  function groupByProject(list) {
     const out = {};
-    if (!nestedRoot || typeof nestedRoot !== "object") return out;
-    for (const [pid, bucket] of Object.entries(nestedRoot)) {
-      if (!bucket || typeof bucket !== "object") continue;
-      out[pid] = Object.entries(bucket).map(([id, row]) => ({ id, ...row }));
+    if (!Array.isArray(list)) return out;
+    for (const row of list) {
+      const pid = row.projectId;
+      if (!pid) continue;
+      if (!out[pid]) out[pid] = [];
+      out[pid].push(row);
     }
     return out;
   }
@@ -2582,8 +2584,8 @@ export function mountProjects(container) {
     if (state.projectsRaw.length) refreshEnrichedProjects();
   });
 
-  const unsubAllMilestones = listenValue("projectMilestones", (nestedRoot) => {
-    state.milestonesByProject = parseNestedByProject(nestedRoot);
+  const unsubAllMilestones = listenList("projectMilestones", (rows) => {
+    state.milestonesByProject = groupByProject(rows);
     renderProjectMetrics();
     renderProjectDirectory();
     if (state.selectedProjectId) renderTabContent();

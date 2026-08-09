@@ -31,12 +31,14 @@ import {
 import { navigateTo } from "./util_route.js";
 import { fillDashboardSkeletons } from "./cmp_skeleton.js";
 
-function parseNestedByProject(root) {
+function groupByProject(list) {
   const out = {};
-  if (!root || typeof root !== "object") return out;
-  for (const [pid, bucket] of Object.entries(root)) {
-    if (!bucket || typeof bucket !== "object") continue;
-    out[pid] = Object.entries(bucket).map(([id, row]) => ({ id, ...row }));
+  if (!Array.isArray(list)) return out;
+  for (const row of list) {
+    const pid = row.projectId;
+    if (!pid) continue;
+    if (!out[pid]) out[pid] = [];
+    out[pid].push(row);
   }
   return out;
 }
@@ -271,23 +273,23 @@ export function mountDashboard(container) {
     renderBudgetSection();
     if (ready.projects) renderKpiSection();
   }));
-  unsubs.push(listenValue("projectMilestones", (rootVal) => {
-    state.milestonesByProject = parseNestedByProject(rootVal);
+  unsubs.push(listenList("projectMilestones", (rows) => {
+    state.milestonesByProject = groupByProject(rows);
     ready.milestones = true;
     renderPerformanceSection();
     renderMilestonesSection();
   }));
-  unsubs.push(listenValue("paymentMilestones", (rootVal) => {
-    state.paymentMilestonesByProject = parseNestedByProject(rootVal);
+  unsubs.push(listenList("paymentMilestones", (rows) => {
+    state.paymentMilestonesByProject = groupByProject(rows);
   }));
-  unsubs.push(listenValue("ipcBills", (rootVal) => {
-    state.ipcBillsByProject = parseNestedByProject(rootVal);
+  unsubs.push(listenList("ipcBills", (rows) => {
+    state.ipcBillsByProject = groupByProject(rows);
   }));
-  unsubs.push(listenValue("projectDocuments", (rootVal) => {
-    state.documentsByProject = parseNestedByProject(rootVal);
+  unsubs.push(listenList("projectDocuments", (rows) => {
+    state.documentsByProject = groupByProject(rows);
   }));
-  unsubs.push(listenValue("siteDiaries", (rootVal) => {
-    state.siteDiariesByProject = parseNestedByProject(rootVal);
+  unsubs.push(listenList("siteDiaries", (rows) => {
+    state.siteDiariesByProject = groupByProject(rows);
     ready.siteDiaries = true;
     renderSiteSection();
   }));
@@ -296,14 +298,14 @@ export function mountDashboard(container) {
     ready.siteInCharges = true;
     renderSiteSection();
   }));
-  unsubs.push(listenValue("safetyIncidents", (rootVal) => {
-    state.safetyIncidentsByProject = parseNestedByProject(rootVal);
+  unsubs.push(listenList("safetyIncidents", (rows) => {
+    state.safetyIncidentsByProject = groupByProject(rows);
   }));
-  unsubs.push(listenValue("projectRoster", (rootVal) => {
-    state.projectRosterByProject = parseNestedByProject(rootVal);
+  unsubs.push(listenList("projectRoster", (rows) => {
+    state.projectRosterByProject = groupByProject(rows);
   }));
-  unsubs.push(listenValue("materialRequests", (rootVal) => {
-    state.materialRequestsByProject = parseNestedByProject(rootVal);
+  unsubs.push(listenList("materialRequests", (rows) => {
+    state.materialRequestsByProject = groupByProject(rows);
   }));
 
   return { unmount: () => unsubs.forEach((u) => u()) };

@@ -46,7 +46,18 @@ export async function fetchApiWithSchema<T>(
 
 export const api = {
   get: <T = any>(collection: string, id: string) => fetchApi<T>(`${collection}/${id}`),
-  getList: <T = any[]>(collection: string) => fetchApi<T>(collection).then(res => Array.isArray(res) ? res : (res ? Object.values(res) : [])),
+  getList: <T = any[]>(collection: string) => fetchApi<any>(collection).then(res => {
+    if (Array.isArray(res)) return res as T;
+    if (res && typeof res === 'object') {
+      return Object.entries(res).map(([key, value]: [string, any]) => {
+        if (value && typeof value === 'object' && !value.id) {
+          return { id: key, ...value };
+        }
+        return value;
+      }) as unknown as T;
+    }
+    return [] as unknown as T;
+  }),
   create: <T = any>(collection: string, data: any) =>
     fetchApi<T>(collection, {
       method: 'POST',

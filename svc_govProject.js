@@ -1,7 +1,7 @@
 import { create, readRef, updatePath } from "./svc_data.js";
 import { getCurrentUserId } from "./svc_auth.js";
 import { writeAuditLog } from "./svc_workflow.js";
-import { postManualVoucherClient } from "./svc_firebaseOps.js";
+
 import { getActiveTenantId } from "./svc_tenant.js";
 import { boqLineAmount } from "./util_projectCost.js";
 import { checklistForAgency } from "./util_govCompliance.js";
@@ -245,14 +245,14 @@ export function computeProjectKpis({
 export async function postIpcPaymentVoucher({ projectId, ipcBill, projectName }) {
   const amount = Number(ipcBill.netPayable || 0);
   if (amount <= 0) return null;
-  const json = await postManualVoucherClient({
+  const json = await create("vouchers", {
     amount,
     debit: "acc_cash",
     credit: "acc_project_income",
     date: ipcBill.billDate || new Date().toISOString().slice(0, 10),
     narration: `IPC ${ipcBill.billNo || ipcBill.id} payment — ${projectName || projectId}`,
   });
-  return json.voucherNo || json;
+  return json.voucherNo || json.id;
 }
 
 export function parseBoqCsv(text) {

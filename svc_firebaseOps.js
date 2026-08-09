@@ -1553,34 +1553,6 @@ export async function createSaleBooking(args) {
   return createClientInvoice(args);
 }
 
-export async function postManualVoucherClient(payload, tenantId = getActiveTenantId()) {
-  const debitId = await resolveAccountId(payload.debit);
-  const creditId = await resolveAccountId(payload.credit);
-  const year = new Date(payload.date || Date.now()).getFullYear().toString();
-  const voucherNo = await nextSequence("voucher", year, "VCH");
-  const now = Date.now();
-  const amount = Number(payload.amount);
-  const voucherRef = push(ref(db, "vouchers"));
-  await set(voucherRef, {
-    voucherNo,
-    date: payload.date,
-    type: "journal",
-    narration: payload.narration || "",
-    lines: [
-      { accountId: debitId, debit: amount, credit: 0 },
-      { accountId: creditId, debit: 0, credit: amount },
-    ],
-    tenantId,
-    createdAt: now,
-    createdBy: getCurrentUserId(),
-    source: "live",
-    updatedAt: now,
-  });
-  await runTransaction(ref(db, `accounts/${debitId}/balance`), (b) => (b ?? 0) + amount);
-  await runTransaction(ref(db, `accounts/${creditId}/balance`), (b) => (b ?? 0) + amount);
-  return { voucherNo, id: voucherRef.key };
-}
-
 export async function postExpenseClient({
   projectId,
   amount,
