@@ -28,6 +28,8 @@ export async function approvePurchaseOrder(projectId, poId) {
     throw new Error("PO not found — refresh the page and try again");
   }
   if (cur.status !== "draft") {
+    await clearApprovalQueue("purchase_order", poId);
+    await clearApprovalQueue("purchaseOrder", poId);
     throw new Error(`PO is already ${cur.status || "processed"}`);
   }
   const amount = Number(cur.amount) || 0;
@@ -71,7 +73,9 @@ export async function rejectPurchaseOrder(projectId, poId) {
   const curDoc = await get(path);
   const cur = curDoc.val();
   if (!cur || cur.status !== "draft") {
-    throw new Error("PO cannot be rejected");
+    await clearApprovalQueue("purchase_order", poId);
+    await clearApprovalQueue("purchaseOrder", poId);
+    throw new Error("PO cannot be rejected (already processed)");
   }
   const now = Date.now();
   await updatePath(path, {

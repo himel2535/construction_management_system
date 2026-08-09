@@ -206,9 +206,24 @@ export async function upsertApprovalQueue(item) {
  */
 export async function clearApprovalQueue(entityType, entityId) {
   const existing = resolveRead("approvalQueue") || {};
+  let found = false;
   for (const [id, row] of Object.entries(existing)) {
-    if (row.entityType === entityType && row.entityId === entityId) {
+    if (row.entityType === entityType && row.entityId === entityId && row.status !== "cleared") {
       await updatePath(`approvalQueue/${id}`, { status: "cleared", updatedAt: Date.now() });
+      found = true;
+    }
+  }
+  if (!found) {
+    const { api } = await import("./apiClient.js");
+    try {
+      const list = await api.getList(`approvalQueue?entityId=${entityId}`);
+      for (const row of list) {
+        if (row.entityType === entityType && row.status !== "cleared") {
+          await updatePath(`approvalQueue/${row.id}`, { status: "cleared", updatedAt: Date.now() });
+        }
+      }
+    } catch (e) {
+      console.warn("clearApprovalQueue remote fetch failed", e);
     }
   }
 }

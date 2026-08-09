@@ -151,10 +151,10 @@ export function mountApprovals(container) {
 
   function bindActionButtons(scope) {
     scope.querySelectorAll(".appr-approve").forEach((btn) => {
-      btn.onclick = () => actOnQueue(btn.dataset.id, "approve");
+      btn.onclick = () => actOnQueue(btn.dataset.id, "approve", btn);
     });
     scope.querySelectorAll(".appr-reject").forEach((btn) => {
-      btn.onclick = () => actOnQueue(btn.dataset.id, "reject");
+      btn.onclick = () => actOnQueue(btn.dataset.id, "reject", btn);
     });
   }
 
@@ -220,7 +220,7 @@ export function mountApprovals(container) {
     bindActionButtons(bodyEl);
   }
 
-  async function actOnQueue(queueId, decision) {
+  async function actOnQueue(queueId, decision, btnElement) {
     const found = queue.find((q) => q.id === queueId);
     const row = found ? { ...found, id: queueId } : null;
     if (!row?.path) {
@@ -235,6 +235,16 @@ export function mountApprovals(container) {
       showToast(expenseQueueRowAwaitingLabel(row) || "You cannot reject this item yet", "error");
       return;
     }
+    
+    if (btnElement) {
+      btnElement.disabled = true;
+      const sibling = decision === "approve" 
+        ? btnElement.nextElementSibling 
+        : btnElement.previousElementSibling;
+      if (sibling) sibling.disabled = true;
+      btnElement.textContent = decision === "approve" ? "Approving..." : "Rejecting...";
+    }
+    
     try {
       await applyQueueDecision({ row, decision });
       const verifyLinks = [];
@@ -253,7 +263,20 @@ export function mountApprovals(container) {
         entityId: row.entityId,
         projectId: row.projectId,
       });
+      if (btnElement) {
+        btnElement.textContent = decision === "approve" ? "Approved" : "Rejected";
+        btnElement.classList.remove("btn-primary", "btn-reject");
+        btnElement.classList.add("btn-secondary");
+      }
     } catch (err) {
+      if (btnElement) {
+        btnElement.disabled = false;
+        const sibling = decision === "approve" 
+          ? btnElement.nextElementSibling 
+          : btnElement.previousElementSibling;
+        if (sibling) sibling.disabled = false;
+        btnElement.textContent = decision === "approve" ? "Approve" : "Reject";
+      }
       showToast(err.message, "error");
     }
   }
