@@ -165,7 +165,6 @@ export function mountDashboard(container) {
   }
 
   function renderCashFlowSection() {
-    if (!ready.projects || !ready.expenses || !ready.invoices || !ready.salaries) return;
     renderCashFlowComboChart(hosts.cashflow, buildCashFlowChartData(state, cashFlowPeriod), {
       period: cashFlowPeriod,
       onPeriodChange: (p) => {
@@ -187,7 +186,6 @@ export function mountDashboard(container) {
   }
 
   function renderSiteSection() {
-    if (!ready.projects || !ready.attendance || !ready.siteDiaries || !ready.siteInCharges) return;
     const projects = visibleProjects();
     renderSiteActivity(hosts.site, buildSiteActivity(state, projects));
   }
