@@ -118,6 +118,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, router]);
 
+  if (pathname === "/login") {
+    return <div className="app-root">{children}</div>;
+  }
+
   return (
     <div className="app-root">
       <div
