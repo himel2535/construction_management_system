@@ -214,7 +214,7 @@ export async function clearApprovalQueue(entityType, entityId) {
     }
   }
   if (!found) {
-    const { api } = await import("./apiClient.js");
+    const { api } = await import("./lib/apiClient.ts");
     try {
       const list = await api.getList(`approvalQueue?entityId=${entityId}`);
       for (const row of list) {
