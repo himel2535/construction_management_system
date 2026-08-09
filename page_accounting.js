@@ -563,11 +563,6 @@ export function mountAccounting(container) {
     unsubScopedExpenses();
     unsubScopedExpenses = () => {};
     scopedExpenses = null;
-    if (!projectId) return;
-    unsubScopedExpenses = listenProjectSub(projectId, "projectExpenses", (list) => {
-      scopedExpenses = list.map((e) => ({ ...e, projectId: e.projectId || projectId }));
-      renderExpenses();
-    });
   }
 
   function syncProjectFilterOptions() {
@@ -607,7 +602,6 @@ export function mountAccounting(container) {
   }
 
   function expenseSourceList() {
-    if (filters.projectId && scopedExpenses) return scopedExpenses;
     return allExpenses;
   }
 

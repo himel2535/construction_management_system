@@ -22,7 +22,7 @@ import {
 export const EXPENSE_PATH = "projectExpenses";
 
 export function expenseStoragePath(projectId, expenseId) {
-  return `${EXPENSE_PATH}/${projectId}/${expenseId}`;
+  return `${EXPENSE_PATH}/${expenseId}`;
 }
 
 export const STALE_APPROVAL_MSG =
@@ -33,9 +33,9 @@ export const EXPENSE_LOADING_MSG = "Loading expense details… try again in a mo
 /** @param {string} path */
 export function parseExpenseQueuePath(path) {
   if (!path || typeof path !== "string") return null;
-  const m = path.match(/^projectExpenses\/([^/]+)\/([^/]+)$/);
+  const m = path.match(/^projectExpenses\/([^/]+)$/);
   if (!m) return null;
-  return { projectId: m[1], expenseId: m[2] };
+  return { expenseId: m[1] };
 }
 
 /**
@@ -74,6 +74,9 @@ export function resolveExpenseContext(rowOrProjectId, expenseId) {
     if (raw !== undefined) {
       loaded = true;
       cur = raw && typeof raw === "object" ? raw : {};
+      if (!projectId && cur.projectId) {
+        projectId = cur.projectId;
+      }
     }
   }
 
@@ -275,11 +278,7 @@ async function finalizeExpenseApproval(projectId, expenseId, cur) {
 async function ensureExpenseContextLoaded(ctx) {
   if (ctx.loaded || !ctx.path) return ctx;
   const { get } = await import("./svc_data.js");
-  if (ctx.projectId) {
-    await get(`${EXPENSE_PATH}/${ctx.projectId}`);
-  } else {
-    await get(EXPENSE_PATH);
-  }
+  await get(ctx.path);
   return resolveExpenseContext({
     projectId: ctx.projectId,
     entityId: ctx.expenseId,
