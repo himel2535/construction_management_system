@@ -2,18 +2,26 @@
 
 import { useState } from "react";
 import { X, Building2, Landmark, Check } from "lucide-react";
-import { useCreateProject } from "@/lib/hooks/useProjects";
+import { useUpdateProject } from "@/lib/hooks/useProjects";
 import { useCustomers } from "@/lib/hooks/useCustomers";
+import { useEffect } from "react";
 
-interface AddProjectModalProps {
+interface EditProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
+  project: any;
 }
 
-export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProps) {
-  const [projectType, setProjectType] = useState<"private" | "government">("private");
+export default function EditProjectModal({ isOpen, onClose, project }: EditProjectModalProps) {
+  const [projectType, setProjectType] = useState<"private" | "government">(project?.projectType || "private");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const createProjectMutation = useCreateProject();
+  const updateProjectMutation = useUpdateProject();
+
+  useEffect(() => {
+    if (project) {
+      setProjectType(project.projectType || "private");
+    }
+  }, [project]);
   const { data: clients } = useCustomers();
 
   if (!isOpen) return null;
@@ -36,7 +44,7 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
       }
 
       // Base fields
-            const basePayload: any = {
+                  const basePayload: any = {
         name: data.name as string,
         code: data.code as string,
         projectType: projectType,
@@ -44,6 +52,12 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
         status: (data.status as string) || "planning",
         contractValue: parseFloat(data.contractValue as string) || 0,
       };
+      
+      if (selectedClientId) basePayload.clientId = selectedClientId;
+      if (data.startDate) basePayload.startDate = data.startDate;
+      if (data.endDate) basePayload.endDate = data.endDate;
+      if (data.projectManagerId) basePayload.projectManagerId = data.projectManagerId;
+
       
       if (selectedClientId) basePayload.clientId = selectedClientId;
       if (data.startDate) basePayload.startDate = data.startDate;
@@ -80,15 +94,18 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
         } : {})
       };
 
-      await createProjectMutation.mutateAsync({
-        ...basePayload,
-        details,
-      } as any);
+      await updateProjectMutation.mutateAsync({
+        id: project.id,
+        data: {
+          ...basePayload,
+          details,
+        } as any,
+      });
       
       onClose();
     } catch (error) {
-      console.error("Failed to create project", error);
-      alert("Failed to create project. Please check your inputs.");
+      console.error("Failed to update project", error);
+      alert("Failed to update project. Please check your inputs.");
     } finally {
       setIsSubmitting(false);
     }
@@ -101,7 +118,7 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 shrink-0">
           <div>
-            <h2 className="text-2xl font-semibold text-slate-800">Add Project</h2>
+            <h2 className="text-2xl font-semibold text-slate-800">Edit Project</h2>
             <p className="text-slate-500 text-sm mt-1">Enter project details on one page — same layout as client records.</p>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
@@ -166,19 +183,19 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-slate-700">Project name *</label>
-                    <input type="text" name="name" required className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
+                    <input type="text" name="name" defaultValue={project?.name || ""} required className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-slate-700">Project code</label>
-                    <input type="text" name="code" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
+                    <input type="text" name="code" defaultValue={project?.code || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-slate-700">Location *</label>
-                    <input type="text" name="location" required className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
+                    <input type="text" name="location" defaultValue={project?.location || ""} required className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-slate-700">Client / owner</label>
-                    <select name="clientId" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500 bg-white">
+                    <select name="clientId" defaultValue={project?.clientId || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500 bg-white">
                       <option value="">— Select client / owner —</option>
                       {clients?.map((client) => (
                         <option key={client.id} value={client.id}>
@@ -186,7 +203,7 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
                         </option>
                       ))}
                     </select>
-                    <input type="text" name="clientName" placeholder="Optional display name" className="w-full mt-2 px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
+                    <input type="text" name="clientName" defaultValue={project?.clientName || ""} placeholder="Optional display name" className="w-full mt-2 px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
                   </div>
                 </div>
 
@@ -214,21 +231,21 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Start date</label>
-                      <input type="date" name="startDate" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
+                      <input type="date" name="startDate" defaultValue={project?.startDate || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">End date</label>
-                      <input type="date" name="endDate" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
+                      <input type="date" name="endDate" defaultValue={project?.endDate || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Contract value (BDT)</label>
-                      <input type="number" name="contractValue" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
+                      <input type="number" name="contractValue" defaultValue={project?.contractValue || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Project manager</label>
-                      <select name="projectManagerId" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500 bg-white">
+                      <select name="projectManagerId" defaultValue={project?.projectManagerId || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500 bg-white">
                         <option value="">Owner Admin (owner)</option>
                       </select>
                     </div>
@@ -236,7 +253,7 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
                 </div>
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-slate-700">Description</label>
-                  <textarea name="description" rows={4} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500 resize-none"></textarea>
+                  <textarea name="description" defaultValue={project?.description || ""} rows={4} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-red-500 resize-none"></textarea>
                 </div>
               </div>
             </div>
@@ -252,7 +269,7 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Employer agency</label>
-                      <select name="employerAgency" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white">
+                      <select name="employerAgency" defaultValue={project?.details?.employerAgency || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white">
                         <option value="">Select agency</option>
                         <option value="LGED">LGED</option>
                         <option value="PWD">PWD</option>
@@ -262,23 +279,23 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Tender ref / e-GP ID</label>
-                      <input type="text" name="tenderRef" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="text" name="tenderRef" defaultValue={project?.details?.tenderRef || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Notice date</label>
-                      <input type="date" name="noticeDate" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="date" name="noticeDate" defaultValue={project?.details?.noticeDate || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Submission deadline</label>
-                      <input type="date" name="submissionDeadline" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="date" name="submissionDeadline" defaultValue={project?.details?.submissionDeadline || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5 md:col-span-2">
                       <label className="block text-sm font-medium text-slate-700">Tender document URL</label>
-                      <input type="url" name="tenderDocUrl" placeholder="https://..." className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="url" name="tenderDocUrl" defaultValue={project?.details?.tenderDocUrl || ""} placeholder="https://..." className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">NIT no</label>
-                      <input type="text" name="nitNo" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="text" name="nitNo" defaultValue={project?.details?.nitNo || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                   </div>
                 </div>
@@ -289,15 +306,15 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Work order reference</label>
-                      <input type="text" name="workOrderRef" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="text" name="workOrderRef" defaultValue={project?.details?.workOrderRef || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Issue date</label>
-                      <input type="date" name="issueDate" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="date" name="issueDate" defaultValue={project?.details?.issueDate || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5 md:col-span-2">
                       <label className="block text-sm font-medium text-slate-700">Scope of work</label>
-                      <textarea name="scopeOfWork" rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm resize-none"></textarea>
+                      <textarea name="scopeOfWork" defaultValue={project?.details?.scopeOfWork || ""} rows={3} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm resize-none"></textarea>
                     </div>
                   </div>
                 </div>
@@ -308,23 +325,23 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Contract date</label>
-                      <input type="date" name="contractDate" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="date" name="contractDate" defaultValue={project?.details?.contractDate || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Completion date</label>
-                      <input type="date" name="completionDate" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="date" name="completionDate" defaultValue={project?.details?.completionDate || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Retention %</label>
-                      <input type="number" name="retentionPercent" defaultValue="10" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="number" name="retentionPercent" defaultValue={project?.details?.retentionPercent || ""} defaultValue="10" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">LD rate / day (BDT)</label>
-                      <input type="number" name="ldRatePerDay" defaultValue="0" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="number" name="ldRatePerDay" defaultValue={project?.details?.ldRatePerDay || ""} defaultValue="0" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5 md:col-span-3">
                       <label className="block text-sm font-medium text-slate-700">Retention release conditions</label>
-                      <textarea name="retentionReleaseConditions" rows={2} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm resize-none"></textarea>
+                      <textarea name="retentionReleaseConditions" defaultValue={project?.details?.retentionReleaseConditions || ""} rows={2} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm resize-none"></textarea>
                     </div>
                   </div>
                 </div>
@@ -335,11 +352,11 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Performance guarantee (BDT)</label>
-                      <input type="number" name="performanceGuarantee" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="number" name="performanceGuarantee" defaultValue={project?.details?.performanceGuarantee || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Security deposit</label>
-                      <input type="number" name="securityDeposit" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="number" name="securityDeposit" defaultValue={project?.details?.securityDeposit || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                   </div>
                 </div>
@@ -350,26 +367,26 @@ export default function AddProjectModal({ isOpen, onClose }: AddProjectModalProp
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">BG type</label>
-                      <select name="bgType" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white">
+                      <select name="bgType" defaultValue={project?.details?.bgType || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white">
                         <option value="Performance guarantee">Performance guarantee</option>
                         <option value="Advance payment guarantee">Advance payment guarantee</option>
                       </select>
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">BG amount (BDT)</label>
-                      <input type="number" name="bgAmount" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="number" name="bgAmount" defaultValue={project?.details?.bgAmount || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">Issuing bank</label>
-                      <input type="text" name="issuingBank" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="text" name="issuingBank" defaultValue={project?.details?.issuingBank || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">BG expiry</label>
-                      <input type="date" name="bgExpiry" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
+                      <input type="date" name="bgExpiry" defaultValue={project?.details?.bgExpiry || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-slate-700">BG status</label>
-                      <select name="bgStatus" className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white">
+                      <select name="bgStatus" defaultValue={project?.details?.bgStatus || ""} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white">
                         <option value="Active">Active</option>
                         <option value="Expired">Expired</option>
                         <option value="Released">Released</option>

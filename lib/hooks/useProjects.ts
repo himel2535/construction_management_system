@@ -20,6 +20,22 @@ export function useProjects() {
   });
 }
 
+export function useProject(id: string) {
+  return useQuery<Project | null>({
+    queryKey: ["projects", id],
+    queryFn: async () => {
+      if (!id) return null;
+      try {
+        return await fetchApiWithSchema(`projects/${id}`, ProjectSchema);
+      } catch (err) {
+        console.warn(`[useProject] Error fetching project ${id}:`, err);
+        return null;
+      }
+    },
+    enabled: !!id,
+  });
+}
+
 export function useCreateProject() {
   const queryClient = useQueryClient();
 

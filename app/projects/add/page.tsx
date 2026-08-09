@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Building2, Landmark, Check, Plus, AlertCircle, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import { useCreateProject } from "@/lib/hooks/useProjects";
+import { useCustomers } from "@/lib/hooks/useCustomers";
 
 export default function AddProjectPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function AddProjectPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const createProjectMutation = useCreateProject();
+  const { data: clients } = useCustomers();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -22,13 +24,23 @@ export default function AddProjectPage() {
       const formData = new FormData(e.currentTarget);
       const data = Object.fromEntries(formData.entries());
 
+      let finalClientName = data.clientName as string;
+      const selectedClientId = data.clientId as string;
+
+      if (!finalClientName && selectedClientId && clients) {
+        const client = clients.find(c => c.id === selectedClientId);
+        if (client) {
+          finalClientName = client.name || client.companyName || "";
+        }
+      }
+
       // Base fields
       const basePayload = {
         name: data.name as string,
         code: data.code as string,
         projectType: projectType,
-        clientId: data.clientId as string,
-        clientName: data.clientName as string,
+        clientId: selectedClientId,
+        clientName: finalClientName,
         status: (data.status as string) || "planning",
         startDate: data.startDate as string,
         endDate: data.endDate as string,
@@ -208,7 +220,11 @@ export default function AddProjectPage() {
                   <div className="flex gap-2">
                     <select name="clientId" className="w-1/2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all">
                       <option value="">— Existing Client —</option>
-                      {/* Options */}
+                      {clients?.map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.name} {client.companyName ? `(${client.companyName})` : ""}
+                        </option>
+                      ))}
                     </select>
                     <input type="text" name="clientName" placeholder="Or type new client name" className="w-1/2 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all" />
                   </div>

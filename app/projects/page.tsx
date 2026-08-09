@@ -63,8 +63,8 @@ export default function ProjectsPage() {
             <Sparkline values={[2, 3, 4, totalCount || 1, totalCount || 2, totalCount || 3, totalCount || 4]} tone="yellow" />
           </div>
           <div className="dash-kpi-head">
-            <div className="dash-kpi-icon dash-kpi-icon--flat">
-              <FolderKanban className="dash-color-icon cust-kpi-flat-icon text-amber-500 w-8 h-8" />
+            <div className="dash-kpi-icon dash-kpi-icon--flat !bg-transparent">
+              <img src="/assets/icons/dashboard/kpi-projects.svg" alt="Projects" className="w-10 h-10" />
             </div>
             <div className="dash-kpi-main">
               <span className="dash-kpi-label">Total Projects</span>
@@ -84,8 +84,8 @@ export default function ProjectsPage() {
             <Sparkline values={[1, 2, ongoingCount || 1, ongoingCount || 2, ongoingCount, ongoingCount, ongoingCount]} tone="green" />
           </div>
           <div className="dash-kpi-head">
-            <div className="dash-kpi-icon dash-kpi-icon--flat">
-              <TrendingUp className="dash-color-icon cust-kpi-flat-icon text-emerald-600 w-8 h-8" />
+            <div className="dash-kpi-icon dash-kpi-icon--flat !bg-transparent">
+              <img src="/assets/icons/dashboard/kpi-collection.svg" alt="Ongoing" className="w-10 h-10" />
             </div>
             <div className="dash-kpi-main">
               <span className="dash-kpi-label">Ongoing</span>
@@ -105,8 +105,8 @@ export default function ProjectsPage() {
             <Sparkline values={[0, 1, govCount || 1, govCount || 2, govCount, govCount, govCount]} tone="orange" />
           </div>
           <div className="dash-kpi-head">
-            <div className="dash-kpi-icon dash-kpi-icon--flat">
-              <div className="dash-color-icon cust-kpi-flat-icon text-orange-500 font-bold text-xl flex items-center justify-center w-8 h-8">$</div>
+            <div className="dash-kpi-icon dash-kpi-icon--flat !bg-transparent">
+              <img src="/assets/icons/dashboard/milestone-building.svg" alt="Government" className="w-10 h-10" />
             </div>
             <div className="dash-kpi-main">
               <span className="dash-kpi-label">Government</span>
@@ -126,10 +126,8 @@ export default function ProjectsPage() {
             <Sparkline values={[privCount || 1, privCount || 2, privCount, privCount, privCount, privCount, privCount]} tone="teal" />
           </div>
           <div className="dash-kpi-head">
-            <div className="dash-kpi-icon dash-kpi-icon--flat">
-              <div className="dash-color-icon cust-kpi-flat-icon text-teal-600 flex items-center justify-center w-8 h-8 bg-teal-100 rounded-sm">
-                 <div className="w-4 h-6 border-b-2 border-r-2 border-teal-600 transform skew-x-12"></div>
-              </div>
+            <div className="dash-kpi-icon dash-kpi-icon--flat !bg-transparent">
+              <img src="/assets/icons/dashboard/milestone-home.svg" alt="Private" className="w-10 h-10" />
             </div>
             <div className="dash-kpi-main">
               <span className="dash-kpi-label">Private / Local</span>
@@ -149,10 +147,8 @@ export default function ProjectsPage() {
             <Sparkline values={[totalBudgetSum ? 4 : 2, 3, totalBudgetSum ? 5 : 2, 4, 3, 2, 2]} tone="blue" />
           </div>
           <div className="dash-kpi-head">
-            <div className="dash-kpi-icon dash-kpi-icon--flat">
-               <div className="dash-color-icon cust-kpi-flat-icon text-red-700 font-bold text-lg flex items-center justify-center w-8 h-8 bg-amber-100 rounded-sm">
-                 =
-               </div>
+            <div className="dash-kpi-icon dash-kpi-icon--flat !bg-transparent">
+              <img src="/assets/icons/dashboard/kpi-taka.svg" alt="Budget" className="w-10 h-10" />
             </div>
             <div className="dash-kpi-main">
               <span className="dash-kpi-label">Total Budget</span>
@@ -288,9 +284,9 @@ export default function ProjectsPage() {
                     </td>
                     <td className="cust-col-center">
                       <div className="table-actions table-actions--cust">
-                        <button type="button" className="icon-btn icon-btn--sm proj-view text-slate-400 hover:text-slate-600">
+                        <Link href={`/projects/${project.id || project.name}`} className="icon-btn icon-btn--sm proj-view text-slate-400 hover:text-slate-600 flex items-center justify-center">
                           <Eye size={16} />
-                        </button>
+                        </Link>
                       </div>
                     </td>
                   </tr>

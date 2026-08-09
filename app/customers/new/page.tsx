@@ -35,6 +35,7 @@ export default function AddClientPage() {
         notes: data.notes as string,
         totalProjects: 0,
         totalBilled: 0,
+        portalAccessEnabled: false,
       };
       // For now, we put them in notes if we don't have columns, or we can just append to address/notes.
       const extraDetails = `NID: ${data.nid}\nContract Ref: ${data.contractRef}\n` + 
