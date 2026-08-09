@@ -66,8 +66,16 @@ export async function navigate() {
   setActiveNav();
   applyRouteChrome();
   const handler = resolveHandler(path);
+  if (!handler) return;
+
+  if (path === "/login" || path === "/404") {
+    const appContainer = document.getElementById("app");
+    if (appContainer) await handler(appContainer);
+    return;
+  }
+
   const container = document.getElementById("page-content");
-  if (!container || !handler) return;
+  if (!container) return;
 
   const variant = resolvePageSkeletonVariant(path);
   const isEmpty = !container.firstElementChild;

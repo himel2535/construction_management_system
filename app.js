@@ -269,7 +269,9 @@ async function boot() {
       return;
     }
 
-    mountAppShell();
+    if (window.location.pathname !== "/login" && window.location.pathname !== "/404") {
+      mountAppShell();
+    }
 
     afterAuth().catch((e) => {
       console.warn("[ERP] background init skipped", e);

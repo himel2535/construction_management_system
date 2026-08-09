@@ -1,136 +1,336 @@
-import { navigateTo } from "./router.js";
 import { loginWithEmail } from "./svc_auth.js";
 import { showToast } from "./cmp_toast.js";
 
 export function mountLogin(container) {
   const appEl = document.getElementById("app") || container;
   
+  // Wipe out the existing DOM so no dashboard shells remain
   appEl.innerHTML = `
-    <div class="login-wrapper">
-      <div class="login-card">
+    <div class="login-wrapper premium-login">
+      <div class="login-animated-bg"></div>
+      
+      <div class="login-card premium-glass">
         <div class="login-header">
-          <div class="login-logo-circle">
+          <div class="login-logo-circle glow">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="login-logo-icon">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
               <polyline points="9 22 9 12 15 12 15 22"></polyline>
             </svg>
           </div>
-          <h1 class="login-title">Welcome Back</h1>
-          <p class="login-subtitle">Construction Management System</p>
+          <h1 class="login-title gradient-text">Construction ERP</h1>
+          <p class="login-subtitle">Secure Access Portal</p>
         </div>
         
         <form id="login-form" class="login-form">
-          <div class="form-group">
+          <div class="form-group premium-input-group">
             <label for="login-email" class="form-label">Email Address</label>
-            <input type="email" id="login-email" class="form-input" placeholder="Enter your email" required />
+            <div class="input-with-icon">
+              <span class="input-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              </span>
+              <input type="email" id="login-email" class="form-input premium-input" placeholder="Enter your email" required />
+            </div>
           </div>
           
-          <button type="submit" class="btn btn-primary login-submit-btn" id="login-submit-btn">
-            Sign In
+          <button type="submit" class="btn btn-primary login-submit-btn premium-btn glow" id="login-submit-btn">
+            Sign In Securely
           </button>
         </form>
         
         <div class="login-demo-roles">
-          <p class="login-demo-text">Or sign in as a demo user:</p>
-          <div class="login-demo-buttons">
-            <button type="button" class="btn btn-secondary btn-sm demo-login-btn" data-email="owner@demo.com">Owner</button>
-            <button type="button" class="btn btn-secondary btn-sm demo-login-btn" data-email="pm@demo.com">Manager</button>
-            <button type="button" class="btn btn-secondary btn-sm demo-login-btn" data-email="engineer@demo.com">Engineer</button>
-            <button type="button" class="btn btn-secondary btn-sm demo-login-btn" data-email="finance@demo.com">Accountant</button>
+          <div class="demo-roles-divider">
+            <span>Or quick login as</span>
+          </div>
+          <div class="login-demo-grid">
+            <button type="button" class="demo-role-card" data-email="owner@demo.com">
+              <div class="demo-icon owner-icon">👑</div>
+              <div class="demo-details">
+                <span class="demo-role-name">Owner / Admin</span>
+                <span class="demo-role-email">owner@demo.com</span>
+              </div>
+            </button>
+            <button type="button" class="demo-role-card" data-email="pm@demo.com">
+              <div class="demo-icon pm-icon">📋</div>
+              <div class="demo-details">
+                <span class="demo-role-name">Project Manager</span>
+                <span class="demo-role-email">pm@demo.com</span>
+              </div>
+            </button>
+            <button type="button" class="demo-role-card" data-email="engineer@demo.com">
+              <div class="demo-icon eng-icon">📐</div>
+              <div class="demo-details">
+                <span class="demo-role-name">Site Engineer</span>
+                <span class="demo-role-email">engineer@demo.com</span>
+              </div>
+            </button>
+            <button type="button" class="demo-role-card" data-email="supervisor@demo.com">
+              <div class="demo-icon sup-icon">👷‍♂️</div>
+              <div class="demo-details">
+                <span class="demo-role-name">Site Supervisor</span>
+                <span class="demo-role-email">supervisor@demo.com</span>
+              </div>
+            </button>
+            <button type="button" class="demo-role-card" data-email="finance@demo.com">
+              <div class="demo-icon fin-icon">💰</div>
+              <div class="demo-details">
+                <span class="demo-role-name">Accountant</span>
+                <span class="demo-role-email">finance@demo.com</span>
+              </div>
+            </button>
+            <button type="button" class="demo-role-card" data-email="procurement@demo.com">
+              <div class="demo-icon proc-icon">📦</div>
+              <div class="demo-details">
+                <span class="demo-role-name">Procurement</span>
+                <span class="demo-role-email">procurement@demo.com</span>
+              </div>
+            </button>
+            <button type="button" class="demo-role-card" data-email="rahim@demo.com">
+              <div class="demo-icon cli-icon">🏢</div>
+              <div class="demo-details">
+                <span class="demo-role-name">Client Portal</span>
+                <span class="demo-role-email">rahim@demo.com</span>
+              </div>
+            </button>
           </div>
         </div>
       </div>
     </div>
     <style>
-      .login-wrapper {
+      .premium-login {
         min-height: 100vh;
+        width: 100vw;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: radial-gradient(circle at top left, var(--bg-surface-elevated), var(--bg-main));
-        padding: 1rem;
+        background: #0f172a;
+        position: relative;
+        overflow: hidden;
+        padding: 2rem;
+        font-family: 'Inter', system-ui, sans-serif;
       }
-      .login-card {
-        background: var(--bg-surface);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 2.5rem;
+      .login-animated-bg {
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15), transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15), transparent 50%);
+        animation: rotateBg 30s linear infinite;
+        z-index: 0;
+      }
+      @keyframes rotateBg {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .premium-glass {
+        position: relative;
+        z-index: 1;
+        background: rgba(30, 41, 59, 0.7);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px;
+        padding: 3rem;
         width: 100%;
-        max-width: 420px;
-        box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1);
-        backdrop-filter: blur(10px);
-        animation: loginFadeIn 0.5s ease-out;
+        max-width: 500px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+        animation: scaleIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
       }
-      @keyframes loginFadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+      @keyframes scaleIn {
+        0% { opacity: 0; transform: scale(0.95) translateY(20px); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
       }
       .login-header {
         text-align: center;
-        margin-bottom: 2rem;
+        margin-bottom: 2.5rem;
       }
       .login-logo-circle {
-        width: 64px;
-        height: 64px;
-        background: var(--accent);
+        width: 72px;
+        height: 72px;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
         color: white;
-        border-radius: 50%;
+        border-radius: 20px;
         display: flex;
         align-items: center;
         justify-content: center;
         margin: 0 auto 1.5rem;
-        box-shadow: 0 8px 16px -4px var(--accent-alpha);
+        transform: rotate(-10deg);
+        transition: transform 0.3s ease;
+      }
+      .login-logo-circle:hover {
+        transform: rotate(0deg) scale(1.05);
+      }
+      .login-logo-circle.glow {
+        box-shadow: 0 0 30px rgba(59, 130, 246, 0.4);
       }
       .login-logo-icon {
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
       }
-      .login-title {
+      .gradient-text {
+        background: linear-gradient(135deg, #fff, #94a3b8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         margin: 0 0 0.5rem;
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--text-main);
+        font-size: 1.75rem;
+        font-weight: 800;
+        letter-spacing: -0.025em;
       }
       .login-subtitle {
-        margin: 0;
-        color: var(--text-muted);
-        font-size: 0.95rem;
-      }
-      .login-form {
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-        margin-bottom: 2rem;
-      }
-      .login-submit-btn {
-        margin-top: 0.5rem;
-        padding: 0.75rem;
+        color: #94a3b8;
         font-size: 1rem;
+        margin: 0;
+      }
+      .premium-input-group .form-label {
+        color: #cbd5e1;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        display: block;
+      }
+      .input-with-icon {
+        position: relative;
+      }
+      .input-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #64748b;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+      }
+      .premium-input {
+        width: 100%;
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: white;
+        padding: 0.875rem 1rem 0.875rem 3rem;
+        border-radius: 12px;
+        font-size: 1rem;
+        transition: all 0.2s;
+        box-sizing: border-box;
+      }
+      .premium-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        background: rgba(15, 23, 42, 0.8);
+      }
+      .premium-btn {
+        width: 100%;
+        padding: 1rem;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
         font-weight: 600;
-        transition: transform 0.2s, box-shadow 0.2s;
+        font-size: 1rem;
+        border: none;
+        cursor: pointer;
+        margin-top: 1.5rem;
+        transition: all 0.3s ease;
       }
-      .login-submit-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px -4px var(--accent-alpha);
+      .premium-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
       }
-      .login-submit-btn:active {
+      .premium-btn:active {
         transform: translateY(0);
       }
-      .login-demo-roles {
-        border-top: 1px solid var(--border);
-        padding-top: 1.5rem;
+      
+      .demo-roles-divider {
+        position: relative;
         text-align: center;
+        margin: 2.5rem 0 1.5rem;
       }
-      .login-demo-text {
-        color: var(--text-muted);
-        font-size: 0.85rem;
-        margin-bottom: 1rem;
+      .demo-roles-divider::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: rgba(255,255,255,0.1);
       }
-      .login-demo-buttons {
+      .demo-roles-divider span {
+        position: relative;
+        background: #1e293b;
+        padding: 0 1rem;
+        color: #64748b;
+        font-size: 0.875rem;
+        font-weight: 500;
+      }
+      
+      .login-demo-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+      }
+      
+      .demo-role-card {
+        background: rgba(15, 23, 42, 0.4);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 12px;
+        padding: 0.75rem;
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
+        align-items: center;
+        gap: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
+        color: white;
+      }
+      .demo-role-card:hover {
+        background: rgba(255,255,255,0.05);
+        border-color: rgba(255,255,255,0.15);
+        transform: translateY(-2px);
+      }
+      .demo-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
         justify-content: center;
+        font-size: 1.25rem;
+        background: rgba(255,255,255,0.05);
+      }
+      .owner-icon { background: rgba(139, 92, 246, 0.2); color: #c4b5fd; }
+      .pm-icon { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+      .eng-icon { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+      .sup-icon { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+      .fin-icon { background: rgba(236, 72, 153, 0.2); color: #f9a8d4; }
+      .proc-icon { background: rgba(14, 165, 233, 0.2); color: #7dd3fc; }
+      .cli-icon { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+      
+      .demo-details {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .demo-role-name {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #e2e8f0;
+      }
+      .demo-role-email {
+        font-size: 0.75rem;
+        color: #64748b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      
+      /* Make it single column on small screens */
+      @media (max-width: 480px) {
+        .login-demo-grid {
+          grid-template-columns: 1fr;
+        }
+        .premium-glass {
+          padding: 2rem 1.5rem;
+        }
       }
     </style>
   `;
@@ -140,18 +340,16 @@ export function mountLogin(container) {
   const submitBtn = appEl.querySelector("#login-submit-btn");
 
   const handleLogin = async (email) => {
-    submitBtn.textContent = "Signing in...";
+    submitBtn.innerHTML = `<span class="global-loader-spinner" style="width:20px;height:20px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Authenticating...`;
     submitBtn.disabled = true;
     try {
       await loginWithEmail(email);
       showToast("Signed in successfully", "success");
-      // The app root mount might need to be re-initialized if they were previously on /login
-      // but navigating to /dashboard is handled by router if shell is already mounted.
-      // Wait, if app is not mounted, we should trigger a full reload or app boot.
+      // Full reload to boot the app dashboard correctly
       window.location.href = "/dashboard";
     } catch (e) {
       showToast("Login failed. Please check the email.", "error");
-      submitBtn.textContent = "Sign In";
+      submitBtn.textContent = "Sign In Securely";
       submitBtn.disabled = false;
     }
   };
@@ -159,12 +357,10 @@ export function mountLogin(container) {
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const email = emailInput.value.trim();
-    if (email) {
-      handleLogin(email);
-    }
+    if (email) handleLogin(email);
   });
 
-  appEl.querySelectorAll(".demo-login-btn").forEach((btn) => {
+  appEl.querySelectorAll(".demo-role-card").forEach((btn) => {
     btn.addEventListener("click", () => {
       emailInput.value = btn.dataset.email;
       handleLogin(btn.dataset.email);
