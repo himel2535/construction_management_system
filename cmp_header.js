@@ -498,8 +498,8 @@ function initUserMenu() {
 
       if (!users.length && rolesNotLoaded) {
         dropdown.innerHTML = `<p class="header-user-dropdown-title text-muted">Loading users…</p>`;
-        import("./svc_data.js").then(({ get }) => {
-          get("roles")
+        import("./svc_data.js").then(({ getList }) => {
+          getList("roles")
             .then(() => {
               if (!dropdown.hidden) renderDropdown();
             })
@@ -537,8 +537,9 @@ function initUserMenu() {
           })
           .join("")}
         </div>
-        <div class="header-user-dropdown-footer">
+        <div class="header-user-dropdown-footer" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px;">
           <button type="button" class="header-user-dropdown-link" data-action="settings">Users &amp; settings →</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="logout" style="padding: 4px 12px;">Logout</button>
         </div>`;
 
       dropdown.querySelectorAll("[data-uid]").forEach((item) => {
@@ -557,6 +558,14 @@ function initUserMenu() {
         dropdown.hidden = true;
         btn.setAttribute("aria-expanded", "false");
         navigateTo("/settings");
+      });
+      dropdown.querySelector('[data-action="logout"]')?.addEventListener("click", () => {
+        dropdown.hidden = true;
+        btn.setAttribute("aria-expanded", "false");
+        import("./svc_auth.js").then(({ logout }) => {
+          logout();
+          navigateTo("/login");
+        });
       });
     });
   };

@@ -12,16 +12,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     Promise.all([
-      import("@/svc_firebaseOps.js"),
       import("@/svc_tenant.js"),
       import("@/svc_auth.js"),
-      import("@/firebase.js"),
-    ]).then(async ([{ ensureFirebaseSeed }, { initTenantContext, getActiveTenantId }, { setCurrentUser }, { DEMO_ACTOR_UID }]) => {
+    ]).then(async ([{ initTenantContext, getActiveTenantId }, { setCurrentUser }]) => {
       try {
-        await ensureFirebaseSeed().catch(() => {});
         await initTenantContext().catch(() => {});
         setCurrentUser({
-          id: DEMO_ACTOR_UID,
+          id: "demo-user",
           name: "Demo User",
           email: "owner@demo.com",
           role: "owner",

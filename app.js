@@ -1,4 +1,4 @@
-﻿import { APP_VERSION } from "./version.js";
+import { APP_VERSION } from "./version.js";
 
 import { renderLayout, setActiveNav, syncSidebarUserFoot } from "./cmp_layout.js";
 
@@ -6,21 +6,20 @@ import { registerRoute, startRouter } from "./router.js";
 
 import { initTenantContext, getActiveTenantId } from "./svc_tenant.js";
 
-import { setCurrentUser } from "./svc_auth.js";
+import { setCurrentUser, checkSession, loginWithEmail } from "./svc_auth.js";
 
 import { refreshProjectCostCache } from "./svc_operations.js";
 
-import { ensureFirebaseSeed } from "./svc_firebaseOps.js";
-
-import { get, listenValue } from "./svc_data.js";
+import { get, getList, listenValue } from "./svc_data.js";
 
 import { invalidateRoleCache } from "./svc_governance.js";
 
 import { syncHeaderUser } from "./cmp_header.js";
 
-import { DEMO_ACTOR_UID } from "./firebase.js";
-
 import { bootSkeletonHtml } from "./cmp_skeleton.js";
+import { initGlobalLoader, showLoader, hideLoader } from "./cmp_loader.js";
+import { mountLogin } from "./page_login.js";
+import { mount404 } from "./page_404.js";
 
 const PAGE_ROUTES = [
   ["/dashboard", "./page_dashboard.js", "mountDashboard"],
@@ -47,6 +46,8 @@ const PAGE_ROUTES = [
   ["/arbitration", "./page_arbitration.js", "mountArbitration"],
   ["/settings", "./page_settings.js", "mountSettings"],
   ["/client-portal", "./page_client_portal.js", "mountClientPortal"],
+  ["/login", "./page_login.js", "mountLogin"],
+  ["/404", "./page_404.js", "mount404"],
 ];
 
 const pageModuleCache = new Map();
@@ -104,7 +105,7 @@ async function verifyDeployPaths() {
   const checks = bundle
     ? [
         { url: "app.bundle.js", label: "app.bundle.js", shouldExist: true },
-        { url: "firebase.js", label: "firebase.js", shouldExist: true },
+
         { url: "app.js", label: "unbundled app.js (remove on production)", shouldExist: false },
         {
           url: "svc_payroll.js",
@@ -251,20 +252,22 @@ async function boot() {
   console.info(`[ERP] build ${APP_VERSION} — Firebase RTDB (erptriniti)`);
 
   setBootStatus("Connecting to Firebase...");
+  initGlobalLoader();
 
   verifyDeployPaths();
 
   try {
-    await withTimeout(ensureFirebaseSeed(), 12000, "Firebase connection");
-    await get("roles");
+
+    await getList("roles");
     await initTenantContext();
-    setCurrentUser({
-      id: DEMO_ACTOR_UID,
-      name: "Demo User",
-      email: "owner@demo.com",
-      role: "owner",
-      tenantId: getActiveTenantId(),
-    });
+    
+    // Check if user is logged in via JWT
+    let user = await checkSession();
+    if (!user && window.location.pathname !== "/login") {
+      // Redirect to login page
+      window.location.href = "/login";
+      return;
+    }
 
     mountAppShell();
 

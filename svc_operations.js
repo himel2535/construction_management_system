@@ -1,10 +1,6 @@
 import { setPath } from "./svc_clientCache.js";
 import { getActiveTenantId } from "./svc_tenant.js";
-import {
-  refreshReportsCacheClient as refreshFirebaseReports,
-  triggerBackupMetaClient as triggerFirebaseBackup,
-} from "./svc_firebaseOps.js";
-import { db, ref, get } from "./firebase.js";
+
 import { create, updatePath } from "./svc_data.js";
 import { getCurrentUserId } from "./svc_auth.js";
 
@@ -48,11 +44,7 @@ export async function updateClientInvoiceStatus(id, newStatus, paidAmount = null
 export const createSaleBooking = createClientInvoice;
 
 export async function refreshReportsCacheClient() {
-  const tenantId = getActiveTenantId();
-  await refreshFirebaseReports(tenantId);
-  const snap = await get(ref(db, `reportsCache/${tenantId}`));
-  const cache = snap.val() || {};
-  setPath("reportsCache", cache);
+  setPath("reportsCache", {});
   try {
     const { scanAndEmitAlerts } = await import("./svc_alertEngine.js");
     await scanAndEmitAlerts();
@@ -60,7 +52,7 @@ export async function refreshReportsCacheClient() {
 }
 
 export async function triggerBackupMetaClient() {
-  return triggerFirebaseBackup();
+  return null;
 }
 
 export async function refreshProjectCostCache() {

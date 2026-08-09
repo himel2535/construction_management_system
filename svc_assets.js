@@ -1,16 +1,15 @@
-import { create, updatePath } from "./svc_data.js";
+import { create, updatePath, getList } from "./svc_data.js";
 import { getCurrentUserId, getCurrentUserName } from "./svc_auth.js";
-import { db, ref, runTransaction, get } from "./firebase.js";
 import { todayISO } from "./util_assets.js";
 
 async function nextAssetCode() {
-  const counterRef = ref(db, "counters/assetCode");
-  const result = await runTransaction(counterRef, (current) => {
-    const n = (typeof current === "number" ? current : current?.value) ?? 0;
-    return n + 1;
-  });
-  const n = result.snapshot.val() ?? 1;
-  return `AST-${String(n).padStart(3, "0")}`;
+  try {
+    const list = await getList("assets");
+    const count = list ? list.length : 0;
+    return `AST-${String(count + 1).padStart(3, "0")}`;
+  } catch (e) {
+    return `AST-${String(Date.now()).slice(-5)}`;
+  }
 }
 
 export async function createAsset(data) {

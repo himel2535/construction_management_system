@@ -8,10 +8,18 @@ const API_BASE_URL = isProd
 
 export async function fetchApi<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}/${endpoint.replace(/^\//, '')}`;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event("api-request-start"));
+  }
+  
   try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null;
+    const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders,
         ...options.headers,
       },
       ...options,
@@ -26,6 +34,10 @@ export async function fetchApi<T = any>(endpoint: string, options: RequestInit =
   } catch (error) {
     console.warn(`[apiClient] Error reaching ${url}:`, error);
     throw error;
+  } finally {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event("api-request-end"));
+    }
   }
 }
 

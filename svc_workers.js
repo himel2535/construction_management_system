@@ -1,19 +1,16 @@
 import { create, updatePath, removePath, getList } from "./svc_data.js";
 import { getCurrentUserId, getCurrentUserName } from "./svc_auth.js";
 import { postProjectExpense } from "./svc_projectCost.js";
-import { db, ref, runTransaction, get } from "./firebase.js";
 import { todayISO } from "./util_workers.js";
 
-let workerCodeSeq = 0;
-
 async function nextWorkerCode() {
-  const counterRef = ref(db, "counters/workerCode");
-  const result = await runTransaction(counterRef, (current) => {
-    const n = (typeof current === "number" ? current : current?.value) ?? 0;
-    return n + 1;
-  });
-  const n = result.snapshot.val() ?? 1;
-  return `WRK-${String(n).padStart(3, "0")}`;
+  try {
+    const list = await getList("workers");
+    const count = list ? list.length : 0;
+    return `WRK-${String(count + 1).padStart(3, "0")}`;
+  } catch (e) {
+    return `WRK-${String(Date.now()).slice(-5)}`;
+  }
 }
 
 export async function createWorker(data) {

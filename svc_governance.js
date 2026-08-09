@@ -321,7 +321,7 @@ export async function applyEntityWorkflowTransition({
   const patch = { [statusField]: to, updatedAt: now };
   if (to === "submitted") {
     patch.submittedBy = getCurrentUserId();
-    patch.submittedAt = now;
+    patch.submittedAt = new Date(now).toISOString();
     if (!skipQueue) {
       await upsertApprovalQueue({
         entityType,
@@ -337,7 +337,7 @@ export async function applyEntityWorkflowTransition({
   }
   if (to === "approved") {
     patch.approvedBy = getCurrentUserId();
-    patch.approvedAt = now;
+    patch.approvedAt = new Date(now).toISOString();
     await clearApprovalQueue(entityType, entityId);
     if (onApproved) await onApproved({ ...cur, ...patch });
   }

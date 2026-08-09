@@ -1,7 +1,7 @@
 import { getList, valToList } from "./svc_data.js";
 import { getRef } from "./svc_clientCache.js";
 import { resolveRead, getActiveTenantId } from "./svc_tenant.js";
-import { postExpenseClient } from "./svc_firebaseOps.js";
+
 import {
   aggregateProjectCosts,
   boqLineAmount,
@@ -35,14 +35,16 @@ export async function postProjectExpense({
   date,
 }) {
   if (amount <= 0) throw new Error("Amount must be positive");
-  return postExpenseClient({
+  const { getCurrentUserId } = await import("./svc_auth.js");
+  const { create } = await import("./svc_data.js");
+  return create("projectExpenses", {
     projectId,
     amount,
-    costCategory,
-    narration,
-    refType,
-    refId,
-    date,
+    category: costCategory,
+    description: narration,
+    expenseDate: date || new Date().toISOString().slice(0, 10),
+    status: "approved",
+    createdBy: getCurrentUserId(),
   });
 }
 

@@ -1,4 +1,4 @@
-﻿import { setActiveNav, refreshSidebarNav } from "./cmp_layout.js";
+import { setActiveNav, refreshSidebarNav } from "./cmp_layout.js";
 import { applyRouteChrome, updatePageChromeBack, syncHeaderUser } from "./cmp_header.js";
 import { pageSkeletonHtml, resolvePageSkeletonVariant } from "./cmp_skeleton.js";
 import { getCurrentRole } from "./svc_governance.js";
@@ -25,7 +25,7 @@ function resolveHandler(path) {
   const pathname = path.split("?")[0];
   if (routes.has(pathname)) return routes.get(pathname);
   if (pathname.startsWith("/projects")) return routes.get("/projects");
-  return routes.get("/dashboard");
+  return routes.has("/404") ? routes.get("/404") : routes.get("/dashboard");
 }
 
 export function navigateToImpl(route, { replace = false } = {}) {
@@ -49,7 +49,12 @@ export async function navigate() {
   let path = getRoute();
   const role = getCurrentRole();
 
-  if (!canAccessRoute(role, path)) {
+  if (!role && path !== "/login" && path !== "/404") {
+    navigateToImpl("/login", { replace: true });
+    return;
+  }
+
+  if (!canAccessRoute(role, path) && path !== "/login" && path !== "/404") {
     const fallback = defaultRouteForRole(role);
     if (getRoutePath() !== fallback) {
       navigateToImpl(fallback, { replace: true });

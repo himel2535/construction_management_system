@@ -1,7 +1,7 @@
 /** Demo RBAC users — session switch (no separate login). */
 
 import { readRef, getActiveTenantId } from "./svc_tenant.js";
-import { setCurrentUser, getCurrentUser, getCurrentUserId } from "./svc_auth.js";
+import { setCurrentUser, getCurrentUser, getCurrentUserId, loginWithEmail } from "./svc_auth.js";
 import { invalidateRoleCache, listRoleUsers } from "./svc_governance.js";
 import { refreshSidebarNav, syncSidebarUserFoot } from "./cmp_layout.js";
 import { syncHeaderUser, applyRouteChrome } from "./cmp_header.js";
@@ -42,23 +42,20 @@ export function listSessionSwitchUsers() {
  * @param {string} userId
  * @param {{ navigate?: boolean, toast?: boolean }} [opts]
  */
-export function switchDemoUser(userId, opts = {}) {
+export async function switchDemoUser(userId, opts = {}) {
   const { navigate = true, toast = true } = opts;
   const row = readRef(`roles/${userId}`);
   if (!row || row.deletedAt) throw new Error("User not found");
   if (row.active === false) throw new Error("User is not active");
 
   const def = DEMO_ROLE_USERS.find((u) => u.id === userId);
+  const emailToLogin = row.email || def?.email;
+  if (!emailToLogin) throw new Error("User has no email for JWT login");
+
   const role = row.role || def?.role || "viewer";
-  const prev = getCurrentUser();
-  setCurrentUser({
-    id: userId,
-    name: row.displayName || def?.displayName || row.email || userId,
-    email: row.email || def?.email || "",
-    role,
-    clientId: row.clientId || def?.clientId || "",
-    tenantId: row.tenantId || prev?.tenantId || getActiveTenantId(),
-  });
+  
+  await loginWithEmail(emailToLogin);
+
   invalidateRoleCache();
   if (typeof document !== "undefined" && !document.querySelector(".app-root")) {
     refreshSidebarNav();

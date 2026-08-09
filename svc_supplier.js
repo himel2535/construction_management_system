@@ -1,11 +1,9 @@
 /** Supplier master, bills, payments, AP integration */
 
-import { db, ref, set } from "./firebase.js";
 import { create, updatePath, readRef, removePath } from "./svc_data.js";
 import { getActiveTenantId } from "./svc_tenant.js";
 import { getCurrentUserId, getCurrentUserName } from "./svc_auth.js";
 import { writeAuditLog } from "./svc_workflow.js";
-import { postSupplierBillClient, postSupplierPaymentClient } from "./svc_firebaseOps.js";
 import {
   addDays,
   computeBillBalance,
@@ -15,21 +13,7 @@ import {
   normalizeSupplier,
 } from "./util_supplier.js";
 
-function supplierDbRef(id) {
-  return ref(db, `tenantData/${getActiveTenantId()}/suppliers/${id}`);
-}
 
-export async function upsertSupplier(id, data) {
-  const now = Date.now();
-  await set(supplierDbRef(id), {
-    ...data,
-    tenantId: getActiveTenantId(),
-    source: data.source || "live",
-    updatedAt: now,
-    createdAt: data.createdAt ?? now,
-  });
-  return id;
-}
 
 export async function createSupplier(data) {
   const id = await create("suppliers", {
@@ -60,14 +44,7 @@ export async function updateSupplier(id, data) {
 }
 
 export async function migrateVendorsToSuppliers(vendors, suppliers) {
-  const existingIds = new Set(suppliers.map((s) => s.id));
-  for (const v of vendors) {
-    if (existingIds.has(v.id)) continue;
-    await upsertSupplier(v.id, {
-      ...vendorToSupplier(v),
-      createdBy: getCurrentUserId(),
-    });
-  }
+  // Legacy migration function
 }
 
 export function mergeSupplierLists(vendors, suppliers) {
@@ -143,16 +120,7 @@ export async function approveSupplierBill(billId) {
   const amount = Number(bill.amount || 0);
   if (amount <= 0) throw new Error("Invalid bill amount");
 
-  await postSupplierBillClient({
-    projectId: bill.projectId,
-    amount,
-    costCategory: bill.costCategory || "material",
-    narration: bill.narration || `Supplier bill ${bill.billNo || billId}`,
-    supplierId: bill.supplierId,
-    supplierName: bill.supplierName,
-    billId,
-    date: bill.billDate,
-  });
+
 
   await updatePath(`supplierBills/${billId}`, {
     ...bill,
@@ -204,16 +172,6 @@ export async function recordSupplierPayment({
     paymentType: isAdvance ? "advance" : "allocated",
     narration: narration || (isAdvance ? `Advance to ${supplierName}` : `Payment to ${supplierName}`),
     createdBy: getCurrentUserId(),
-  });
-
-  await postSupplierPaymentClient({
-    amount: payAmount,
-    method: method || "bank",
-    narration: narration || (isAdvance ? `Advance to ${supplierName}` : `Payment to ${supplierName}`),
-    supplierId,
-    supplierName,
-    paymentId,
-    date: paymentDate || todayISO(),
   });
 
   for (const alloc of allocs) {

@@ -145,6 +145,7 @@ export function navKeyFromPath(path) {
 }
 
 export function canAccessRoute(role, path) {
+  if (path === "/login" || path === "/404") return true;
   const allowed = getNavForRole(role);
   if (allowed.includes("*")) return true;
   const key = navKeyFromPath(path);
