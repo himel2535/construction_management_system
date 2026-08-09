@@ -73,11 +73,31 @@ export async function get(path) {
   }
 }
 
+const listMemoryCache = new Map<string, { timestamp: number; data: any[] }>();
+const CLIENT_CACHE_TTL_MS = 10000;
+
+export function invalidateClientCache(pathPattern?: string) {
+  if (!pathPattern) {
+    listMemoryCache.clear();
+    return;
+  }
+  for (const key of listMemoryCache.keys()) {
+    if (key.includes(pathPattern)) {
+      listMemoryCache.delete(key);
+    }
+  }
+}
+
 export async function getList(path) {
   try {
     const { collection, id } = parsePath(path);
     if (!collection) return [];
     
+    const cached = listMemoryCache.get(path);
+    if (cached && Date.now() - cached.timestamp < CLIENT_CACHE_TTL_MS) {
+      return cached.data;
+    }
+
     let query = "";
     if (id) {
       if (collection.startsWith("supplier")) query = `?supplierId=${id}`;
@@ -88,6 +108,9 @@ export async function getList(path) {
     
     const dataList = await api.getList(collection + query);
     
+    // Cache the list
+    listMemoryCache.set(path, { timestamp: Date.now(), data: dataList });
+
     // The old system expects the cache to store objects by ID
     const map = {};
     for (const item of dataList) {
@@ -98,7 +121,7 @@ export async function getList(path) {
     return dataList;
   } catch (error) {
     console.error(`[svc_data REST getList] Error fetching ${path}:`, error);
-    return [];
+    return listMemoryCache.get(path)?.data || [];
   }
 }
 
@@ -137,6 +160,7 @@ export async function create(path, data) {
     }
 
     const result = await api.create(collection, payload);
+    invalidateClientCache(collection);
     window.dispatchEvent(new CustomEvent("backend_data_changed"));
     return result.id;
   } catch (error) {
@@ -168,6 +192,7 @@ export async function updatePath(path, data) {
     }
 
     await api.update(collection, id, payload);
+    invalidateClientCache(collection);
     window.dispatchEvent(new CustomEvent("backend_data_changed"));
   } catch (error) {
     console.error(`[svc_data REST updatePath] Error updating ${path}:`, error);
@@ -181,6 +206,7 @@ export async function removePath(path) {
     if (!id) throw new Error("Cannot remove a collection without an ID");
     
     await api.delete(collection, id);
+    invalidateClientCache(collection);
     window.dispatchEvent(new CustomEvent("backend_data_changed"));
   } catch (error) {
     console.error(`[svc_data REST removePath] Error removing ${path}:`, error);
@@ -191,6 +217,12 @@ export async function removePath(path) {
 export function listenList(path, callback) {
   let isMounted = true;
   
+  // Instant SWR callback if cached data exists in memory
+  const cached = listMemoryCache.get(path);
+  if (cached?.data) {
+    callback(cached.data);
+  }
+
   const fetch = () => {
     getList(path).then((data) => {
       if (isMounted) callback(data);
@@ -199,7 +231,10 @@ export function listenList(path, callback) {
 
   fetch();
 
-  const listener = () => fetch();
+  const listener = () => {
+    invalidateClientCache(path);
+    fetch();
+  };
   window.addEventListener("backend_data_changed", listener);
 
   return () => {

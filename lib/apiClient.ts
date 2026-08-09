@@ -6,39 +6,58 @@ const API_BASE_URL = isProd
   ? (process.env.NEXT_PUBLIC_BACKEND_URL || 'https://constructionmanagementsystembackend-production.up.railway.app/api')
   : 'http://localhost:4000/api';
 
+const inFlightGetRequests = new Map<string, Promise<any>>();
+
 export async function fetchApi<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}/${endpoint.replace(/^\//, '')}`;
+  const method = (options.method || 'GET').toUpperCase();
+
+  if (method === 'GET' && inFlightGetRequests.has(url)) {
+    return inFlightGetRequests.get(url) as Promise<T>;
+  }
+
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event("api-request-start"));
   }
   
-  try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null;
-    const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+  const reqPromise = (async () => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('jwt_token') : null;
+      const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders,
-        ...options.headers,
-      },
-      ...options,
-    });
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+          ...options.headers,
+        },
+        ...options,
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API Error [${response.status}]: ${errorText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API Error [${response.status}]: ${errorText}`);
+      }
+      const text = await response.text();
+      return (text ? JSON.parse(text) : null) as T;
+    } catch (error) {
+      console.warn(`[apiClient] Error reaching ${url}:`, error);
+      throw error;
+    } finally {
+      if (method === 'GET') {
+        inFlightGetRequests.delete(url);
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event("api-request-end"));
+      }
     }
-    const text = await response.text();
-    return (text ? JSON.parse(text) : null) as T;
-  } catch (error) {
-    console.warn(`[apiClient] Error reaching ${url}:`, error);
-    throw error;
-  } finally {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event("api-request-end"));
-    }
+  })();
+
+  if (method === 'GET') {
+    inFlightGetRequests.set(url, reqPromise);
   }
+
+  return reqPromise;
 }
 
 export async function fetchApiWithSchema<T>(
