@@ -25,7 +25,7 @@ function resolveHandler(path) {
   const pathname = path.split("?")[0];
   if (routes.has(pathname)) return routes.get(pathname);
   if (pathname.startsWith("/projects")) return routes.get("/projects");
-  return routes.has("/404") ? routes.get("/404") : routes.get("/dashboard");
+  return routes.get("/dashboard");
 }
 
 export function navigateToImpl(route, { replace = false } = {}) {
@@ -49,12 +49,12 @@ export async function navigate() {
   let path = getRoute();
   const role = getCurrentRole();
 
-  if (!role && path !== "/login" && path !== "/404") {
-    navigateToImpl("/login", { replace: true });
+  if (!role) {
+    window.location.href = "/login";
     return;
   }
 
-  if (!canAccessRoute(role, path) && path !== "/login" && path !== "/404") {
+  if (!canAccessRoute(role, path)) {
     const fallback = defaultRouteForRole(role);
     if (getRoutePath() !== fallback) {
       navigateToImpl(fallback, { replace: true });
@@ -66,16 +66,8 @@ export async function navigate() {
   setActiveNav();
   applyRouteChrome();
   const handler = resolveHandler(path);
-  if (!handler) return;
-
-  if (path === "/login" || path === "/404") {
-    const appContainer = document.getElementById("app");
-    if (appContainer) await handler(appContainer);
-    return;
-  }
-
   const container = document.getElementById("page-content");
-  if (!container) return;
+  if (!container || !handler) return;
 
   const variant = resolvePageSkeletonVariant(path);
   const isEmpty = !container.firstElementChild;

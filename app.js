@@ -225,10 +225,6 @@ function mountAppShell() {
 
   setActiveNav();
 
-  for (const [path, modulePath, exportName] of PAGE_ROUTES) {
-    registerRoute(path, (c) => mountLazyPage(modulePath, exportName, c));
-  }
-
   window.addEventListener("online", () => {
     import("./svc_sync.js").then(({ processOfflineQueue }) => processOfflineQueue());
   });
@@ -261,17 +257,26 @@ async function boot() {
     await getList("roles");
     await initTenantContext();
     
-    // Check if user is logged in via JWT
+    for (const [path, modulePath, exportName] of PAGE_ROUTES) {
+      if (path !== "/login" && path !== "/404") {
+        registerRoute(path, (c) => mountLazyPage(modulePath, exportName, c));
+      }
+    }
+
     let user = await checkSession();
-    if (!user && window.location.pathname !== "/login") {
-      // Redirect to login page
-      window.location.href = "/login";
+    if (!user) {
+      const appEl = document.getElementById("app");
+      appEl.innerHTML = "";
+      mountLogin(appEl);
       return;
     }
 
-    if (window.location.pathname !== "/login" && window.location.pathname !== "/404") {
-      mountAppShell();
+    if (window.location.pathname === "/login") {
+      window.location.replace("/dashboard");
+      return;
     }
+
+    mountAppShell();
 
     afterAuth().catch((e) => {
       console.warn("[ERP] background init skipped", e);
