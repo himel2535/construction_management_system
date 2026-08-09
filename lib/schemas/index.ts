@@ -15,6 +15,8 @@ export const ClientSchema = z.object({
   clientType: z.string().optional().default("private"),
   totalProjects: z.number().optional().default(0),
   totalBilled: z.number().optional().default(0),
+  projectId: z.string().optional().default(""),
+  nid: z.string().optional().default(""),
   notes: z.string().optional().default(""),
   createdAt: z.number().optional(),
   updatedAt: z.number().optional(),

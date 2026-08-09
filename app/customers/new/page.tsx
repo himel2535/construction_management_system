@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Building2, Landmark, Check, Plus, AlertCircle, Users } from "lucide-react";
 import Link from "next/link";
 import { useCreateCustomer } from "@/lib/hooks/useCustomers";
+import { useProjects } from "@/lib/hooks/useProjects";
 
 export default function AddClientPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function AddClientPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const createCustomerMutation = useCreateCustomer();
+  const { data: projects = [] } = useProjects();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -60,7 +62,7 @@ export default function AddClientPage() {
     <div className="min-h-screen bg-slate-50 pb-20">
       {/* Top Navigation */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-[95%] mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/customers" className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors">
               <ArrowLeft size={18} />
@@ -90,7 +92,7 @@ export default function AddClientPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="max-w-[95%] mx-auto px-6 py-8">
         {formError && (
           <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
@@ -197,9 +199,25 @@ export default function AddClientPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Primary Project</label>
+                  <select name="projectId" className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+                    <option value="">-- Select Project --</option>
+                    {projects.map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Outstanding Balance (BDT)</label>
+                  <input type="number" name="totalBilled" defaultValue={0} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" placeholder="0.00" />
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">Address</label>
-                <textarea name="address" rows={2} placeholder="Street, area, city" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all resize-none"></textarea>
+                <textarea name="address" rows={2} placeholder="Street, area, city" className="w-full !pl-10 pr-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all resize-none"></textarea>
               </div>
 
               <div className="pt-4 border-t border-slate-100">

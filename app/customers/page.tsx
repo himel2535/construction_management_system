@@ -17,13 +17,20 @@ import { useCustomers } from "@/lib/hooks/useCustomers";
 import Sparkline from "@/components/ui/Sparkline";
 import Avatar from "@/components/ui/Avatar";
 import { TypePill, HealthPill } from "@/components/ui/StatusPill";
+import CustomerDetailModal from "@/components/customers/CustomerDetailModal";
+import EditCustomerModal from "@/components/customers/EditCustomerModal";
+import { useProjects } from "@/lib/hooks/useProjects";
 
 export default function CustomersPage() {
   const { data: customers = [], isLoading } = useCustomers();
+  const { data: projects = [] } = useProjects();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+
+  const [viewingCustomer, setViewingCustomer] = useState<any>(null);
+  const [editingCustomer, setEditingCustomer] = useState<any>(null);
   const [nameFilter, setNameFilter] = useState("");
   const [phoneFilter, setPhoneFilter] = useState("");
   const [emailFilter, setEmailFilter] = useState("");
@@ -74,10 +81,8 @@ export default function CustomersPage() {
             <Sparkline values={[2, 3, 4, totalCount || 1, totalCount || 2, totalCount || 3, totalCount || 4]} tone="yellow" />
           </div>
           <div className="dash-kpi-head">
-            <div className="dash-kpi-icon dash-kpi-icon--flat">
-              <div className="dash-color-icon cust-kpi-flat-icon text-amber-500 font-bold text-lg flex items-center justify-center w-8 h-8">
-                 <Users size={20} />
-              </div>
+            <div className="dash-kpi-icon dash-kpi-icon--flat !bg-transparent">
+              <img src="/assets/icons/dashboard/cust-kpi-total-clients.svg" alt="Total Clients" className="w-10 h-10" />
             </div>
             <div className="dash-kpi-main">
               <span className="dash-kpi-label">Total Clients</span>
@@ -94,10 +99,8 @@ export default function CustomersPage() {
             <Sparkline values={[1, 2, activeCount || 1, activeCount || 2, activeCount, activeCount, activeCount]} tone="green" />
           </div>
           <div className="dash-kpi-head">
-            <div className="dash-kpi-icon dash-kpi-icon--flat">
-              <div className="dash-color-icon cust-kpi-flat-icon text-emerald-600 flex items-center justify-center w-8 h-8">
-                <Users size={20} />
-              </div>
+            <div className="dash-kpi-icon dash-kpi-icon--flat !bg-transparent">
+              <img src="/assets/icons/dashboard/cust-kpi-active-clients.svg" alt="Active Clients" className="w-10 h-10" />
             </div>
             <div className="dash-kpi-main">
               <span className="dash-kpi-label">Active Clients</span>
@@ -114,10 +117,8 @@ export default function CustomersPage() {
             <Sparkline values={[0, 1, 1, addedMonthCount || 1, addedMonthCount || 2, addedMonthCount, addedMonthCount]} tone="orange" />
           </div>
           <div className="dash-kpi-head">
-            <div className="dash-kpi-icon dash-kpi-icon--flat">
-              <div className="dash-color-icon cust-kpi-flat-icon text-orange-500 font-bold flex items-center justify-center w-8 h-8">
-                <Building2 size={20} />
-              </div>
+            <div className="dash-kpi-icon dash-kpi-icon--flat !bg-transparent">
+              <img src="/assets/icons/dashboard/cust-kpi-added-month.svg" alt="Added" className="w-10 h-10" />
             </div>
             <div className="dash-kpi-main">
               <span className="dash-kpi-label">Added This Month</span>
@@ -134,10 +135,8 @@ export default function CustomersPage() {
             <Sparkline values={[withEmailCount || 1, withEmailCount || 2, withEmailCount, withEmailCount, withEmailCount, withEmailCount, withEmailCount]} tone="yellow" />
           </div>
           <div className="dash-kpi-head">
-            <div className="dash-kpi-icon dash-kpi-icon--flat">
-              <div className="dash-color-icon cust-kpi-flat-icon text-amber-500 flex items-center justify-center w-8 h-8">
-                <span className="text-xl">@</span>
-              </div>
+            <div className="dash-kpi-icon dash-kpi-icon--flat !bg-transparent">
+              <img src="/assets/icons/dashboard/cust-kpi-email.svg" alt="Email" className="w-10 h-10" />
             </div>
             <div className="dash-kpi-main">
               <span className="dash-kpi-label">With Email on File</span>
@@ -154,10 +153,8 @@ export default function CustomersPage() {
             <Sparkline values={[totalOutstanding ? 4 : 2, 3, totalOutstanding ? 5 : 2, 4, totalOutstanding ? 6 : 2, 3, 2]} tone="red" />
           </div>
           <div className="dash-kpi-head">
-            <div className="dash-kpi-icon dash-kpi-icon--flat">
-              <div className="dash-color-icon cust-kpi-flat-icon text-red-600 flex items-center justify-center w-8 h-8 font-bold">
-                 ৳
-              </div>
+            <div className="dash-kpi-icon dash-kpi-icon--flat !bg-transparent">
+              <img src="/assets/icons/dashboard/cust-kpi-outstanding.svg" alt="Outstanding" className="w-10 h-10" />
             </div>
             <div className="dash-kpi-main">
               <span className="dash-kpi-label">Outstanding Receivable</span>
@@ -240,7 +237,7 @@ export default function CustomersPage() {
                 ) : filteredCustomers.length === 0 ? (
                   <tr><td colSpan={10} className="text-center p-8 text-slate-500">No customers match your filters.</td></tr>
                 ) : filteredCustomers.map((c, idx) => (
-                  <tr key={c.id || c.name} className="cust-row hover:bg-slate-50 transition-colors cursor-pointer">
+                  <tr key={c.id || c.name} className="cust-row hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setViewingCustomer(c)}>
                     <td className="col-num">{idx + 1}</td>
                     <td>
                       <div className="cell-user cust-client-cell flex items-center gap-3">
@@ -255,14 +252,18 @@ export default function CustomersPage() {
                     <td>{c.phone || <span className="text-muted">—</span>}</td>
                     <td>{c.email || <span className="text-muted">—</span>}</td>
                     <td className="cust-col-center">
-                      {(c.totalProjects || 0) > 0 ? (
+                      {c.projectId ? (
+                        <button type="button" className="cust-proj-pill-btn cust-proj-link">
+                          <span className="cust-proj-pill">{projects.find((p: any) => p.id === c.projectId)?.name || "Unknown Project"}</span>
+                        </button>
+                      ) : (c.totalProjects || 0) > 0 ? (
                         <button type="button" className="cust-proj-pill-btn cust-proj-link">
                           <span className="cust-proj-pill">{c.totalProjects} project{c.totalProjects !== 1 ? "s" : ""}</span>
                         </button>
                       ) : <span className="text-muted">—</span>}
                     </td>
                     <td className="col-money cust-col-center">
-                      {(c.totalBilled || 0) > 0 ? (
+                      {c.totalBilled ? (
                          <span className="cust-outstanding">{c.totalBilled?.toLocaleString()}</span>
                       ) : <span className="text-muted">—</span>}
                     </td>
@@ -274,8 +275,8 @@ export default function CustomersPage() {
                     </td>
                     <td className="cust-col-center">
                       <div className="table-actions table-actions--cust">
-                        <button type="button" className="icon-btn icon-btn--sm view-cust text-slate-400 hover:text-slate-600"><Eye size={16} /></button>
-                        <button type="button" className="icon-btn icon-btn--sm edit-cust text-slate-400 hover:text-slate-600"><Edit size={16} /></button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setViewingCustomer(c); }} className="icon-btn icon-btn--sm view-cust text-slate-400 hover:text-slate-600"><Eye size={16} /></button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setEditingCustomer(c); }} className="icon-btn icon-btn--sm edit-cust text-slate-400 hover:text-slate-600"><Edit size={16} /></button>
                       </div>
                     </td>
                   </tr>
@@ -285,6 +286,24 @@ export default function CustomersPage() {
           </div>
         </div>
       </section>
+
+      {viewingCustomer && (
+        <CustomerDetailModal
+          customer={viewingCustomer}
+          onClose={() => setViewingCustomer(null)}
+          onEdit={(c) => {
+            setViewingCustomer(null);
+            setEditingCustomer(c);
+          }}
+        />
+      )}
+
+      {editingCustomer && (
+        <EditCustomerModal
+          customer={editingCustomer}
+          onClose={() => setEditingCustomer(null)}
+        />
+      )}
     </div>
   );
 }
