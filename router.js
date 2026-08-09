@@ -4,6 +4,7 @@ import { pageSkeletonHtml, resolvePageSkeletonVariant } from "./cmp_skeleton.js"
 import { getCurrentRole } from "./svc_governance.js";
 import { canAccessRoute, defaultRouteForRole } from "./util_roles.js";
 import { getRoutePath, getRouteQuery, bindNavigate } from "./util_route.js";
+import { getCurrentUser } from "./svc_auth.js";
 
 export { getRoutePath, getRouteQuery, navigateTo } from "./util_route.js";
 
@@ -47,10 +48,13 @@ export async function navigate() {
   }
 
   let path = getRoute();
+  const user = getCurrentUser();
   const role = getCurrentRole();
 
-  if (!role) {
-    window.location.href = "/login";
+  if (!user) {
+    if (path !== "/login") {
+      window.location.href = "/login";
+    }
     return;
   }
 

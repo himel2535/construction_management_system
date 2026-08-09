@@ -564,7 +564,7 @@ function initUserMenu() {
         btn.setAttribute("aria-expanded", "false");
         import("./svc_auth.js").then(({ logout }) => {
           logout();
-          navigateTo("/login");
+          window.location.href = "/login";
         });
       });
     });
