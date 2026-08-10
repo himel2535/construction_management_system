@@ -406,10 +406,10 @@ export function renderBudgetDonut(host, summary) {
   const s2 = (committedPct / 100) * c;
   const s3 = (remainingPct / 100) * c;
   const legendRows = [
-    { dot: "dot-blue", label: "Total Budget", value: formatCompactBDT(summary.budget) },
-    { dot: "dot-green", label: "Total Spent", value: formatCompactBDT(summary.spent) },
-    { dot: "dot-orange", label: "Committed Cost", value: formatCompactBDT(summary.committed) },
-    { dot: "dot-sky", label: "Remaining", value: formatCompactBDT(summary.remaining) },
+    { dotStyle: "background: #e2e8f0", label: "Total Budget", value: formatCompactBDT(summary.budget) },
+    { dotStyle: "background: linear-gradient(135deg, #2dd4bf, #0f766e)", label: "Total Spent", value: formatCompactBDT(summary.spent) },
+    { dotStyle: "background: linear-gradient(135deg, #a78bfa, #6d28d9)", label: "Committed Cost", value: formatCompactBDT(summary.committed) },
+    { dotStyle: "background: linear-gradient(135deg, #fbbf24, #b45309)", label: "Remaining", value: formatCompactBDT(summary.remaining) },
   ];
   host.innerHTML = `<section class="dash-widget dash-widget--budget card">
     <div class="dash-widget-head">
@@ -421,16 +421,16 @@ export function renderBudgetDonut(host, summary) {
           <svg viewBox="0 0 40 40" class="dash-donut dash-donut--budget">
             <defs>
               <linearGradient id="grad-spent" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#38bdf8" />
-                <stop offset="100%" stop-color="#0284c7" />
+                <stop offset="0%" stop-color="#2dd4bf" />
+                <stop offset="100%" stop-color="#0f766e" />
               </linearGradient>
               <linearGradient id="grad-committed" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#fb7185" />
-                <stop offset="100%" stop-color="#e11d48" />
+                <stop offset="0%" stop-color="#a78bfa" />
+                <stop offset="100%" stop-color="#6d28d9" />
               </linearGradient>
               <linearGradient id="grad-remaining" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#818cf8" />
-                <stop offset="100%" stop-color="#4f46e5" />
+                <stop offset="0%" stop-color="#fbbf24" />
+                <stop offset="100%" stop-color="#b45309" />
               </linearGradient>
             </defs>
             <circle cx="20" cy="20" r="${r}" fill="none" stroke="#e2e8f0" stroke-width="6"/>
@@ -446,7 +446,7 @@ export function renderBudgetDonut(host, summary) {
         <ul class="dash-budget-legend">${legendRows
           .map(
             (row) => `<li>
-            <span class="dash-budget-legend-label"><i class="dot ${row.dot}"></i> ${escapeHtml(row.label)}</span>
+            <span class="dash-budget-legend-label"><i class="dot" style="${row.dotStyle}"></i> ${escapeHtml(row.label)}</span>
             <span class="dash-budget-legend-value">${escapeHtml(row.value)}</span>
           </li>`
           )
@@ -574,9 +574,9 @@ export function renderBillingPanel(host, data) {
   const s2 = (duePct / 100) * c;
   const s3 = (overduePct / 100) * c;
   const legendRows = [
-    { dot: "dot-green", label: "Current", value: formatCompactBDT(data.current) },
-    { dot: "dot-orange", label: "Due", value: formatCompactBDT(data.due) },
-    { dot: "dot-red", label: "Overdue", value: formatCompactBDT(data.overdue) },
+    { dotStyle: "background: linear-gradient(135deg, #14b8a6, #0f766e)", label: "Current", value: formatCompactBDT(data.current) },
+    { dotStyle: "background: linear-gradient(135deg, #f59e0b, #d97706)", label: "Due", value: formatCompactBDT(data.due) },
+    { dotStyle: "background: linear-gradient(135deg, #f43f5e, #be123c)", label: "Overdue", value: formatCompactBDT(data.overdue) },
   ];
   const tableBody = data.upcoming.length
     ? data.upcoming
@@ -626,7 +626,7 @@ export function renderBillingPanel(host, data) {
         <ul class="dash-billing-legend">${legendRows
           .map(
             (row) => `<li>
-            <span class="dash-billing-legend-label"><i class="dot ${row.dot}"></i> ${escapeHtml(row.label)}</span>
+            <span class="dash-billing-legend-label"><i class="dot" style="${row.dotStyle}"></i> ${escapeHtml(row.label)}</span>
             <span class="dash-billing-legend-value">${escapeHtml(row.value)}</span>
           </li>`
           )

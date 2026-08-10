@@ -16658,7 +16658,7 @@ button.proj-header-kpi--link:hover {
   text-align: left;
 }
 .dashboard-page.dashboard-mockup:not(.customers-page) .dash-billing-legend li {
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 1rem;
 }
 .dashboard-page.dashboard-mockup:not(.customers-page) .dash-kpi-card,
