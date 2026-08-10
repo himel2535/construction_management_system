@@ -26,7 +26,7 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [navItems, setNavItems] = useState(NAV_ITEMS);
+  const [navItems, setNavItems] = useState<typeof NAV_ITEMS>([]);
   const [approvalCount, setApprovalCount] = useState(0);
 
   useEffect(() => {
