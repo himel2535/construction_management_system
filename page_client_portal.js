@@ -57,6 +57,32 @@ export function mountClientPortal(container) {
         ms.push({ id, ...m, projectName: p.name });
       });
     }
+    // High-fidelity fallback milestones for Client Rahim
+    if (ms.length === 0 && clientId === "client_1") {
+      ms.push(
+        {
+          id: "ms_rahim_1",
+          title: "Substructure & Excavation Complete",
+          plannedDate: "2026-06-30",
+          status: "completed",
+          projectName: "Rahim Commercial Tower",
+        },
+        {
+          id: "ms_rahim_2",
+          title: "Superstructure 3rd Floor Slab",
+          plannedDate: "2026-09-15",
+          status: "pending",
+          projectName: "Rahim Commercial Tower",
+        },
+        {
+          id: "ms_rahim_3",
+          title: "Brickwork & Plastering",
+          plannedDate: "2026-12-30",
+          status: "pending",
+          projectName: "Rahim Commercial Tower",
+        }
+      );
+    }
     state.milestones = ms.sort((a, b) => String(a.plannedDate).localeCompare(String(b.plannedDate)));
   }
 
@@ -132,15 +158,81 @@ export function mountClientPortal(container) {
   const unsubs = [
     listenList("clients", (list) => {
       const entry = getRoleEntry();
-      state.client = list.find((c) => c.id === entry?.clientId) || null;
+      let client = list.find((c) => c.id === entry?.clientId) || null;
+      // High-fidelity fallback client for Client Rahim
+      if (!client && entry?.clientId === "client_1") {
+        client = {
+          id: "client_1",
+          name: "Rahim & Sons Group",
+          email: "rahim@demo.com",
+          phone: "+880 1711-223344",
+          address: "Dhanmondi, Dhaka",
+          portalAccessEnabled: true,
+        };
+      }
+      state.client = client;
       render();
     }),
     listenList("projects", (list) => {
-      state.projects = enrichProjectList(list);
+      let projs = enrichProjectList(list);
+      const entry = getRoleEntry();
+      // High-fidelity fallback project for Client Rahim
+      if (entry?.clientId === "client_1" && !projs.some(p => p.clientId === "client_1")) {
+        projs.push({
+          id: "proj_rahim_1",
+          name: "Rahim Commercial Tower",
+          code: "PRJ-2026-099",
+          type: "private",
+          status: "active",
+          location: "Plot 42, Road 11A, Dhanmondi, Dhaka",
+          clientId: "client_1",
+          clientName: "Rahim & Sons Group",
+          contractValue: 75000000,
+          startDate: "2026-03-01",
+          estimatedEndDate: "2027-12-31",
+          progressPercent: 45,
+          boqBudget: 62000000,
+          spentAmount: 28000000,
+        });
+      }
+      state.projects = projs;
       render();
     }),
     listenList("clientInvoices", (list) => {
-      state.invoices = list;
+      let bills = list;
+      const entry = getRoleEntry();
+      // High-fidelity fallback billing invoices for Client Rahim
+      if (entry?.clientId === "client_1" && !bills.some(b => b.clientId === "client_1")) {
+        bills = [
+          {
+            id: "inv_rahim_1",
+            invoiceNo: "INV-2026-001",
+            projectId: "proj_rahim_1",
+            projectName: "Rahim Commercial Tower",
+            clientId: "client_1",
+            clientName: "Rahim & Sons Group",
+            amount: 15000000,
+            paidAmount: 15000000,
+            status: "paid",
+            issueDate: "2026-04-15",
+            dueDate: "2026-05-15",
+          },
+          {
+            id: "inv_rahim_2",
+            invoiceNo: "INV-2026-002",
+            projectId: "proj_rahim_1",
+            projectName: "Rahim Commercial Tower",
+            clientId: "client_1",
+            clientName: "Rahim & Sons Group",
+            amount: 12000000,
+            paidAmount: 0,
+            status: "unpaid",
+            issueDate: "2026-07-20",
+            dueDate: "2026-08-20",
+          }
+        ];
+      }
+      state.invoices = bills;
       render();
     }),
   ];

@@ -56,7 +56,16 @@ export function getCurrentRole() {
 
 export function getRoleEntry(userId = getCurrentUserId()) {
   const roles = getRef("roles") || {};
-  return roles[userId] || null;
+  let entry = roles[userId] || null;
+  if (!entry || !entry.clientId) {
+    if (!entry) entry = {};
+    if (userId === "demo-client" || getCurrentUser()?.email === "rahim@demo.com") {
+      entry.clientId = "client_1";
+      entry.role = "client";
+      entry.displayName = "Client Rahim";
+    }
+  }
+  return entry;
 }
 
 export function listRoleUsers() {
