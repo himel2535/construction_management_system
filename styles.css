@@ -16223,8 +16223,8 @@ button.proj-header-kpi--link:hover {
 .dash-donut-center strong { font-size: 0.875rem; color: var(--slate-900); }
 .dash-donut-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; font-size: 0.8125rem; color: var(--slate-600); }
 
-.dash-widget--budget .dash-widget-body { padding: 1rem 1.125rem 1.125rem; }
-.dash-budget-layout { display: flex; align-items: center; gap: 1.25rem; }
+.dash-widget--budget .dash-widget-body { padding: 1rem 1.125rem 1.125rem; display: flex; flex-direction: column; justify-content: center; flex: 1; }
+.dash-budget-layout { display: flex; align-items: center; justify-content: center; gap: 1.25rem; }
 .dash-donut-wrap--budget {
   width: 190px;
   height: 190px;
@@ -16616,15 +16616,15 @@ button.proj-header-kpi--link:hover {
 /* Dashboard page — tighter card/table spacing (not clients) */
 .dashboard-page.dashboard-mockup:not(.customers-page) {
   gap: 0.375rem;
-  --dash-green: #059669;
-  --dash-green-deep: #047857;
-  --dash-blue: var(--accent-hover);
-  --dash-blue-deep: var(--brand-700);
-  --dash-orange: #d97706;
-  --dash-orange-deep: #c2410c;
-  --dash-red: #dc2626;
-  --dash-red-deep: #b91c1c;
-  --dash-purple: #7c3aed;
+  --dash-green: #0ea5e9; /* Replaced solid green with vibrant sky/cyan as requested for deep blue/green look */
+  --dash-green-deep: #0284c7;
+  --dash-blue: #6366f1; /* Vibrant Indigo */
+  --dash-blue-deep: #4338ca;
+  --dash-orange: #f43f5e; /* Replacing 'gerua' with modern rose/pink */
+  --dash-orange-deep: #e11d48;
+  --dash-red: #f43f5e; 
+  --dash-red-deep: #e11d48;
+  --dash-purple: #8b5cf6;
   --dash-card-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
   --dash-card-shadow-hover: 0 4px 16px rgba(15, 23, 42, 0.08);
 }

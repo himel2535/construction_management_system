@@ -268,10 +268,10 @@ function cashFlowChartSvg(data) {
     .join("");
 
   const series = [
-    { values: clientCollection, cls: "dash-bar-collection" },
-    { values: projectExpense, cls: "dash-bar-project" },
-    { values: purchaseExpense, cls: "dash-bar-purchase" },
-    { values: salaryWages, cls: "dash-bar-salary" },
+    { values: clientCollection, grad: "grad-cf-collection" },
+    { values: projectExpense, grad: "grad-cf-project" },
+    { values: purchaseExpense, grad: "grad-cf-purchase" },
+    { values: salaryWages, grad: "grad-cf-salary" },
   ];
   const groupW = plotW / n;
   const barW = (groupW * 0.72) / 4;
@@ -284,7 +284,7 @@ function cashFlowChartSvg(data) {
           const h = Math.max(0, plotB - yPos(v));
           const x = groupX + groupW * 0.1 + j * (barW + 1);
           const y = yPos(v);
-          return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="2" class="${s.cls}"/>`;
+          return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="url(#${s.grad})"/>`;
         })
         .join("");
     })
@@ -316,12 +316,32 @@ function cashFlowChartSvg(data) {
     })
     .join("");
 
-  return `<svg class="dash-cashflow-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: auto; max-height: 250px;">
+  const defs = `<defs>
+      <linearGradient id="grad-cf-collection" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#38bdf8" />
+        <stop offset="100%" stop-color="#0284c7" />
+      </linearGradient>
+      <linearGradient id="grad-cf-project" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#fb7185" />
+        <stop offset="100%" stop-color="#e11d48" />
+      </linearGradient>
+      <linearGradient id="grad-cf-purchase" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#fcd34d" />
+        <stop offset="100%" stop-color="#d97706" />
+      </linearGradient>
+      <linearGradient id="grad-cf-salary" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#c084fc" />
+        <stop offset="100%" stop-color="#7c3aed" />
+      </linearGradient>
+    </defs>`;
+
+  return `<svg class="dash-cashflow-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: auto; max-height: 250px; drop-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+    ${defs}
     ${gridH}
     ${gridV}
     ${yLabels}
     ${bars}
-    <polyline class="dash-cf-net-line" points="${netLine}" fill="none" stroke="#6366f1" stroke-width="2"/>
+    <polyline class="dash-cf-net-line" points="${netLine}" fill="none" stroke="#4338ca" stroke-width="3" filter="drop-shadow(0px 2px 4px rgba(67,56,202,0.4))" stroke-linejoin="round"/>
     ${netDiamonds}
     ${xLabels}
   </svg>`;
@@ -399,10 +419,24 @@ export function renderBudgetDonut(host, summary) {
       <div class="dash-budget-layout">
         <div class="dash-donut-wrap dash-donut-wrap--budget">
           <svg viewBox="0 0 40 40" class="dash-donut dash-donut--budget">
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#d1d5db" stroke-width="6"/>
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#059669" stroke-width="6" stroke-dasharray="${s1} ${c}" stroke-dashoffset="0" transform="rotate(-90 20 20)"/>
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#d97706" stroke-width="6" stroke-dasharray="${s2} ${c}" stroke-dashoffset="${-s1}" transform="rotate(-90 20 20)"/>
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#38bdf8" stroke-width="6" stroke-dasharray="${s3} ${c}" stroke-dashoffset="${-(s1 + s2)}" transform="rotate(-90 20 20)"/>
+            <defs>
+              <linearGradient id="grad-spent" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#38bdf8" />
+                <stop offset="100%" stop-color="#0284c7" />
+              </linearGradient>
+              <linearGradient id="grad-committed" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#fb7185" />
+                <stop offset="100%" stop-color="#e11d48" />
+              </linearGradient>
+              <linearGradient id="grad-remaining" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#818cf8" />
+                <stop offset="100%" stop-color="#4f46e5" />
+              </linearGradient>
+            </defs>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#e2e8f0" stroke-width="6"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="url(#grad-spent)" stroke-width="6" stroke-dasharray="${s1} ${c}" stroke-dashoffset="0" transform="rotate(-90 20 20)"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="url(#grad-committed)" stroke-width="6" stroke-dasharray="${s2} ${c}" stroke-dashoffset="${-s1}" transform="rotate(-90 20 20)"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="url(#grad-remaining)" stroke-width="6" stroke-dasharray="${s3} ${c}" stroke-dashoffset="${-(s1 + s2)}" transform="rotate(-90 20 20)"/>
           </svg>
           <div class="dash-donut-center dash-donut-center--budget">
             <strong>${usedPct}%</strong>
