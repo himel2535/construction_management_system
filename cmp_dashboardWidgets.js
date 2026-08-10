@@ -600,10 +600,24 @@ export function renderBillingPanel(host, data) {
       <div class="dash-billing-layout">
         <div class="dash-donut-wrap dash-donut-wrap--billing">
           <svg viewBox="0 0 40 40" class="dash-donut dash-donut--billing">
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#d1d5db" stroke-width="6"/>
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#059669" stroke-width="6" stroke-dasharray="${s1} ${c}" stroke-dashoffset="0" transform="rotate(-90 20 20)"/>
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#d97706" stroke-width="6" stroke-dasharray="${s2} ${c}" stroke-dashoffset="${-s1}" transform="rotate(-90 20 20)"/>
-            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#dc2626" stroke-width="6" stroke-dasharray="${s3} ${c}" stroke-dashoffset="${-(s1 + s2)}" transform="rotate(-90 20 20)"/>
+            <defs>
+              <linearGradient id="grad-bill-current" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#14b8a6" />
+                <stop offset="100%" stop-color="#0f766e" />
+              </linearGradient>
+              <linearGradient id="grad-bill-due" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#f59e0b" />
+                <stop offset="100%" stop-color="#d97706" />
+              </linearGradient>
+              <linearGradient id="grad-bill-overdue" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#f43f5e" />
+                <stop offset="100%" stop-color="#be123c" />
+              </linearGradient>
+            </defs>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="#e2e8f0" stroke-width="6"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="url(#grad-bill-current)" stroke-width="6" stroke-dasharray="${s1} ${c}" stroke-dashoffset="0" transform="rotate(-90 20 20)"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="url(#grad-bill-due)" stroke-width="6" stroke-dasharray="${s2} ${c}" stroke-dashoffset="${-s1}" transform="rotate(-90 20 20)"/>
+            <circle cx="20" cy="20" r="${r}" fill="none" stroke="url(#grad-bill-overdue)" stroke-width="6" stroke-dasharray="${s3} ${c}" stroke-dashoffset="${-(s1 + s2)}" transform="rotate(-90 20 20)"/>
           </svg>
           <div class="dash-donut-center dash-donut-center--billing">
             <strong>${escapeHtml(formatCompactBDTSign(data.receivable))}</strong>

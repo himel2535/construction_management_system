@@ -135,7 +135,7 @@ export function mountDashboard(container) {
     siteInCharges: false,
   };
 
-  let cashFlowPeriod = "month";
+  let cashFlowPeriod = "week";
 
   function visibleProjects() {
     const assigned = getAssignedProjectIds(getCurrentUserId(), getCurrentRole());
