@@ -352,8 +352,10 @@ function cashFlowWidgetShell(bodyHtml) {
     <div class="dash-widget-head dash-widget-head--split">
       <h3 class="dash-widget-title">Cash Flow Overview</h3>
       <select class="dash-cashflow-period" aria-label="Cash flow period">
+        <option value="year">This Year</option>
         <option value="month">This Month</option>
         <option value="week">This Week</option>
+        <option value="day">Today</option>
       </select>
     </div>
     <div class="dash-widget-body">${bodyHtml}</div>

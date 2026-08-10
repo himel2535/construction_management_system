@@ -581,6 +581,10 @@ function cashFlowDayKeys(period) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const keys = [];
+  if (period === "day") {
+    keys.push(today.toISOString().slice(0, 10));
+    return keys;
+  }
   if (period === "week") {
     for (let i = 6; i >= 0; i -= 1) {
       const d = new Date(today);
@@ -589,6 +593,20 @@ function cashFlowDayKeys(period) {
     }
     return keys;
   }
+  if (period === "year") {
+    const year = today.getFullYear();
+    for (let m = 0; m <= today.getMonth(); m++) {
+      for (let day = 1; day <= 31; day++) {
+        const d = new Date(year, m, day);
+        if (d.getMonth() === m && d <= today) {
+          keys.push(d.toISOString().slice(0, 10));
+        }
+      }
+    }
+    return keys;
+  }
+  
+  // default: month
   const year = today.getFullYear();
   const month = today.getMonth();
   for (let day = 1; day <= today.getDate(); day += 1) {
