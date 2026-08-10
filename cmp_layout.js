@@ -5,7 +5,7 @@ import { getCurrentRole } from "./svc_governance.js";
 import { filterNavItems, defaultRouteForRole, roleLabel } from "./util_roles.js";
 import { readRef } from "./svc_tenant.js";
 import { valToList } from "./svc_clientCache.js";
-import { countPendingApprovals } from "./util_dashboard.js";
+import { isApprovalQueueRowVisible } from "./svc_governance.js";
 import { getRoutePath, navigateTo } from "./util_route.js";
 
 export const APP_NAV = [
@@ -33,7 +33,7 @@ function buildNavLinks(navEl) {
   if (typeof document !== "undefined" && document.querySelector(".app-root")) return;
   const role = getCurrentRole();
   const items = filterNavItems(APP_NAV, role);
-  const approvalCount = countPendingApprovals(valToList(readRef("approvalQueue") || {}));
+  const approvalCount = valToList(readRef("approvalQueue") || {}).filter(isApprovalQueueRowVisible).length;
   navEl.innerHTML = "";
   for (const item of items) {
     const a = document.createElement("a");
