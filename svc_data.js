@@ -56,12 +56,22 @@ function parsePath(path) {
   return { collection, id, projectId };
 }
 
+const singleItemCache = new Map();
+const listMemoryCache = new Map();
+const CLIENT_CACHE_TTL_MS = 60000;
+
 export async function get(path) {
   try {
     const { collection, id } = parsePath(path);
     if (!collection || !id) return { val: () => null, exists: () => false };
     
+    const cached = singleItemCache.get(path);
+    if (cached && Date.now() - cached.timestamp < CLIENT_CACHE_TTL_MS) {
+      return { val: () => cached.data, exists: () => !!cached.data };
+    }
+
     const data = await api.get(collection, id);
+    singleItemCache.set(path, { timestamp: Date.now(), data });
     setPath(path, data);
     return {
       val: () => data,
@@ -73,18 +83,17 @@ export async function get(path) {
   }
 }
 
-const listMemoryCache = new Map();
-const CLIENT_CACHE_TTL_MS = 10000;
-
 export function invalidateClientCache(pathPattern) {
   if (!pathPattern) {
     listMemoryCache.clear();
+    singleItemCache.clear();
     return;
   }
   for (const key of listMemoryCache.keys()) {
-    if (key.includes(pathPattern)) {
-      listMemoryCache.delete(key);
-    }
+    if (key.includes(pathPattern)) listMemoryCache.delete(key);
+  }
+  for (const key of singleItemCache.keys()) {
+    if (key.includes(pathPattern)) singleItemCache.delete(key);
   }
 }
 
