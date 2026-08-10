@@ -133,39 +133,38 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, router, initialized]);
 
-  if (!initialized) {
-    return (
-      <div className="modern-loader-overlay">
-        <div className="modern-loader-container">
-          <div className="modern-loader-spinner" style={{ borderColor: '#B13A2E transparent #B13A2E transparent' }}></div>
-          <span style={{ color: '#1e293b', fontWeight: 600, fontSize: '0.875rem' }}>Verifying session...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (pathname === "/login") {
-    return <div className="app-root">{children}</div>;
-  }
-
   return (
     <div className="app-root">
-      <div
-        className="sidebar-backdrop"
-        id="sidebar-backdrop"
-        onClick={() => {
-          document.querySelector(".app-shell")?.classList.remove("sidebar-open");
-        }}
-      />
-      <div className="app-shell">
-        <Sidebar />
-        <main className="main">
-          <Header />
-          <div className="main-inner" id="page-content">
-            {isAuthorized ? children : null}
+      {!initialized && (
+        <div className="modern-loader-overlay" style={{ zIndex: 9999 }}>
+          <div className="modern-loader-container">
+            <div className="modern-loader-spinner" style={{ borderColor: '#B13A2E transparent #B13A2E transparent' }}></div>
+            <span style={{ color: '#1e293b', fontWeight: 600, fontSize: '0.875rem' }}>Verifying session...</span>
           </div>
-        </main>
-      </div>
+        </div>
+      )}
+      {pathname === "/login" ? (
+        children
+      ) : (
+        <>
+          <div
+            className="sidebar-backdrop"
+            id="sidebar-backdrop"
+            onClick={() => {
+              document.querySelector(".app-shell")?.classList.remove("sidebar-open");
+            }}
+          />
+          <div className="app-shell" style={{ display: initialized ? 'flex' : 'none' }}>
+            <Sidebar />
+            <main className="main">
+              <Header />
+              <div className="main-inner" id="page-content">
+                {isAuthorized ? children : null}
+              </div>
+            </main>
+          </div>
+        </>
+      )}
     </div>
   );
 }
