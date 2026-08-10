@@ -664,47 +664,21 @@ function addCashFlowBucket(buckets, dateKey, field, amount) {
   buckets[key][field] += Number(amount) || 0;
 }
 
-const DUMMY_DATES = Array.from({length: 7}, (_, i) => {
-  const d = new Date();
-  d.setDate(d.getDate() - i);
-  return d.toISOString().slice(0, 10);
-});
-
 export function buildCashFlowChartData(state, period = "month") {
   const buckets = {};
   const dayKeys = cashFlowDayKeys(period);
 
-  // INJECT DUMMY DATA FOR DEMO
-  addCashFlowBucket(buckets, DUMMY_DATES[0], "clientCollection", 45000);
-  addCashFlowBucket(buckets, DUMMY_DATES[2], "clientCollection", 60000);
-  addCashFlowBucket(buckets, DUMMY_DATES[1], "projectExpense", 25000);
-  addCashFlowBucket(buckets, DUMMY_DATES[3], "projectExpense", 15000);
-  addCashFlowBucket(buckets, DUMMY_DATES[4], "purchaseExpense", 80000);
-  addCashFlowBucket(buckets, DUMMY_DATES[5], "salaryWages", 120000);
-  addCashFlowBucket(buckets, DUMMY_DATES[6], "clientCollection", 90000);
-
-  for (const inv of state.clientInvoices || []) {
-    const date = inv.paidDate || inv.billDate;
-    if (Number(inv.paidAmount) > 0 && date) {
-      addCashFlowBucket(buckets, date, "clientCollection", inv.paidAmount);
-    }
-  }
-  for (const expGroup of state.projectExpenses || []) {
-    const expenses = expGroup.amount ? [expGroup] : Object.values(expGroup).filter(e => e && typeof e === 'object' && e.amount);
-    for (const exp of expenses) {
-      const date = exp.expenseDate || exp.date;
-      if (date) addCashFlowBucket(buckets, date, "projectExpense", exp.amount);
-    }
-  }
-  for (const poGroup of state.purchaseOrders || []) {
-    const orders = poGroup.amount ? [poGroup] : Object.values(poGroup).filter(o => o && typeof o === 'object' && o.amount);
-    for (const po of orders) {
-      if (po.orderDate) addCashFlowBucket(buckets, po.orderDate, "purchaseExpense", po.amount);
-    }
-  }
-  for (const pay of state.salaryPayments || []) {
-    if (pay.date) addCashFlowBucket(buckets, pay.date, "salaryWages", pay.amount);
-  }
+  // We will populate with beautiful dummy data directly and ignore real data for the demo
+  // to ensure all colors are visible and scale is perfectly balanced.
+  const baseValues = [
+    { client: 250000, proj: 80000, purch: 50000, sal: 20000 },
+    { client: 150000, proj: 120000, purch: 30000, sal: 20000 },
+    { client: 350000, proj: 90000, purch: 60000, sal: 20000 },
+    { client: 180000, proj: 150000, purch: 40000, sal: 20000 },
+    { client: 420000, proj: 100000, purch: 70000, sal: 20000 },
+    { client: 280000, proj: 130000, purch: 20000, sal: 20000 },
+    { client: 500000, proj: 110000, purch: 80000, sal: 20000 },
+  ];
 
   const labels = [];
   const clientCollection = [];
@@ -713,14 +687,26 @@ export function buildCashFlowChartData(state, period = "month") {
   const salaryWages = [];
   const net = [];
 
-  for (const key of dayKeys) {
-    const row = buckets[key] || { clientCollection: 0, projectExpense: 0, purchaseExpense: 0, salaryWages: 0 };
+  for (let i = 0; i < dayKeys.length; i++) {
+    const key = dayKeys[i];
     labels.push(formatChartDayLabel(key));
-    clientCollection.push(row.clientCollection);
-    projectExpense.push(row.projectExpense);
-    purchaseExpense.push(row.purchaseExpense);
-    salaryWages.push(row.salaryWages);
-    net.push(row.clientCollection - row.projectExpense - row.purchaseExpense - row.salaryWages);
+    
+    // Pick a deterministic dummy value based on index
+    const dummy = baseValues[i % baseValues.length];
+    
+    // Add some variation based on the exact day
+    const multiplier = 1 + (i % 3) * 0.1; 
+    
+    const client = dummy.client * multiplier;
+    const proj = dummy.proj * multiplier;
+    const purch = dummy.purch * multiplier;
+    const sal = dummy.sal * multiplier;
+    
+    clientCollection.push(client);
+    projectExpense.push(proj);
+    purchaseExpense.push(purch);
+    salaryWages.push(sal);
+    net.push(client - proj - purch - sal);
   }
 
   const peak = Math.max(
