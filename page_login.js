@@ -36,6 +36,16 @@ export function mountLogin(container) {
             </div>
           </div>
           
+          <div class="form-group premium-input-group" style="margin-top: 1.25rem;">
+            <label for="login-password" class="form-label">Password</label>
+            <div class="input-with-icon">
+              <span class="input-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              </span>
+              <input type="password" id="login-password" class="form-input premium-input" placeholder="••••••••" required value="password" />
+            </div>
+          </div>
+          
           <button type="submit" class="btn btn-primary login-submit-btn premium-btn glow" id="login-submit-btn">
             Sign In Securely
           </button>
@@ -341,18 +351,19 @@ export function mountLogin(container) {
 
   const form = appEl.querySelector("#login-form");
   const emailInput = appEl.querySelector("#login-email");
+  const passwordInput = appEl.querySelector("#login-password");
   const submitBtn = appEl.querySelector("#login-submit-btn");
 
-  const handleLogin = async (email) => {
+  const handleLogin = async (email, password) => {
     submitBtn.innerHTML = `<span class="global-loader-spinner" style="width:20px;height:20px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:8px"></span> Authenticating...`;
     submitBtn.disabled = true;
     try {
-      await loginWithEmail(email);
+      await loginWithEmail(email, password);
       showToast("Signed in successfully", "success");
       // Full reload to boot the app dashboard correctly
       window.location.href = "/dashboard";
     } catch (e) {
-      showToast("Login failed. Please check the email.", "error");
+      showToast("Login failed. Please check credentials.", "error");
       submitBtn.textContent = "Sign In Securely";
       submitBtn.disabled = false;
     }
@@ -361,13 +372,16 @@ export function mountLogin(container) {
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const email = emailInput.value.trim();
-    if (email) handleLogin(email);
+    const password = passwordInput.value;
+    if (email) handleLogin(email, password);
   });
 
   appEl.querySelectorAll(".demo-role-card").forEach((btn) => {
     btn.addEventListener("click", () => {
-      emailInput.value = btn.dataset.email;
-      handleLogin(btn.dataset.email);
+      const email = btn.dataset.email;
+      emailInput.value = email;
+      passwordInput.value = "password"; // Default demo password
+      handleLogin(email, "password");
     });
   });
 }

@@ -18,10 +18,10 @@ export function setCurrentUser(user) {
   currentUser = user;
 }
 
-export async function loginWithEmail(email) {
+export async function loginWithEmail(email, password = 'password') {
   const result = await fetchApi('auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, password }),
   });
   if (result.access_token) {
     setToken(result.access_token);
