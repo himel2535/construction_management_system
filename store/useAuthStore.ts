@@ -13,7 +13,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   currentUser: {
     id: "demo-user",
     name: "Demo Owner",
-    email: "owner@triniti.demo",
+    email: "owner@erp.demo",
     role: "owner",
     tenantId: "tn_default",
   },

@@ -13,7 +13,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Triniti ERP — Construction Management System",
+  title: "Construction Management ERP",
   description: "Real Estate & Construction ERP Application",
 };
 
