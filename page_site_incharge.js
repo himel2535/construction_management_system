@@ -457,6 +457,20 @@ export function mountSiteIncharge(container) {
     });
   }
 
+  async function deleteSiteIncharge(sic) {
+    if (!confirm(`Are you sure you want to delete ${sic.name}?`)) return;
+    try {
+      await api.remove("siteInCharges", sic.id);
+      showToast("Site in-charge deleted successfully", "success");
+      state.selectedId = null;
+      renderDetail();
+      // It will auto-update if list is connected to sockets, but we can also force a reload of the UI if needed
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to delete site in-charge", "error");
+    }
+  }
+
   function openEditDialog(sic) {
     openCustFormDialog({
       title: "Edit site in-charge",
@@ -2674,6 +2688,7 @@ export function mountSiteIncharge(container) {
         },
         {
           onEdit: () => openEditDialog(sic),
+          onDelete: () => deleteSiteIncharge(sic),
           onAssign: () => openAssignDialog(sic),
           onContextChange,
         }

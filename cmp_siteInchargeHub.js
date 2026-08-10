@@ -164,6 +164,7 @@ export function renderSiteInchargeHeader(s, meta = {}, handlers = {}) {
       </div>
       <div class="cust-toolbar-btn-group sic-detail-header-actions">
         <button type="button" class="btn btn-edit btn-sm" id="sic-header-edit">Edit</button>
+        <button type="button" class="btn btn-danger btn-sm" id="sic-header-delete" style="background: #ef4444; color: white; border: none;">Delete</button>
         <button type="button" class="btn btn-primary btn-sm" id="sic-header-assign">Assign project</button>
       </div>
     </div>
@@ -183,6 +184,7 @@ export function renderSiteInchargeHeader(s, meta = {}, handlers = {}) {
     </div>
   `;
   section.querySelector("#sic-header-edit")?.addEventListener("click", () => handlers.onEdit?.());
+  section.querySelector("#sic-header-delete")?.addEventListener("click", () => handlers.onDelete?.());
   section.querySelector("#sic-header-assign")?.addEventListener("click", () => handlers.onAssign?.());
   section.querySelector("#sic-context-project")?.addEventListener("change", (e) => {
     handlers.onContextChange?.(e.target.value);
