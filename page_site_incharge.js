@@ -1,4 +1,4 @@
-import { listenList, listenProjectSub, create, getList } from "./svc_data.js";
+import { listenList, listenProjectSub, create, getList, removePath } from "./svc_data.js";
 import { showToast, actionFeedback } from "./cmp_toast.js";
 import { confirmAction } from "./cmp_confirm.js";
 import { setActiveNav } from "./cmp_layout.js";
@@ -460,7 +460,7 @@ export function mountSiteIncharge(container) {
   async function deleteSiteIncharge(sic) {
     if (!confirm(`Are you sure you want to delete ${sic.name}?`)) return;
     try {
-      await api.remove("siteInCharges", sic.id);
+      await removePath("siteInCharges/" + sic.id);
       showToast("Site in-charge deleted successfully", "success");
       state.selectedId = null;
       renderDetail();
