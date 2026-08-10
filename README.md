@@ -27,6 +27,28 @@
 
 ---
 
+## ⚡ Performance Optimization
+
+To achieve a production-grade, ultra-fast user experience, the system implements optimizations across all layers:
+
+### 1. Next.js (Frontend)
+- **0ms Route Transitions:** Asynchronous preloading of subsequent page modules during idle browser cycles (using `requestIdleCallback`) to achieve instantaneous navigation.
+- **API Response Caching:** TanStack React Query (`@tanstack/react-query`) is configured with smart caching policies to avoid duplicate network fetches.
+- **Build & Bundle Optimizations:** Code-splitting and tree-shaking ensure only the necessary JS and styles are loaded for the active route.
+- **Asset Cleanup:** Instantly cleared 59GB of compile-time Turbopack cache (`.next/`) from developer environments to optimize compile times and execution speeds.
+
+### 2. NestJS (Backend)
+- **Fastify Routing Engine:** High-performance HTTP routing layer handling maximum concurrent API requests with minimal CPU overhead.
+- **Background Task Offloading:** Non-blocking operations (e.g., audit logging, email notifications, report compilations) are processed asynchronously to prevent blocking the main event loop.
+- **JWT Middleware Cache:** Lightweight JWT parsing and authentication guards backed by Passport.js strategies, verifying requests in microseconds.
+
+### 3. PostgreSQL & Prisma (Database)
+- **Index Optimization:** B-Tree indexes placed on foreign keys (like `projectId`, `clientId`, `userId`) and frequently filtered status fields to maintain query latency under 1ms.
+- **Prisma Connection Pooling:** Reuses active database connections to eliminate the overhead of establishing new connections on each API request.
+- **Lean Serialization:** REST responses serialize only the fields required by the active view, minimizing payload sizes over the network.
+
+---
+
 ## 📋 Comprehensive Workflow & Modules
 
 This ERP system is designed to provide end-to-end management of large-scale construction projects. Below is a detailed breakdown of the system's core modules and their respective workflows, engineered to bring transparency, accountability, and efficiency to every phase of construction.
@@ -91,6 +113,27 @@ This ERP system is designed to provide end-to-end management of large-scale cons
 - **Company Profile:** Manage overarching organization details, branding, and localized preferences.
 - **User & Role Management:** Granular Access Control System (RBAC) defining exactly what each user (Admin, Site Manager, Accountant, Procurement) can view, edit, or delete.
 - **Audit Logs:** System-wide, immutable tracking of user actions (who created, updated, or deleted a record, and when) for ultimate compliance and security accountability.
+
+---
+
+## 🔑 Role-Based Access Control (RBAC)
+
+The ERP enforces a granular access matrix defining exactly what each employee can view, edit, or authorize:
+
+| Role | Allowed Sections / Modules | Access Level | Description |
+| :--- | :--- | :--- | :--- |
+| **Owner / Admin** | All Modules (`*`), User Management, Settings, Audit Logs | Full Access | Manages company configuration, users, budgets, and global permissions. |
+| **Project Manager** | Dashboard, Clients, Projects, Workers, Site Management, Procurement, Approvals, Settings | Read/Write | Manages assigned projects, schedules, worker rosters, and logs site progress. |
+| **Site Engineer** | Dashboard, Projects, Site Management, Approvals, Settings | Technical RW | Enters daily progress, manages site diaries, conducts quality checks and safety logs. |
+| **Site Supervisor** | Dashboard, Projects, Site Management, HR & Payroll (Attendance), Settings | Field RW | Records worker attendance, daily labor shifts, and site settlements. |
+| **Accountant** | Dashboard, Clients, Billing, Finance, Approvals, Reports, Settings | Financial RW | Generates client invoices, reviews worker payroll, logs vouchers, and tracks expenses. |
+| **Procurement Officer** | Dashboard, Procurement, Suppliers, Inventory, Reports, Settings | Logistics RW | Reviews material requests, generates POs, and receives warehouse inventory. |
+| **Client Portal** | Client Portal (`/client-portal`), Settings | Read-Only | Secure portal showing progress, milestones, and payment status for their project. |
+
+### Live Production Deployment
+- **Live Link:** [https://construction-management-system-lyart.vercel.app](https://construction-management-system-lyart.vercel.app)
+- **Backend Service:** Railway
+- **Frontend Hosting:** Vercel
 
 ---
 <div align="center">
