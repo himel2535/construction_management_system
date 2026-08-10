@@ -145,13 +145,11 @@ export function mountClientPortal(container) {
     bodyHost.innerHTML = `
       ${renderPortalHeroHtml(state.client, upcomingBills)}
       <div class="portal-main-grid">
-        <div class="portal-main-col portal-main-col--projects">
-          ${renderPortalProjectsSectionHtml(linkedProjects)}
-        </div>
-        <div class="portal-main-col portal-main-col--side">
-          ${renderPortalBillingHtml(bills)}
-          ${renderPortalMilestonesHtml(state.milestones)}
-        </div>
+        ${renderPortalProjectsSectionHtml(linkedProjects)}
+        ${renderPortalMilestonesHtml(state.milestones)}
+      </div>
+      <div class="portal-billing-full-width" style="margin-top: 0.5rem; width: 100%;">
+        ${renderPortalBillingHtml(bills)}
       </div>`;
   }
 
