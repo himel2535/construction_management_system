@@ -9,21 +9,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     Promise.all([
       import("@/svc_tenant.js"),
       import("@/svc_auth.js"),
-    ]).then(async ([{ initTenantContext, getActiveTenantId }, { setCurrentUser }]) => {
+    ]).then(async ([{ initTenantContext }, { checkSession }]) => {
       try {
         await initTenantContext().catch(() => {});
-        setCurrentUser({
-          id: "demo-user",
-          name: "Demo User",
-          email: "owner@demo.com",
-          role: "owner",
-          tenantId: getActiveTenantId() || "tn_default",
-        });
+        const user = await checkSession();
+        if (!user && pathname !== "/login") {
+          router.replace("/login");
+        } else if (user && pathname === "/login") {
+          router.replace("/dashboard");
+        }
+        setInitialized(true);
+        
         // Preload all page modules in the background for 0ms instant navigation
         const preloadModules = () => {
           const modules = [
@@ -62,11 +64,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         preloadModules();
       } catch (e) {
         console.warn("[AppShell] init fallback", e);
+        setInitialized(true);
       }
     });
   }, []);
 
   useEffect(() => {
+    if (!initialized) return;
+
     let unsub: (() => void) | undefined;
     let handleSessionChange: (() => void) | undefined;
     
@@ -75,7 +80,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       import("@/svc_governance.js"),
       import("@/svc_data.js"),
       import("@/util_route.js"),
-    ]).then(([{ canAccessRoute, defaultRouteForRole }, { getCurrentRole }, { listenValue }, { bindNavigate }]) => {
+      import("@/svc_auth.js"),
+    ]).then(([{ canAccessRoute, defaultRouteForRole }, { getCurrentRole }, { listenValue }, { bindNavigate }, { getCurrentUser }]) => {
       bindNavigate((target: string, opts?: { replace?: boolean }) => {
         if (opts?.replace) {
           router.replace(target);
@@ -85,6 +91,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       });
 
       const checkAccess = () => {
+        const user = getCurrentUser();
+        if (!user) {
+          if (pathname !== "/login") {
+            setIsAuthorized(false);
+            router.replace("/login");
+          }
+          return;
+        }
+
         const role = getCurrentRole();
         if (!canAccessRoute(role, pathname)) {
           setIsAuthorized(false);
@@ -116,7 +131,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         window.removeEventListener("erp:session-user-changed", handleSessionChange);
       }
     };
-  }, [pathname, router]);
+  }, [pathname, router, initialized]);
+
+  if (!initialized) {
+    return (
+      <div className="modern-loader-overlay">
+        <div className="modern-loader-container">
+          <div className="modern-loader-spinner" style={{ borderColor: '#B13A2E transparent #B13A2E transparent' }}></div>
+          <span style={{ color: '#1e293b', fontWeight: 600, fontSize: '0.875rem' }}>Verifying session...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (pathname === "/login") {
     return <div className="app-root">{children}</div>;

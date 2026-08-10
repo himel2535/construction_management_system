@@ -12,9 +12,13 @@ export function mountLogin(container) {
       <div class="login-card premium-glass">
         <div class="login-header">
           <div class="login-logo-circle glow">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="login-logo-icon">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            <svg width="48" height="48" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="login-logo-icon">
+              <path d="M28 16A12 12 0 1 1 4 16A12 12 0 0 1 28 16Z" stroke="#ffffff" stroke-width="2" stroke-dasharray="60 15" stroke-linecap="round" />
+              <path d="M12 24V10h4v14" fill="#ffffff" />
+              <path d="M16 24v-8h4v8" fill="#f97316" />
+              <path d="M12 8L16 4l8 4v2" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M6 20l6-6 4 4 10-10" stroke="#f97316" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M21 8h5v5" fill="#f97316" />
             </svg>
           </div>
           <h1 class="login-title gradient-text">Construction ERP</h1>
@@ -102,11 +106,12 @@ export function mountLogin(container) {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #0f172a;
+        background: #0d0403;
         position: relative;
         overflow: hidden;
         padding: 2rem;
         font-family: 'Inter', system-ui, sans-serif;
+        box-sizing: border-box;
       }
       .login-animated-bg {
         position: absolute;
@@ -114,8 +119,8 @@ export function mountLogin(container) {
         left: -50%;
         width: 200%;
         height: 200%;
-        background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15), transparent 50%),
-                    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15), transparent 50%);
+        background: radial-gradient(circle at 50% 50%, rgba(177, 58, 46, 0.15), transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(143, 44, 34, 0.12), transparent 50%);
         animation: rotateBg 30s linear infinite;
         z-index: 0;
       }
@@ -126,16 +131,15 @@ export function mountLogin(container) {
       .premium-glass {
         position: relative;
         z-index: 1;
-        background: rgba(30, 41, 59, 0.7);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(28, 12, 11, 0.85);
+        border: 1px solid rgba(177, 58, 46, 0.25);
         border-radius: 24px;
         padding: 3rem;
         width: 100%;
         max-width: 500px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(177, 58, 46, 0.1) inset;
         animation: scaleIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        box-sizing: border-box;
       }
       @keyframes scaleIn {
         0% { opacity: 0; transform: scale(0.95) translateY(20px); }
@@ -146,34 +150,34 @@ export function mountLogin(container) {
         margin-bottom: 2.5rem;
       }
       .login-logo-circle {
-        width: 72px;
-        height: 72px;
-        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #B13A2E, #8F2C22);
         color: white;
-        border-radius: 20px;
+        border-radius: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
         margin: 0 auto 1.5rem;
-        transform: rotate(-10deg);
+        transform: rotate(-5deg);
         transition: transform 0.3s ease;
       }
       .login-logo-circle:hover {
         transform: rotate(0deg) scale(1.05);
       }
       .login-logo-circle.glow {
-        box-shadow: 0 0 30px rgba(59, 130, 246, 0.4);
+        box-shadow: 0 0 30px rgba(177, 58, 46, 0.4);
       }
       .login-logo-icon {
-        width: 36px;
-        height: 36px;
+        width: 48px;
+        height: 48px;
       }
       .gradient-text {
-        background: linear-gradient(135deg, #fff, #94a3b8);
+        background: linear-gradient(135deg, #ffffff, #f1f5f9);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin: 0 0 0.5rem;
-        font-size: 1.75rem;
+        font-size: 1.85rem;
         font-weight: 800;
         letter-spacing: -0.025em;
       }
@@ -204,8 +208,8 @@ export function mountLogin(container) {
       }
       .premium-input {
         width: 100%;
-        background: rgba(15, 23, 42, 0.5);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(13, 4, 3, 0.6);
+        border: 1px solid rgba(177, 58, 46, 0.2);
         color: white;
         padding: 0.875rem 1rem 0.875rem 3rem;
         border-radius: 12px;
@@ -215,15 +219,15 @@ export function mountLogin(container) {
       }
       .premium-input:focus {
         outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-        background: rgba(15, 23, 42, 0.8);
+        border-color: #B13A2E;
+        box-shadow: 0 0 0 3px rgba(177, 58, 46, 0.25);
+        background: rgba(13, 4, 3, 0.9);
       }
       .premium-btn {
         width: 100%;
         padding: 1rem;
         border-radius: 12px;
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        background: linear-gradient(135deg, #B13A2E, #8F2C22);
         color: white;
         font-weight: 600;
         font-size: 1rem;
@@ -234,7 +238,7 @@ export function mountLogin(container) {
       }
       .premium-btn:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+        box-shadow: 0 8px 20px rgba(177, 58, 46, 0.45);
       }
       .premium-btn:active {
         transform: translateY(0);
@@ -252,13 +256,13 @@ export function mountLogin(container) {
         left: 0;
         right: 0;
         height: 1px;
-        background: rgba(255,255,255,0.1);
+        background: rgba(177, 58, 46, 0.15);
       }
       .demo-roles-divider span {
         position: relative;
-        background: #1e293b;
+        background: #1c0c0b;
         padding: 0 1rem;
-        color: #64748b;
+        color: #94a3b8;
         font-size: 0.875rem;
         font-weight: 500;
       }
@@ -270,8 +274,8 @@ export function mountLogin(container) {
       }
       
       .demo-role-card {
-        background: rgba(15, 23, 42, 0.4);
-        border: 1px solid rgba(255,255,255,0.05);
+        background: rgba(13, 4, 3, 0.5);
+        border: 1px solid rgba(177, 58, 46, 0.1);
         border-radius: 12px;
         padding: 0.75rem;
         display: flex;
@@ -283,8 +287,8 @@ export function mountLogin(container) {
         color: white;
       }
       .demo-role-card:hover {
-        background: rgba(255,255,255,0.05);
-        border-color: rgba(255,255,255,0.15);
+        background: rgba(177, 58, 46, 0.1);
+        border-color: rgba(177, 58, 46, 0.3);
         transform: translateY(-2px);
       }
       .demo-icon {
@@ -295,15 +299,15 @@ export function mountLogin(container) {
         align-items: center;
         justify-content: center;
         font-size: 1.25rem;
-        background: rgba(255,255,255,0.05);
+        background: rgba(177, 58, 46, 0.15);
       }
-      .owner-icon { background: rgba(139, 92, 246, 0.2); color: #c4b5fd; }
-      .pm-icon { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
-      .eng-icon { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
-      .sup-icon { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
-      .fin-icon { background: rgba(236, 72, 153, 0.2); color: #f9a8d4; }
-      .proc-icon { background: rgba(14, 165, 233, 0.2); color: #7dd3fc; }
-      .cli-icon { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+      .owner-icon { background: rgba(177, 58, 46, 0.2); }
+      .pm-icon { background: rgba(177, 58, 46, 0.2); }
+      .eng-icon { background: rgba(177, 58, 46, 0.2); }
+      .sup-icon { background: rgba(177, 58, 46, 0.2); }
+      .fin-icon { background: rgba(177, 58, 46, 0.2); }
+      .proc-icon { background: rgba(177, 58, 46, 0.2); }
+      .cli-icon { background: rgba(177, 58, 46, 0.2); }
       
       .demo-details {
         display: flex;
@@ -317,7 +321,7 @@ export function mountLogin(container) {
       }
       .demo-role-email {
         font-size: 0.75rem;
-        color: #64748b;
+        color: #94a3b8;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
