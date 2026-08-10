@@ -28,6 +28,8 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [navItems, setNavItems] = useState<typeof NAV_ITEMS>([]);
   const [approvalCount, setApprovalCount] = useState(0);
+  const [userName, setUserName] = useState("User");
+  const [userRoleLabel, setUserRoleLabel] = useState("Viewer");
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
@@ -37,10 +39,14 @@ export default function Sidebar() {
     Promise.all([
       import("@/util_roles.js"),
       import("@/svc_governance.js"),
-      import("@/svc_data.js")
-    ]).then(([{ filterNavItems }, { getCurrentRole, isApprovalQueueRowVisible }, { listenValue, listenList }]) => {
+      import("@/svc_data.js"),
+      import("@/svc_auth.js")
+    ]).then(([{ filterNavItems, roleLabel }, { getCurrentRole, isApprovalQueueRowVisible }, { listenValue, listenList }, { getCurrentUserName }]) => {
       const updateNav = () => {
-        setNavItems(filterNavItems(NAV_ITEMS, getCurrentRole()));
+        const role = getCurrentRole();
+        setNavItems(filterNavItems(NAV_ITEMS, role));
+        setUserName(getCurrentUserName());
+        setUserRoleLabel(roleLabel(role));
       };
 
       // Initial filter
@@ -164,10 +170,10 @@ export default function Sidebar() {
 
       <div className="sidebar-foot">
         <Link href="/settings" prefetch={true} className="sidebar-user-card" title="Settings">
-          <span className="user-avatar sm">DU</span>
+          <span className="user-avatar sm">{userName.slice(0, 2).toUpperCase()}</span>
           <span className="sidebar-user-text">
-            <strong>Demo User</strong>
-            <span>Owner / Admin</span>
+            <strong>{userName}</strong>
+            <span>{userRoleLabel}</span>
           </span>
           <span className="sidebar-user-chevron">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>

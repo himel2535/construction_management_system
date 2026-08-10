@@ -16,6 +16,9 @@ export function getToken() {
 
 export function setCurrentUser(user) {
   currentUser = user;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent("erp:session-user-changed"));
+  }
 }
 
 export async function loginWithEmail(email, password = 'password') {

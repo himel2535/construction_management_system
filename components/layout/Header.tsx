@@ -7,12 +7,25 @@ export default function Header() {
   const pathname = usePathname();
 
   useEffect(() => {
+    let handleSession: (() => void) | undefined;
+
     Promise.all([
       import("@/cmp_header.js"),
-    ]).then(([{ applyRouteChrome, initHeaderInteractions }]) => {
+    ]).then(([{ applyRouteChrome, initHeaderInteractions, syncHeaderUser }]) => {
       applyRouteChrome();
       initHeaderInteractions();
+      
+      handleSession = () => {
+        syncHeaderUser();
+      };
+      window.addEventListener("erp:session-user-changed", handleSession);
     });
+
+    return () => {
+      if (handleSession) {
+        window.removeEventListener("erp:session-user-changed", handleSession);
+      }
+    };
   }, [pathname]);
 
   return (
