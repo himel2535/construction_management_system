@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { path: "/assets", label: "Assets & Equipment", icon: "assets" },
   { path: "/billing", label: "Billing", icon: "billing" },
   { path: "/accounting", label: "Finance", icon: "finance" },
-  { path: "/approvals", label: "Approvals", icon: "approvals", badge: "2" },
+  { path: "/approvals", label: "Approvals", icon: "approvals" },
   { path: "/reports", label: "Reports", icon: "reports" },
   { path: "/client-portal", label: "Client Portal", icon: "portal" },
   { path: "/settings", label: "Settings", icon: "settings" },
@@ -27,16 +27,18 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [navItems, setNavItems] = useState(NAV_ITEMS);
+  const [approvalCount, setApprovalCount] = useState(0);
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
+    let unsubQ: (() => void) | undefined;
     let handleSessionChange: (() => void) | undefined;
     
     Promise.all([
       import("@/util_roles.js"),
       import("@/svc_governance.js"),
       import("@/svc_data.js")
-    ]).then(([{ filterNavItems }, { getCurrentRole }, { listenValue }]) => {
+    ]).then(([{ filterNavItems }, { getCurrentRole, isApprovalQueueRowVisible }, { listenValue, listenList }]) => {
       const updateNav = () => {
         setNavItems(filterNavItems(NAV_ITEMS, getCurrentRole()));
       };
@@ -49,6 +51,12 @@ export default function Sidebar() {
         updateNav();
       });
 
+      // Listen for approvals queue updates
+      unsubQ = listenList("approvalQueue", (list: any[]) => {
+        const count = (list || []).filter(isApprovalQueueRowVisible).length;
+        setApprovalCount(count);
+      });
+
       handleSessionChange = () => {
         updateNav();
       };
@@ -57,6 +65,7 @@ export default function Sidebar() {
     
     return () => {
       if (unsub) unsub();
+      if (unsubQ) unsubQ();
       if (handleSessionChange) {
         window.removeEventListener("erp:session-user-changed", handleSessionChange);
       }
@@ -123,6 +132,8 @@ export default function Sidebar() {
       <nav id="sidebar-nav">
         {navItems.map((item) => {
           const isActive = pathname === item.path || (item.path !== "/dashboard" && pathname.startsWith(item.path));
+          const isApprovals = item.path === "/approvals";
+          const badgeCount = isApprovals ? approvalCount : null;
           return (
             <Link
               key={item.path}
@@ -143,7 +154,9 @@ export default function Sidebar() {
                 />
               </span>
               <span className="nav-label">{item.label}</span>
-              {item.badge && <span className="nav-badge">{item.badge}</span>}
+              {badgeCount !== null && badgeCount > 0 && (
+                <span className="nav-badge">{badgeCount > 99 ? "99+" : badgeCount}</span>
+              )}
             </Link>
           );
         })}
