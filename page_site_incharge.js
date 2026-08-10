@@ -464,7 +464,14 @@ export function mountSiteIncharge(container) {
   }
 
   async function deleteSiteIncharge(sic) {
-    if (!confirm(`Are you sure you want to delete ${sic.name}?`)) return;
+    const ok = await confirmAction({
+      title: "Delete Site In-charge",
+      message: `Are you sure you want to delete ${sic.name}?`,
+      confirmLabel: "Delete",
+      variant: "danger",
+    });
+    if (!ok) return;
+    
     try {
       await removePath("siteInCharges/" + sic.id);
       showToast("Site in-charge deleted successfully", "success");
