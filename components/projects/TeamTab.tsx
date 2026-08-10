@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Check, MoreVertical, Shield, Users, CheckSquare, CheckCircle, Percent } from "lucide-react";
+import Loader from "@/components/ui/Loader";
 import { 
   useProjectTeamAssignments, 
   useProjectTasks, 
@@ -24,7 +25,7 @@ export default function TeamTab({ projectId }: { projectId: string }) {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
 
   if (loadingAssignments || loadingTasks || loadingUsers) {
-    return <div className="p-8 text-slate-500">Loading team data...</div>;
+    return <div className="p-8 flex justify-center"><Loader text="Loading team data..." /></div>;
   }
 
   const activeAssignments = assignments.filter(a => a.status !== "ended");

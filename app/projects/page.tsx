@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Download
 } from "lucide-react";
+import Loader from "@/components/ui/Loader";
 import { useProjects } from "@/lib/hooks/useProjects";
 import { Project, ProjectSchema } from "@/lib/schemas";
 import Sparkline from "@/components/ui/Sparkline";
@@ -251,7 +252,7 @@ export default function ProjectsPage() {
               </thead>
               <tbody>
                 {isLoading ? (
-                   <tr><td colSpan={9} className="text-center p-8 text-slate-500">Loading projects...</td></tr>
+                  <tr><td colSpan={9} className="text-center p-8"><Loader text="Loading projects..." /></td></tr>
                 ) : filteredProjects.length === 0 ? (
                    <tr><td colSpan={9} className="text-center p-8 text-slate-500">No projects found matching filters.</td></tr>
                 ) : filteredProjects.map((project, idx) => (

@@ -7,6 +7,7 @@ import {
   ArrowLeft, Building2, Landmark, CheckCircle2, 
   Clock, Calendar, Wallet, FileText, Activity, Archive, Edit 
 } from "lucide-react";
+import Loader from "@/components/ui/Loader";
 import { useProject } from "@/lib/hooks/useProjects";
 import { TypePill, HealthPill, StatusChip } from "@/components/ui/StatusPill";
 import Avatar from "@/components/ui/Avatar";
@@ -49,7 +50,7 @@ export default function ProjectDetailsPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-slate-500 font-medium">Loading project details...</div>
+        <Loader text="Loading project details..." />
       </div>
     );
   }

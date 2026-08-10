@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { HardHat, Truck, Plus, Users, ClipboardList, Wallet } from "lucide-react";
+import Loader from "@/components/ui/Loader";
 import { 
   useProjectEquipment, 
   useProjectWorkers 
@@ -18,7 +19,7 @@ export default function ResourcesTab({ projectId }: { projectId: string }) {
   const [isWorkerModalOpen, setIsWorkerModalOpen] = useState(false);
 
   if (loadingEq || loadingWorkers) {
-    return <div className="p-8 text-slate-500">Loading resources data...</div>;
+    return <div className="p-8 flex justify-center"><Loader text="Loading resources data..." /></div>;
   }
 
   const formatCurrency = (val: number) => `BDT ${val.toLocaleString()}`;

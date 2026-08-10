@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Calculator, Settings, Edit, Trash2, Wallet, Layers, FileText } from "lucide-react";
+import Loader from "@/components/ui/Loader";
 import { 
   useProjectBoq, 
   useProjectPhases, 
@@ -20,7 +21,7 @@ export default function BoqTab({ projectId, gov = false }: { projectId: string, 
   const [isPhasesModalOpen, setIsPhasesModalOpen] = useState(false);
 
   if (loadingBoq || loadingPhases) {
-    return <div className="p-8 text-slate-500">Loading BOQ data...</div>;
+    return <div className="p-8 flex justify-center"><Loader text="Loading BOQ data..." /></div>;
   }
 
   const formatCurrency = (val: number) => `BDT ${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

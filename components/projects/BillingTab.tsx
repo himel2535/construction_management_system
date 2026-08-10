@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Plus, DollarSign, Download, Wallet, ArrowUpCircle, CheckCircle, AlertCircle } from "lucide-react";
+import { FileText, Plus, Download } from "lucide-react";
+import Loader from "@/components/ui/Loader";
 import { useProjectInvoices } from "@/lib/hooks/useProjectBilling";
 import { StatusChip } from "@/components/ui/StatusPill";
 import CreateInvoiceModal from "@/components/modals/CreateInvoiceModal";
@@ -14,7 +15,7 @@ export default function BillingTab({ projectId, clientId, contractValue }: { pro
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
 
   if (isLoading) {
-    return <div className="p-8 text-slate-500">Loading billing data...</div>;
+    return <div className="p-8 flex justify-center"><Loader text="Loading billing data..." /></div>;
   }
 
   const formatCurrency = (val: number) => `BDT ${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

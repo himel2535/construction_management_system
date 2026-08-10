@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Activity, Plus, FileText, ClipboardList, Layers, Clock } from "lucide-react";
+import Loader from "@/components/ui/Loader";
 import { useProjectProgress } from "@/lib/hooks/useProjectProgress";
 import { useProjectBoq } from "@/lib/hooks/useProjectBoq";
 import LogProgressModal from "@/components/modals/LogProgressModal";
@@ -13,7 +14,7 @@ export default function ProgressTab({ projectId }: { projectId: string }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   if (loadingProgress || loadingBoq) {
-    return <div className="p-8 text-slate-500">Loading progress data...</div>;
+    return <div className="p-8 flex justify-center"><Loader text="Loading progress data..." /></div>;
   }
 
   const getBoqName = (boqId?: string) => {

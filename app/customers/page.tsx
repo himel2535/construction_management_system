@@ -12,6 +12,7 @@ import {
   Edit,
   Plus
 } from "lucide-react";
+import Loader from "@/components/ui/Loader";
 import Link from "next/link";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import Sparkline from "@/components/ui/Sparkline";
@@ -233,7 +234,7 @@ export default function CustomersPage() {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={10} className="text-center p-8 text-slate-500">Loading clients...</td></tr>
+                  <tr><td colSpan={10} className="text-center p-8"><Loader text="Loading clients..." /></td></tr>
                 ) : filteredCustomers.length === 0 ? (
                   <tr><td colSpan={10} className="text-center p-8 text-slate-500">No customers match your filters.</td></tr>
                 ) : filteredCustomers.map((c, idx) => (

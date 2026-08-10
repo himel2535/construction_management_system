@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Folder, Upload, File, Trash2, Download, ExternalLink } from "lucide-react";
+import Loader from "@/components/ui/Loader";
 import { useProjectDocuments, useDeleteDocument } from "@/lib/hooks/useProjectDocuments";
 import UploadDocumentModal from "@/components/modals/UploadDocumentModal";
 
@@ -11,7 +12,7 @@ export default function DocumentsTab({ projectId }: { projectId: string }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   if (isLoading) {
-    return <div className="p-8 text-slate-500">Loading documents...</div>;
+    return <div className="p-8 flex justify-center"><Loader text="Loading documents..." /></div>;
   }
 
   const formatSize = (bytes?: number) => {
