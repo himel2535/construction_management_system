@@ -35,16 +35,32 @@ export function useCreateProgress() {
       // Auto-calculate and update project progressPercent
       try {
         const allProgress = await api.getList("projectProgress", { projectId: data.projectId }) as ProjectProgress[];
-        const executed = allProgress.reduce((sum, p) => sum + (p.executedQty || 0), 0);
+        
+        // ensure the newly added execution is counted if the backend list is stale
+        const hasNew = allProgress.some(p => p.activity === data.activity && p.executedQty === data.executedQty);
+        let executed = allProgress.reduce((sum, p) => sum + (Number(p.executedQty) || 0), 0);
+        if (!hasNew) {
+          executed += Number(data.executedQty) || 0;
+        }
         
         const allBoq = await api.getList("projectBoq", { projectId: data.projectId }) as any[];
-        const planned = allBoq.length > 0 
-          ? allBoq.reduce((sum, b) => sum + (b.qty || 0), 0) 
-          : allProgress.reduce((sum, p) => sum + (p.plannedQty || 0), 0) || 10000;
+        let planned = allBoq.length > 0 
+          ? allBoq.reduce((sum, b) => sum + (Number(b.qty) || 0), 0) 
+          : allProgress.reduce((sum, p) => sum + (Number(p.plannedQty) || 0), 0);
           
-        const newPercent = Math.min(100, Math.round((executed / (planned || 1)) * 100));
+        if (!planned || planned === 0) planned = 10000;
+          
+        const newPercent = Math.min(100, Math.max(1, Math.round((executed / planned) * 100)));
         
-        await api.update("projects", data.projectId, { progressPercent: newPercent });
+        // Fetch current project to do a full replacement in case backend rejects partial updates
+        const projects = await api.getList("projects");
+        const currentProject = projects.find((p: any) => p.id === data.projectId);
+        
+        if (currentProject) {
+          await api.update("projects", data.projectId, { ...currentProject, progressPercent: newPercent });
+        } else {
+          await api.update("projects", data.projectId, { progressPercent: newPercent });
+        }
       } catch (e) {
         console.error("Failed to auto-update project progress", e);
       }
