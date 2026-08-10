@@ -368,6 +368,12 @@ export function mountSiteIncharge(container) {
 
   function renderList() {
     const list = filteredList();
+    if (!state.selectedId && list.length > 0) {
+      state.selectedId = list[0].id;
+      // We don't call renderDetail here immediately to avoid double render loops if renderList was called from inside somewhere, 
+      // but we should make sure it gets called. The best way is to just set it and let the caller or subsequent code render it.
+      setTimeout(renderDetail, 0); 
+    }
     listPanel.innerHTML = `
       <div class="dash-widget-head">
         <h3 class="dash-widget-title">Site in-charges</h3>
