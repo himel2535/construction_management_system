@@ -188,9 +188,27 @@ export function buildProjectPerformanceRows(projects = [], milestonesByProject =
     .slice(0, 3);
 }
 
-export function buildAttentionItems(state, projects = []) {
+export function buildAttentionItems(state, projects) {
+  const alerts = [];
+
+  // INJECT DUMMY ATTENTION ITEMS FOR DEMO
+  alerts.push({
+    title: "3 Purchase Requests Pending Approval",
+    icon: "po", iconTone: "orange",
+    actionText: "Review", actionLink: "/approvals"
+  });
+  alerts.push({
+    title: "2 Materials Below Minimum Stock",
+    icon: "inventory", iconTone: "orange",
+    actionText: "View", actionLink: "/inventory"
+  });
+  alerts.push({
+    title: "1 Equipment Maintenance Overdue",
+    icon: "maintenance", iconTone: "red",
+    actionText: "View", actionLink: "/assets"
+  });
   const today = todayISO();
-  const items = [];
+  const items = [...alerts];
 
   const delayedProjects = projects.filter(
     (p) => projectHealth(p, state.milestonesByProject?.[p.id] || [], today) === "delayed"
@@ -398,6 +416,28 @@ export function buildProcurementAlerts(state = {}) {
   const materialRequestsByProject = state.materialRequestsByProject || {};
   const alerts = [];
   const today = todayISO();
+  
+  // INJECT DUMMY ALERTS FOR DEMO
+  alerts.push({
+    icon: "steel", iconTone: "orange",
+    title: "Steel Rods (500W) Low Stock: 5 Tons",
+    tag: "Low Stock", tagTone: "low-stock", link: "/inventory"
+  });
+  alerts.push({
+    icon: "cement", iconTone: "red",
+    title: "Premium Cement Reorder Required",
+    tag: "Reorder", tagTone: "reorder", link: "/inventory"
+  });
+  alerts.push({
+    icon: "po", iconTone: "red",
+    title: "2 Purchase Orders Delayed",
+    tag: "Delayed", tagTone: "delayed", link: "/purchases"
+  });
+  alerts.push({
+    icon: "delivery", iconTone: "red",
+    title: "1 Supplier Delivery Overdue",
+    tag: "Overdue", tagTone: "overdue", link: "/purchases"
+  });
 
   const lowStock = listLowStock(materials)
     .map((m) => ({
@@ -624,9 +664,24 @@ function addCashFlowBucket(buckets, dateKey, field, amount) {
   buckets[key][field] += Number(amount) || 0;
 }
 
+const DUMMY_DATES = Array.from({length: 7}, (_, i) => {
+  const d = new Date();
+  d.setDate(d.getDate() - i);
+  return d.toISOString().slice(0, 10);
+});
+
 export function buildCashFlowChartData(state, period = "month") {
   const buckets = {};
   const dayKeys = cashFlowDayKeys(period);
+
+  // INJECT DUMMY DATA FOR DEMO
+  addCashFlowBucket(buckets, DUMMY_DATES[0], "clientCollection", 45000);
+  addCashFlowBucket(buckets, DUMMY_DATES[2], "clientCollection", 60000);
+  addCashFlowBucket(buckets, DUMMY_DATES[1], "projectExpense", 25000);
+  addCashFlowBucket(buckets, DUMMY_DATES[3], "projectExpense", 15000);
+  addCashFlowBucket(buckets, DUMMY_DATES[4], "purchaseExpense", 80000);
+  addCashFlowBucket(buckets, DUMMY_DATES[5], "salaryWages", 120000);
+  addCashFlowBucket(buckets, DUMMY_DATES[6], "clientCollection", 90000);
 
   for (const inv of state.clientInvoices || []) {
     const date = inv.paidDate || inv.billDate;
