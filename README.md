@@ -1,158 +1,98 @@
-# 🏗️ Triniti ERP — Enterprise Construction Management System
+<div align="center">
+  <h1>🏗️ Enterprise Construction Management System (ERP)</h1>
+  <p>A comprehensive, scalable, and modern ERP solution tailored for the construction industry to streamline operations, finance, and human resources.</p>
+  
+  <a href="https://construction-management-system-lyart.vercel.app/" target="_blank">
+    <img src="https://img.shields.io/badge/Live_Demo-View_Project-2563EB?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo" />
+  </a>
+</div>
 
-[![Live App](https://img.shields.io/badge/Live%20Demo-Vercel-blue?style=for-the-badge&logo=vercel)](https://constructionmanagementsystem.vercel.app)
-[![Frontend Repo](https://img.shields.io/badge/Frontend-GitHub-black?style=for-the-badge&logo=github)](https://github.com/himel2535/construction_management_system)
-[![Backend Repo](https://img.shields.io/badge/Backend-GitHub-red?style=for-the-badge&logo=github)](https://github.com/himel2535/construction_management_system_backend)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?style=for-the-badge&logo=nestjs)](https://nestjs.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-336791?style=for-the-badge&logo=postgresql)](https://neon.tech)
-[![Prisma](https://img.shields.io/badge/Prisma-6-2D3748?style=for-the-badge&logo=prisma)](https://www.prisma.io/)
+<br />
 
-**Triniti ERP** is a modern, full-stack, enterprise-grade Construction & Real Estate ERP application engineered for high throughput, real-time site tracking, automated payroll, multi-tier procurement approvals, and financial auditing.
+## 🚀 Tech Stack
 
----
+### Frontend
+- **Framework:** Next.js 16 (React 19)
+- **Styling:** Tailwind CSS v4, Lucide React (Icons)
+- **State Management:** Zustand, React Query (`@tanstack/react-query`)
+- **Authentication:** Firebase Auth
+- **Validation:** Zod
 
-## 🔗 Quick Links & Live Deployments
-
-- 🌐 **Live Website**: [https://constructionmanagementsystem.vercel.app](https://constructionmanagementsystem.vercel.app)
-- ⚙️ **Backend API Endpoint**: `https://constructionmanagementsystembackend-production.up.railway.app/api`
-- 🖥️ **Frontend Repository**: [github.com/himel2535/construction_management_system](https://github.com/himel2535/construction_management_system)
-- 🖥️ **Backend Repository**: [github.com/himel2535/construction_management_system_backend](https://github.com/himel2535/construction_management_system_backend)
-
----
-
-## 🚀 Key Features & Modules
-
-### 📊 1. Executive Analytics & Dashboard
-- **Real-Time KPIs**: Total Active Projects, Contract Value, Overdue Receivables, Monthly Collections & Expenses.
-- **Cash Flow Analytics**: Visual combo charts displaying client collections, project expenses, purchase orders, worker wages, and net cash flow trends.
-- **Budget vs. Actual Cost**: Donut chart tracking total allocated budget, actual spend, committed cost, and remaining contingency.
-- **Site Activity Summary**: Live tracker for worker attendance, active site diaries, site in-charges present, and safety incidents.
-
-### 🏗️ 2. Project Lifecycle & BOQ Management
-- **Project Performance Oversight**: Progress percentages, budget tracking, deadlines, and automated health indicators (`On Track`, `At Risk`, `Delayed`).
-- **BOQ & Phase Structuring**: Bill of Quantities (BOQ) line items categorized by project phases with cost code references.
-- **Milestone Tracking**: Payment milestones, IPC bills, and deadline notifications.
-
-### 👷 3. Site Operations & Worker Payroll
-- **Daily Site Diaries**: Weather conditions, labor counts, work progress logs, site photos, and supervisor submissions.
-- **Worker Attendance & Roster**: Mark daily attendance (`Present`, `Absent`, `Half-Day`, `Overtime Hours`) linked to specific construction sites.
-- **Automated Payroll Engine**: Worker advance tracking, salary calculations based on attendance and daily rates, settlement months, and payout history.
-
-### 📦 4. Procurement & Inventory Management
-- **Multi-Stage Procurement**: Material Requests (MR) ➔ Purchase Orders (PO) ➔ Goods Receipts (GRN).
-- **Automated Stock Controls**: Low-stock alerts, reorder level triggers, central inventory catalog, and stock-in/stock-out vouchers.
-- **Supplier Portal**: Vendor directory, billing ledgers, payment tracking, and product catalogs.
-
-### 💰 5. Billing, Finance & Multi-Tier Approvals
-- **Client Billing & Receivables**: Invoice generation, payment milestone tracking, and aging receivables analytics.
-- **Approval Workflow**: Centralized approval queue for purchase requisitions, high-value expenses, site settlements, and client invoices.
-- **Voucher Ledger**: Double-entry accounting accounts, voucher lines, and audit log tracking.
+### Backend
+- **Framework:** NestJS (Node.js)
+- **Database ORM:** Prisma
+- **Database:** PostgreSQL (Relational Database)
+- **Security & Auth:** JWT (JSON Web Tokens), Passport.js
+- **Deployment:** Railway (Backend), Vercel (Frontend)
 
 ---
 
-## ⚡ High-Performance Architecture (Ultra-Fast Optimization)
+## 📋 Comprehensive Workflow & Modules
 
-To deliver **0ms instant route navigation** and sub-millisecond API response times, the entire system has been optimized at every layer of the stack:
+This ERP system is designed to provide end-to-end management of large-scale construction projects. Below is a detailed breakdown of the system's core modules and their respective workflows, engineered to bring transparency, accountability, and efficiency to every phase of construction.
 
-### 1. 🗄️ PostgreSQL Database B-Tree Indexing (Prisma ORM)
-- Created composite and single B-Tree indexes (`@@index`) across high-traffic query fields (`projectId`, `tenantId`, `status`, `createdAt`, `clientId`, `supplierId`, `logDate`).
-- Eliminates sequential full-table scans, making PostgreSQL queries **10x to 50x faster**.
+### 🏢 1. Projects & Project Management
+- **Project Initiation:** Create and define new projects with specific budgets, contractual timelines, and engineering scopes.
+- **Milestone Tracking:** Break down monolithic projects into distinct, measurable milestones (e.g., Foundation, Framing, Finishing) to track progress effectively.
+- **Resource Allocation:** Assign dedicated Site In-charges, engineering teams, and necessary heavy equipment to specific project sites.
+- **Progress Monitoring:** Real-time updates on project completion percentages through the `ProjectProgress` and `ProjectPhase` tracking systems, providing a bird's-eye view to stakeholders.
 
-### 2. ⚡ NestJS Backend Optimization & Response Compression
-- **HTTP Payload Compression**: Integrated `compression` middleware in NestJS to gzip JSON payloads, reducing network bandwidth requirements by **70–80%**.
-- **In-Memory TTL Caching**: Added a high-speed 5-second in-memory query cache for GET endpoints, with automatic cache invalidation triggered on `create`, `update`, and `delete` write operations.
+### 👷‍♂️ 2. Site Management
+- **Site Diaries:** Daily logging of site activities, weather conditions, manpower, and overall progress by the Site In-charge.
+- **Safety Incidents:** Log and monitor any on-site safety hazards or accidents to maintain strict compliance with health and safety regulations.
+- **Site Settlements:** Track daily petty cash and operational expenses managed directly by the site supervisors.
 
-### 3. 🚀 Next.js SWR Caching & In-Flight Request Deduplication
-- **In-Flight Request Deduplication**: Prevents duplicate HTTP network requests fired within the same millisecond by caching active Promises.
-- **SWR (Stale-While-Revalidate) Client Memory Cache**: Serves cached data instantly (0ms latency) upon page navigation while silently revalidating in the background.
+### 🤝 3. Clients
+- **Client Profiles:** Maintain a centralized CRM for all client details, contact persons, and related legal documents.
+- **Client Invoices & IPC Bills:** Generate, track, and manage Interim Payment Certificates (IPC) based on verified project milestone completions, ensuring steady cash flow.
 
----
+### 🛒 4. Procurement
+- **Material Requests (MR):** Site managers raise digital requests for raw materials required on-site based on BOQ (Bill of Quantities).
+- **Purchase Orders (PO):** The procurement team reviews MRs, selects suppliers, and generates official, trackable Purchase Orders.
+- **Goods Receipts (GR):** Upon delivery at the site, supervisors verify and record Goods Receipts against the POs, ensuring quality and quantity match before updating inventory.
 
-## 🛠️ Technology Stack
+### 🏭 5. Suppliers
+- **Supplier Directory:** Manage vendor profiles, product catalogs, pricing agreements, and historical performance metrics.
+- **Supplier Bills & Payments:** Track accounts payable efficiently. Log supplier bills upon goods receipt and process payments systematically.
+- **Supplier Notes & Documents:** Keep secure records of contracts, NDAs, trade licenses, and negotiation notes.
 
-| Layer | Technologies & Tools |
-| :--- | :--- |
-| **Frontend** | Next.js 16 (App Router, Turbopack), React 19, TypeScript, React Query (TanStack), Tailwind CSS, Glassmorphism UI |
-| **Backend** | NestJS 11, TypeScript, Node.js, Express, Passport JWT Authentication, Compression |
-| **Database & ORM** | PostgreSQL (Hosted on Neon Database), Prisma ORM 6 |
-| **Authentication** | JSON Web Tokens (JWT), Role-Based Access Control (RBAC) with 8 Pre-configured Roles |
-| **Hosting & Infra** | Vercel (Frontend Hosting), Railway (Backend API Services), Neon (Cloud PostgreSQL) |
+### 📦 6. Inventory
+- **Stock Management:** Real-time tracking of construction materials (cement, steel, sand, etc.) across multiple warehouses and active project sites.
+- **Stock In / Out:** Automated inventory adjustments. Stock increases when Goods Receipts are approved, and decreases accurately when materials are consumed at the site (`MaterialLog`).
 
----
+### 👥 7. HR & Payroll
+- **Worker Management:** Maintain a rich database of laborers, supervisors, and specialized tradesmen with their daily wage rates, skill categories, and employment history.
+- **Attendance Tracking:** Log daily attendance, shifts, and overtime for hundreds of site workers effortlessly.
+- **Payroll & Advances:** Automate complex salary calculations based on dynamic attendance records. Seamlessly manage worker wage advances and final salary disbursements.
 
-## 👥 Role-Based Access Control (RBAC)
+### 🚜 8. Assets & Equipment
+- **Asset Directory:** Manage high-value heavy machinery, vehicles, and specialized construction equipment.
+- **Asset Assignments:** Allocate equipment to specific projects with precise check-out and check-in dates to maximize utilization.
+- **Maintenance Logs:** Schedule and track preventive and corrective maintenance to minimize unexpected equipment downtime and repair costs.
 
-The system enforces strict permission scoping across 8 distinct user roles:
+### 💸 9. Billing & Finance
+- **Accounts Receivable / Payable:** A holistic, ledger-level view of what is owed by clients and what is due to suppliers/subcontractors.
+- **Project Expenses:** Track all miscellaneous project-related expenses outside of direct material procurement to calculate true project profitability.
+- **Voucher System:** Manage manual journal entries, payment vouchers, and receipt vouchers adhering to strict accounting standards.
 
-| Role | Access Scope |
-| :--- | :--- |
-| **Owner / Admin** | Full operational & financial access across all projects, settings, and approvals |
-| **Project Manager** | Full access to assigned projects, milestones, BOQs, site diaries, and approvals |
-| **Site Engineer** | Manages daily site activity, progress logs, material logs, and equipment tracking |
-| **Site Supervisor** | Focuses on site diaries, worker attendance logging, and site inventory |
-| **Accountant** | Manages client invoices, supplier bills, vouchers, worker advances, and payroll |
-| **Procurement Officer** | Manages material requisitions, purchase orders, suppliers, and stock receipts |
-| **Client** | Portal access to view project progress, invoice statuses, and payment receipts |
-| **Viewer** | Read-only access to assigned project reports and dashboards |
+### ✅ 10. Approvals (Approval Queue)
+- **Multi-tier Authorization:** Critical actions (like high-value Purchase Orders, large Inventory Stock Outs, or Salary Payments) automatically enter a centralized approval queue.
+- **Role-based Access:** Only authorized upper-management personnel (e.g., Project Directors, Finance Managers) can approve or reject pending requests, preventing unauthorized financial or material leakage.
 
----
+### 📊 11. Reports
+- **Dynamic Dashboards:** Visual representation of project health, financial standing, and resource utilization using interactive charts.
+- **Custom Analytics:** Generate and export detailed reports on inventory consumption trends, payroll expenses, and supplier ledger balances for data-driven decision-making.
 
-## 💻 Local Development Setup
+### 🌐 12. Client Portal
+- **Transparency:** Clients can securely log in to view the real-time progress and financial standing of their specific projects.
+- **Document Sharing:** Share site photos, progress reports, approved milestones, and invoices directly with the client in a professional interface.
 
-### Prerequisites
-- Node.js `v18+` or `v20+`
-- PostgreSQL database or Neon Cloud connection string
-
-### 1. Clone Repositories
-```bash
-# Clone Frontend
-git clone https://github.com/himel2535/construction_management_system.git
-cd construction_management_system
-
-# Clone Backend (in a separate directory)
-git clone https://github.com/himel2535/construction_management_system_backend.git
-cd construction_management_system_backend
-```
-
-### 2. Backend Setup (`construction_management_system_backend`)
-```bash
-# Install dependencies
-npm install
-
-# Configure Environment Variables (.env)
-DATABASE_URL="postgresql://user:password@localhost:5432/construction_db"
-JWT_SECRET="your_jwt_secret_key"
-PORT=4000
-
-# Push Prisma Schema to Database & Generate Client
-npx prisma db push
-npx prisma generate
-
-# Start Backend Server
-npm run start:dev
-```
-Backend will run at `http://localhost:4000`
-
-### 3. Frontend Setup (`construction_management_system`)
-```bash
-# Install dependencies
-npm install
-
-# Configure Environment Variables (.env.local)
-NEXT_PUBLIC_BACKEND_URL="http://localhost:4000/api"
-
-# Start Next.js Development Server
-npm run dev
-```
-Frontend will run at `http://localhost:3000`
+### ⚙️ 13. Settings
+- **Company Profile:** Manage overarching organization details, branding, and localized preferences.
+- **User & Role Management:** Granular Access Control System (RBAC) defining exactly what each user (Admin, Site Manager, Accountant, Procurement) can view, edit, or delete.
+- **Audit Logs:** System-wide, immutable tracking of user actions (who created, updated, or deleted a record, and when) for ultimate compliance and security accountability.
 
 ---
-
-## 📜 License
-
-This project is licensed under the **MIT License**.
-
----
-
-Designed & Developed for Enterprise Construction Operations.
+<div align="center">
+  <i>Engineered for scale, built for performance, and designed to bring order to the chaos of construction management.</i>
+</div>
