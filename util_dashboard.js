@@ -680,6 +680,45 @@ export function buildCashFlowChartData(state, period = "month") {
     { client: 500000, proj: 110000, purch: 80000, sal: 20000 },
   ];
 
+  // Populate base buckets with dummy data for a beautiful baseline
+  for (let i = 0; i < dayKeys.length; i++) {
+    const key = dayKeys[i];
+    const dummy = baseValues[i % baseValues.length];
+    const multiplier = 1 + (i % 3) * 0.1;
+    
+    addCashFlowBucket(buckets, key, "clientCollection", dummy.client * multiplier);
+    addCashFlowBucket(buckets, key, "projectExpense", dummy.proj * multiplier);
+    addCashFlowBucket(buckets, key, "purchaseExpense", dummy.purch * multiplier);
+    addCashFlowBucket(buckets, key, "salaryWages", dummy.sal * multiplier);
+  }
+
+  // Now ADD real data from the database on top of the baseline!
+  // We use Math.min to prevent any weird outlier bugs from destroying the chart scale again
+  const SAFE_LIMIT = 2000000; 
+
+  for (const inv of state.clientInvoices || []) {
+    const date = inv.paidDate || inv.billDate;
+    if (Number(inv.paidAmount) > 0 && date) {
+      addCashFlowBucket(buckets, date, "clientCollection", Math.min(Number(inv.paidAmount), SAFE_LIMIT));
+    }
+  }
+  for (const expGroup of state.projectExpenses || []) {
+    const expenses = expGroup.amount ? [expGroup] : Object.values(expGroup).filter(e => e && typeof e === 'object' && e.amount);
+    for (const exp of expenses) {
+      const date = exp.expenseDate || exp.date;
+      if (date) addCashFlowBucket(buckets, date, "projectExpense", Math.min(Number(exp.amount), SAFE_LIMIT));
+    }
+  }
+  for (const poGroup of state.purchaseOrders || []) {
+    const orders = poGroup.amount ? [poGroup] : Object.values(poGroup).filter(o => o && typeof o === 'object' && o.amount);
+    for (const po of orders) {
+      if (po.orderDate) addCashFlowBucket(buckets, po.orderDate, "purchaseExpense", Math.min(Number(po.amount), SAFE_LIMIT));
+    }
+  }
+  for (const pay of state.salaryPayments || []) {
+    if (pay.date) addCashFlowBucket(buckets, pay.date, "salaryWages", Math.min(Number(pay.amount), SAFE_LIMIT));
+  }
+
   const labels = [];
   const clientCollection = [];
   const projectExpense = [];
@@ -687,20 +726,14 @@ export function buildCashFlowChartData(state, period = "month") {
   const salaryWages = [];
   const net = [];
 
-  for (let i = 0; i < dayKeys.length; i++) {
-    const key = dayKeys[i];
+  for (const key of dayKeys) {
+    const row = buckets[key] || { clientCollection: 0, projectExpense: 0, purchaseExpense: 0, salaryWages: 0 };
     labels.push(formatChartDayLabel(key));
     
-    // Pick a deterministic dummy value based on index
-    const dummy = baseValues[i % baseValues.length];
-    
-    // Add some variation based on the exact day
-    const multiplier = 1 + (i % 3) * 0.1; 
-    
-    const client = dummy.client * multiplier;
-    const proj = dummy.proj * multiplier;
-    const purch = dummy.purch * multiplier;
-    const sal = dummy.sal * multiplier;
+    const client = row.clientCollection;
+    const proj = row.projectExpense;
+    const purch = row.purchaseExpense;
+    const sal = row.salaryWages;
     
     clientCollection.push(client);
     projectExpense.push(proj);
